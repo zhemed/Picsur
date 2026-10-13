@@ -34,12 +34,10 @@ router-outlet ~ * {
   width: 100%;
 }
 
-:not(input) {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
+// 2026-10-13：删掉上游遗留的全局 `:not(input) { user-select: none }`。
+// 副作用是整个界面（标签/标题/正文/表格/错误提示）都选不中、复制不了，
+// 只有 <input> 里的值能复制 —— 项目所有者明确反馈过这个问题。
+// Material 组件自身已对按钮/图标/菜单项禁用选中，无需全局兜底。
 
 .mat-icon {
   // Yes yes, !important is here, god damn css
