@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/guides/index.md", "reason": "跨包思考指南入口：本任务跨 shared/backend/frontend 三包"}
+{"file": ".trellis/spec/picsur-backend/backend/index.md", "reason": "backend 规范入口，含 Pre-Development Checklist 与 Quality Check"}
+{"file": ".trellis/spec/picsur-frontend/frontend/index.md", "reason": "frontend 规范入口，构建 Angular 产物前必读"}
+{"file": ".trellis/spec/picsur-shared/backend/index.md", "reason": "shared 是 workspace 依赖，必须先于 backend/frontend 构建"}

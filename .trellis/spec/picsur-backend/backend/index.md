@@ -1,0 +1,63 @@
+# Backend Development Guidelines
+
+> Best practices for backend development in this project.
+
+---
+
+## Overview
+
+This directory contains guidelines for backend development. Fill in each file with your project's specific conventions.
+
+---
+
+## Guidelines Index
+
+| Guide | Description | Status |
+|-------|-------------|--------|
+| [Build & Deploy](./build-and-deploy.md) | 工具链（Node 20 / pnpm 9.6.0）、三包构建、Docker 镜像、compose、环境变量契约 | ✅ 已填 |
+| [Image API Contracts](./image-api-contracts.md) | 图像 HTTP 接口：路径、请求/响应字段、状态码、错误矩阵 | ✅ 已填 |
+| [Directory Structure](./directory-structure.md) | Module organization and file layout | To fill |
+| [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations | To fill |
+| [Error Handling](./error-handling.md) | Error types, handling strategies | To fill |
+| [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
+| [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | To fill |
+
+---
+
+## Pre-Development Checklist
+
+写代码前逐条确认（来自 2026-10-13 接手基线的实测教训）：
+
+- [ ] 涉及装依赖/构建 → 先读 [Build & Deploy](./build-and-deploy.md)：**必须 Node 20 + pnpm 9.6.0**。
+- [ ] 涉及图像接口 → 先读 [Image API Contracts](./image-api-contracts.md)：路径与状态码都不符合直觉。
+- [ ] 动到环境变量 → 三处同步：`.env.example`、`docker-compose.yml`、`build-and-deploy.md` §3.1。
+- [ ] 动到数据库实体/查询 → 生产必须 `PICSUR_PRODUCTION=true`，否则 TypeORM 会 `synchronize` 直改 schema。
+- [ ] 要打日志 → **不要开 `PICSUR_VERBOSE`**（会明文打印 JWT secret 与 DB 口令）。
+- [ ] 要出网 → 默认遥测会打已停维护的 `metrics.picsur.org`，用系统首选项 `enable_telemetry` 关。
+
+## Quality Check
+
+改完要能回答：
+
+- [ ] 三包是否都构建过（顺序 shared → backend → frontend）？
+- [ ] `GET /api/info` 是否 200 且 `production:true`？
+- [ ] 上传/取回/删除冒烟是否仍然全绿（取回断言**像素**而不是字节）？
+- [ ] 有没有把密钥带进 git 跟踪范围或镜像（检查 `.gitignore` + `.dockerignore`）？
+- [ ] 镜像里是否仍然**没有**依赖上游私有中间镜像？
+
+---
+
+## How to Fill These Guidelines
+
+For each guideline file:
+
+1. Document your project's **actual conventions** (not ideals)
+2. Include **code examples** from your codebase
+3. List **forbidden patterns** and why
+4. Add **common mistakes** your team has made
+
+The goal is to help AI assistants and new team members understand how YOUR project works.
+
+---
+
+**Language**: All documentation should be written in **English**.
