@@ -5,6 +5,7 @@ node_modules
 .env
 .env.*
 .run
+.worktrees
 
 # AI 工作区，与镜像无关
 .trellis
