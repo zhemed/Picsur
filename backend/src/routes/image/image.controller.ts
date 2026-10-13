@@ -6,7 +6,7 @@ import {
     ImageRequestParams,
 } from 'picsur-shared/dist/dto/api/image.dto';
 import { ImageEntryVariant } from 'picsur-shared/dist/dto/image-entry-variant.enum';
-import { FileType2Mime } from 'picsur-shared/dist/dto/mimes.dto';
+import { FileType2Mime, ImageFileType } from 'picsur-shared/dist/dto/mimes.dto';
 import {
     FT,
     IsFailure,
@@ -22,6 +22,22 @@ import type { ImageFullId } from '../../models/constants/image-full-id.const.js'
 import { Permission } from '../../models/constants/permissions.const.js';
 import { EUserBackend2EUser } from '../../models/transformers/user.transformer.js';
 import { BrandMessageType, GetBrandMessage } from '../../util/branding.js';
+
+// SVG is an active document format: it can carry scripts and load remote
+// resources. Sans this, a browser that opens /i/<id>.svg directly would render
+// it in this origin. The payload is already sanitized on upload; these headers
+// are the second layer for anything that slips through.
+const SvgContentSecurityPolicy = [
+  'sandbox',
+  "default-src 'none'",
+  "base-uri 'none'",
+  "child-src 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+  "frame-src 'none'",
+  "object-src 'none'",
+  "script-src 'none'",
+].join('; ');
 
 // This is the only controller with CORS enabled
 @Controller('i')
@@ -42,13 +58,15 @@ export class ImageController {
   ) {
     if (fullid.variant === ImageEntryVariant.ORIGINAL) {
       const filetype = ThrowIfFailed(
-        await this.imagesService.getOriginalFileType(fullid.id),
+        await this.getOriginalDownloadFileType(fullid.id),
       );
 
+      this.setImageResponseHeaders(res, filetype.identifier);
       res.type(ThrowIfFailed(FileType2Mime(filetype.identifier)));
       return;
     }
 
+    this.setImageResponseHeaders(res, fullid.filetype);
     res.type(ThrowIfFailed(FileType2Mime(fullid.filetype)));
   }
 
@@ -63,9 +81,10 @@ export class ImageController {
     try {
       if (fullid.variant === ImageEntryVariant.ORIGINAL) {
         const image = ThrowIfFailed(
-          await this.imagesService.getOriginal(fullid.id),
+          await this.getOriginalDownload(fullid.id),
         );
 
+        this.setImageResponseHeaders(res, image.filetype);
         res.type(ThrowIfFailed(FileType2Mime(image.filetype)));
         return image.data;
       }
@@ -78,6 +97,7 @@ export class ImageController {
         ),
       );
 
+      this.setImageResponseHeaders(res, image.filetype);
       res.type(ThrowIfFailed(FileType2Mime(image.filetype)));
       return image.data;
     } catch (e) {
@@ -105,5 +125,46 @@ export class ImageController {
     const imageUser = ThrowIfFailed(imageUserRes);
 
     return { image, user: EUserBackend2EUser(imageUser), fileTypes };
+  }
+
+  private setImageResponseHeaders(res: FastifyReply, filetype: string) {
+    if (filetype !== ImageFileType.SVG) return;
+
+    res.header('Content-Security-Policy', SvgContentSecurityPolicy);
+    res.header('X-Content-Type-Options', 'nosniff');
+  }
+
+  /**
+   * Serves the uploaded original when it was kept, and falls back to the master
+   * file for SVG: SVG is stored as the master itself, and the "keep original"
+   * preference is off by default, so without this fallback every `/i/<id>` on
+   * an SVG upload would return the not-found placeholder.
+   */
+  private async getOriginalDownload(imageId: string) {
+    const original = await this.imagesService.getOriginal(imageId);
+    if (!IsFailure(original) || original.getType() !== FT.NotFound) {
+      return original;
+    }
+
+    const master = await this.imagesService.getMasterFile(imageId);
+    if (IsFailure(master)) return master;
+
+    if (master.filetype !== ImageFileType.SVG) return original;
+
+    return master;
+  }
+
+  private async getOriginalDownloadFileType(imageId: string) {
+    const original = await this.imagesService.getOriginalFileType(imageId);
+    if (!IsFailure(original) || original.getType() !== FT.NotFound) {
+      return original;
+    }
+
+    const master = await this.imagesService.getMasterFileType(imageId);
+    if (IsFailure(master)) return master;
+
+    if (master.identifier !== ImageFileType.SVG) return original;
+
+    return master;
   }
 }

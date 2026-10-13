@@ -181,8 +181,14 @@ export class ApiService {
     });
 
     return MapRunningRequest(response, async (r) => {
-      const mimeType = r.headers['Content-Type']?.toString() ?? 'other/unknown';
-      let name = r.headers['Content-Disposition'];
+      // Axios normalises header names to lowercase, but be defensive about it:
+      // without the mime type the downloaded file has no extension, and the
+      // SVG/SVG download path depends on this lookup.
+      const mimeType =
+        (r.headers['content-type'] ?? r.headers['Content-Type'])?.toString() ??
+        'other/unknown';
+      let name =
+        r.headers['content-disposition'] ?? r.headers['Content-Disposition'];
       if (!name) {
         name = url.split('/').pop() ?? 'unnamed';
       }

@@ -11,6 +11,7 @@ import { SysPreferenceDbService } from '../../collections/preference-db/sys-pref
 import { ImageConverterService } from './image-converter.service.js';
 import { ImageProcessorService } from './image-processor.service.js';
 import { ImageManagerService } from './image.service.js';
+import { SvgSecurityService } from './svg-security.service.js';
 
 @Module({
   imports: [ImageDBModule, PreferenceDbModule],
@@ -18,6 +19,7 @@ import { ImageManagerService } from './image.service.js';
     ImageManagerService,
     ImageProcessorService,
     ImageConverterService,
+    SvgSecurityService,
   ],
   exports: [ImageManagerService, ImageConverterService],
 })
