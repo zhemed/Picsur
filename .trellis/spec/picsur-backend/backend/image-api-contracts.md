@@ -39,11 +39,11 @@ GET    /api/pref/sys  /  /api/pref/sys/:key
 
 ```json
 {"success":true,"statusCode":200,"data":{
-  "production":true,"demo":false,"version":"0.5.7","tracking":{"state":"detailed"}}}
+  "production":true,"demo":false,"version":"0.6.0","tracking":{"state":"detailed"}}}
 ```
 
 > `version` 取自 `npm_package_version`：**裸跑 `node dist/main.js` 会退化成 `"0.0.0"`**，
-> 走 `pnpm start:prod`/容器入口（pnpm 注入）才是真实版本 `0.5.7`。
+> 走 `pnpm start:prod`/容器入口（pnpm 注入）才是真实版本（**当前 0.6.0**，见根 `package.json`）。
 
 ### 3.2 `POST /api/user/login`
 

@@ -22,9 +22,11 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 
 ---
 
-# 本仓库约定（zhemed/Picsur fork）
+# 本仓库约定（zhemed/picsur）
 
 > 由项目所有者 2026-10-13 定调，写在这里以便每个新会话都能看到。
+> **仓库**：<https://github.com/zhemed/picsur>（**非 fork**，公开）。原 fork 已改名
+> `zhemed/Picsur-fork-archive` 留档；`upstream` remote 已移除，本仓库不依赖上游。
 
 1. **提交必须带任务锚点**：`[task:<任务目录名>]`（例如 `[task:10-13-dep-security-upgrade]`）。
    全局提交闸门会**拒绝**缺锚点、或任务目录缺 `directive.md`（逐字记录用户当轮原话）的提交。

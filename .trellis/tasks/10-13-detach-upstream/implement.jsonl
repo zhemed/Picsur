@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/picsur-backend/backend/build-and-deploy.md", "reason": "构建/部署契约（Node 20、镜像、compose、环境变量）"}
+{"file": ".trellis/spec/picsur-backend/backend/image-api-contracts.md", "reason": "对外 API 契约回归基线（改版本号后要验证 /api/info）"}

@@ -64,14 +64,18 @@ docker compose restart picsur           # 验证重启恢复
 | `PICSUR_PRODUCTION` | ✅(生产) | `false` | **不设 = TypeORM `synchronize:true`，会直改 schema** |
 | `PICSUR_MAX_FILE_SIZE` | — | `128000000` | 上传字节上限 |
 | `PICSUR_VERBOSE` | ❌ 不要开 | `false` | **开了会把 JWT secret 与 DB 口令明文写进日志** |
-| `PICSUR_TELEMETRY` | — | `true` | ⚠️ **只影响一行启动日志，关不掉出网遥测**（真开关是系统首选项 `enable_telemetry`） |
+| `PICSUR_TELEMETRY` | — | `true` | **纯装饰**：只影响启动日志里的一行提示，不控制是否出网 |
 
-**真实遥测开关**（默认 `true`，会定时出网到已停维护的 `metrics.picsur.org`）：
+**遥测为什么出不了网（2026-10-13 起）**：`ReportUrl` 在 `config.static.ts` 里是**空字符串**
+（编译期常量，运行期改不了），`UsageService.execute()` 两道守卫：
 
-```bash
-curl -X POST localhost:8080/api/pref/sys/enable_telemetry \
-  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"value":false}'
+```ts
+if (!(await this.usageConfig.getMetricsEnabled())) return;   // ① DB 首选项（现在已纯装饰）
+if (!(await this.usageConfig.getMetricsUrl())) return;       // ② 端点为空 → 直接跳过（真正的断链）
 ```
+
+②是为了「将来有人把 URL 改回某个地址、却忘了重置首选项」这种情形留的兜底。
+要接**自己的**统计后端，只需把 `ReportUrl` 改成自己的 URL（并让首选项为 true）。
 
 ### 3.2 常驻部署契约
 
@@ -102,13 +106,13 @@ curl -X POST localhost:8080/api/pref/sys/enable_telemetry \
 ## 5. Good / Base / Bad Cases
 
 - **Good**：`docker compose up -d --build` → `docker compose ps` 两个容器 Up →
-  `curl /api/info` 200（`version:"0.5.7"`）→ 上传/取回/删除通过 → `docker compose restart picsur` 后
+  `curl /api/info` 200（`version` 与根 `package.json` 一致，当前 `"0.6.0"`）→ 上传/取回/删除通过 → `docker compose restart picsur` 后
   数据仍在、服务自动恢复。
 - **Base**：本机开发形态 —— Postgres 用 `support/dev.docker-compose.yml`，后端 `node backend/dist/main.js`。
   注意该 compose **没有 healthcheck**，就绪判断要用 `docker exec <c> pg_isready -U picsur -d picsur`。
 - **Bad**：① 在宿主 Node 22 上 `pnpm install`；② 直接 `FROM` 上游 stage1 镜像；
   ③ 把 Dockerfile 放进 `support/`（会被 `.dockerignore` 的 `support` 一行排除出构建上下文，改放仓库根目录）；
-  ④ 用 `PICSUR_TELEMETRY=false` 当作关了遥测。
+  ④ 以为 `PICSUR_TELEMETRY=false` 关掉了遥测（它只影响一行日志；真正的断链是 `ReportUrl` 为空）。
 
 ---
 
@@ -118,7 +122,7 @@ curl -X POST localhost:8080/api/pref/sys/enable_telemetry \
 |---|---|---|
 | 构建 | 三包 `pnpm --filter <pkg> build` | `shared/dist/index.js`、`backend/dist/main.js`、`frontend/dist/index.html` 存在；exit 0 |
 | 服务 | `curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/info` | `200`，且 body 里 `production:true` |
-| 迁移 | `docker exec picsur_postgres psql -U picsur -d picsur -tAc "select count(*) from migrations;"` | `7`（v0.5.7 基线），且 `e_user_backend` 里有 `admin`/`guest` |
+| 迁移 | `docker exec picsur_postgres psql -U picsur -d picsur -tAc "select count(*) from migrations;"` | `7`（v0.5.x 起就固定的 migration 条数，与版本号无关），且 `e_user_backend` 里有 `admin`/`guest` |
 | 上传 | `POST /api/image/upload`（multipart 字段 `file`） | `201`，返回 `data.id`（UUID） |
 | 取回 | `GET /i/<id>.png` | `200` + `image/png`；与原始图片**像素一致**（字节不保证一致） |
 | 转码 | `GET /i/<id>.{qoi,webp,avif,jxl,jp2,heif}` | 全部 `200`（证明镜像里的自编译 libvips **并且** sharp 是源码构建的） |
@@ -230,7 +234,6 @@ pkill -x node          # 或先 pgrep 拿 PID 再 kill <pid>
      —— 两个进程用的是不同的 libvips。
 
 ### 8.4 残留风险（本任务明确未覆盖，别当成已解决）
-
 - **前端 Angular 18 的浏览器端告警**：Angular 的运行时包（`@angular/core|common|router` 等）被放在
   `frontend` 的 `devDependencies` 里，因此 `pnpm audit --prod` **看不见**它们，但它们**确实会打进浏览器产物**。
   这部分（XSS / XSRF 类）**未修**，归属 **T6（Angular 大版本升级）**。
@@ -238,3 +241,24 @@ pkill -x node          # 或先 pgrep 拿 PID 再 kill <pid>
   （Angular CLI / webpack / eslint / pacote 等）。
 - `zod` 仍是 v3；升 v4 属破坏性变更，需全量回归，暂不动。
 - `pnpm audit` 只反映「已知 advisory 的命中情况」，**不等于**「没有漏洞」。
+
+---
+
+## 9. 仓库来源与发布口径（2026-10-13 起生效）
+
+| 项 | 约定 |
+|---|---|
+| 仓库 | `https://github.com/zhemed/picsur`，**非 fork**（原 fork 已改名 `zhemed/Picsur-fork-archive` 留档） |
+| 上游关系 | **无**：不设 `upstream` remote，不依赖上游镜像 / 二进制 / 服务。上游代码只作为历史来源 |
+| 遥测出网 | **已断链**：`ReportUrl` 编译期为空（`backend/src/config/config.static.ts`），`UsageService.execute()` 见端点为空即跳过。`enable_telemetry` 首选项与 `PICSUR_TELEMETRY` 现在都**不控制**出网；要接自己的统计后端才需要改 `ReportUrl` |
+| 版本线 | 自有版本线，从 **`0.6.0`** 起；四个 `package.json` 同步，`/api/info` 与前端页脚都读它 |
+| 许可 | AGPL-3.0（`LICENSE` 不动）。README 保留上游出处声明 —— 这是**合规声明**，不是依赖 |
+| 发布 | 提交默认 push 到 `origin`（见 `AGENTS.md`）；镜像 tag 自定，不推上游 registry |
+| 允许出现上游字样的位置 | 仅 `LICENSE`、README 的出处声明、`.trellis/**` 历史记录；**其余一律清空** |
+
+> 检查命令（用 `git grep` 跟着 `.gitignore` 走，避免扫到 `.run/` 里的历史产物造成假阳性；
+> 白名单之外应为空）：
+> ```bash
+> git grep -ni "picsur\.org\|caramelfur\|discord\.gg" -- . \
+>   ':!LICENSE' ':!README.md' ':!.trellis'
+> ```

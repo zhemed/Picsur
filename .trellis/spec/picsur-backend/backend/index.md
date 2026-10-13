@@ -33,7 +33,9 @@ This directory contains guidelines for backend development. Fill in each file wi
 - [ ] 动到环境变量 → 三处同步：`.env.example`、`docker-compose.yml`、`build-and-deploy.md` §3.1。
 - [ ] 动到数据库实体/查询 → 生产必须 `PICSUR_PRODUCTION=true`，否则 TypeORM 会 `synchronize` 直改 schema。
 - [ ] 要打日志 → **不要开 `PICSUR_VERBOSE`**（会明文打印 JWT secret 与 DB 口令）。
-- [ ] 要出网 → 默认遥测会打已停维护的 `metrics.picsur.org`，用系统首选项 `enable_telemetry` 关。
+- [ ] 要出网 → 本仓库**已断掉遥测**：`ReportUrl` 编译期为空（`config.static.ts`），
+      `UsageService.execute()` 见端点为空即跳过。不要以为改 `enable_telemetry` 或
+      `PICSUR_TELEMETRY` 才是开关（它们现在都不控制出网）。
 
 ## Quality Check
 

@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/guides/index.md", "reason": "跨包/构建部署检查触发项"}
+{"file": ".trellis/spec/picsur-backend/backend/build-and-deploy.md", "reason": "质量检查：契约是否仍成立"}
