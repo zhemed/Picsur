@@ -34,6 +34,6 @@ if [ "$BUILD_ALLINONE" = "1" ]; then
 fi
 
 if [ "${DRY:-0}" = "1" ]; then echo "✅ dry-run：镜像已构建但未推送"; exit 0; fi
-for t in "$VERSION" "$MINOR" latest; do echo "▶ push $IMAGE:$t"; docker push "$IMAGE:$t"; done
+for t in "$VERSION" "v$VERSION" "$MINOR" latest; do echo "▶ push $IMAGE:$t"; docker push "$IMAGE:$t"; done
 [ "$BUILD_ALLINONE" = "1" ] && { echo "▶ push $IMAGE:allinone"; docker push "$IMAGE:allinone"; }
-echo "✅ 完成：$IMAGE:$VERSION / :$MINOR / :latest${BUILD_ALLINONE:+ / :allinone}"
+echo "✅ 完成：$IMAGE:$VERSION / :v$VERSION / :$MINOR / :latest${BUILD_ALLINONE:+ / :allinone}"
