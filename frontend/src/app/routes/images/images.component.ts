@@ -1,5 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { I18nService } from '../../i18n/i18n.service';
+
 import { AutoUnsubscribe } from 'ngx-auto-unsubscribe-decorator';
 import { ImageFileType } from 'picsur-shared/dist/dto/mimes.dto';
 import { EImage } from 'picsur-shared/dist/entities/image.entity';
@@ -50,6 +52,7 @@ export class ImagesComponent implements OnInit {
     private readonly imageService: ImageService,
     private readonly errorService: ErrorService,
     private readonly dialogService: DialogService,
+    private readonly i18n: I18nService,
   ) {}
 
   ngOnInit() {
@@ -135,17 +138,17 @@ export class ImagesComponent implements OnInit {
 
   async deleteImage(image: EImage) {
     const pressedButton = await this.dialogService.showDialog({
-      title: `Are you sure you want to delete the image?`,
-      description: 'This action cannot be undone.',
+      title: this.i18n.instant('images.deleteConfirmTitle'),
+      description: this.i18n.instant('images.deleteConfirmDescription'),
       buttons: [
         {
           name: 'cancel',
-          text: 'Cancel',
+          text: this.i18n.instant('common.actions.cancel'),
         },
         {
           color: 'warn',
           name: 'delete',
-          text: 'Delete',
+          text: this.i18n.instant('common.actions.delete'),
         },
       ],
     });
@@ -155,7 +158,7 @@ export class ImagesComponent implements OnInit {
       if (HasFailed(result))
         return this.errorService.showFailure(result, this.logger);
 
-      this.errorService.success('Image deleted');
+      this.errorService.success(this.i18n.instant('images.deleted'));
       this.imagesSub.next(
         this.images?.filter((i) => i.id !== image.id) ?? null,
       );

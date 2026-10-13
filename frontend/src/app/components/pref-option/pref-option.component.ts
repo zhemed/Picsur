@@ -1,5 +1,7 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { AbstractControl, FormControl, ValidationErrors } from '@angular/forms';
+import { I18nService } from '../../i18n/i18n.service';
+
 import { AutoUnsubscribe } from 'ngx-auto-unsubscribe-decorator';
 import {
   DecodedPref,
@@ -44,7 +46,10 @@ export class PrefOptionComponent implements OnInit {
   @Input() helpText = '';
   @Input() validator?: ZodTypeAny = undefined;
 
-  constructor(private readonly errorService: ErrorService) {}
+  constructor(
+    private readonly errorService: ErrorService,
+    private readonly i18n: I18nService,
+  ) {}
 
   ngOnInit(): void {
     this.subscribeUpdate();
@@ -56,7 +61,7 @@ export class PrefOptionComponent implements OnInit {
       if (errors['error']) {
         return errors['error'];
       }
-      return 'Invalid value';
+      return this.i18n.instant('common.invalidValue');
     }
     return '';
   }
@@ -67,7 +72,11 @@ export class PrefOptionComponent implements OnInit {
     const result = this.validator.safeParse(control.value);
 
     if (!result.success) {
-      return { error: result.error.issues[0]?.message ?? 'Invalid value' };
+      return {
+        error:
+          result.error.issues[0]?.message ??
+          this.i18n.instant('common.invalidValue'),
+      };
     }
 
     return null;
@@ -78,13 +87,21 @@ export class PrefOptionComponent implements OnInit {
     if (!HasFailed(result)) {
       const message =
         this.pref.type === 'string'
-          ? `Updated ${this.name}`
+          ? this.i18n.instant('settings.preferences.updated', {
+              name: this.name,
+            })
           : this.pref.type === 'number'
-            ? `Updated ${this.name}`
+            ? this.i18n.instant('settings.preferences.updated', {
+                name: this.name,
+              })
             : this.pref.type === 'boolean'
               ? value
-                ? `Enabled ${this.name}`
-                : `Disabled ${this.name}`
+                ? this.i18n.instant('settings.preferences.enabled', {
+                    name: this.name,
+                  })
+                : this.i18n.instant('settings.preferences.disabled', {
+                    name: this.name,
+                  })
               : '';
       this.errorService.success(message);
     } else {

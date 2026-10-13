@@ -1,9 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { I18nService } from '../../../../i18n/i18n.service';
+
 import { Permission } from 'picsur-shared/dist/dto/permissions.enum';
 import { ERole } from 'picsur-shared/dist/entities/role.entity';
 import { HasFailed } from 'picsur-shared/dist/types/failable';
-import { UIFriendlyPermissions } from '../../../../i18n/permissions.i18n';
+import { UIPermissionTranslationKeys } from '../../../../i18n/permissions.i18n';
 import { UpdateUserControl } from '../../../../models/forms/update-user.control';
 import { RolesService } from '../../../../services/api/roles.service';
 import { StaticInfoService } from '../../../../services/api/static-info.service';
@@ -48,6 +50,7 @@ export class SettingsUsersEditComponent implements OnInit {
     private readonly rolesService: RolesService,
     private readonly staticInfo: StaticInfoService,
     private readonly errorService: ErrorService,
+    private readonly i18n: I18nService,
   ) {}
 
   ngOnInit() {
@@ -115,7 +118,9 @@ export class SettingsUsersEditComponent implements OnInit {
       );
     }
 
-    return permissions.map((p) => UIFriendlyPermissions[p as Permission] ?? p);
+    return permissions.map(
+      (p) => UIPermissionTranslationKeys[p as Permission] ?? p,
+    );
   }
 
   cancel() {
@@ -129,7 +134,7 @@ export class SettingsUsersEditComponent implements OnInit {
       if (HasFailed(resultUser))
         return this.errorService.showFailure(resultUser, this.logger);
 
-      this.errorService.success('User created');
+      this.errorService.success(this.i18n.instant('settings.users.created'));
     } else {
       const data = this.model.getDataUpdate();
       if (!data.password) delete data.password;
@@ -138,7 +143,7 @@ export class SettingsUsersEditComponent implements OnInit {
       if (HasFailed(resultUser))
         return this.errorService.showFailure(resultUser, this.logger);
 
-      this.errorService.success('User updated');
+      this.errorService.success(this.i18n.instant('settings.users.updated'));
     }
 
     this.router.navigate(['/settings/users']);

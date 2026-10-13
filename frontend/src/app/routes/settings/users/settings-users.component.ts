@@ -1,6 +1,8 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { Router } from '@angular/router';
+import { I18nService } from '../../../i18n/i18n.service';
+
 import { AutoUnsubscribe } from 'ngx-auto-unsubscribe-decorator';
 import { EUser } from 'picsur-shared/dist/entities/user.entity';
 import { HasFailed } from 'picsur-shared/dist/types/failable';
@@ -39,6 +41,7 @@ export class SettingsUsersComponent implements OnInit {
     private readonly router: Router,
     private readonly errorService: ErrorService,
     private readonly dialogService: DialogService,
+    private readonly i18n: I18nService,
     // Public because used in template
     public readonly bootstrapService: BootstrapService,
   ) {}
@@ -62,17 +65,19 @@ export class SettingsUsersComponent implements OnInit {
 
   public async deleteUser(user: EUser) {
     const pressedButton = await this.dialogService.showDialog({
-      title: `Are you sure you want to delete ${user.username}?`,
-      description: 'This action cannot be undone.',
+      title: this.i18n.instant('settings.users.deleteConfirmTitle', {
+        name: user.username,
+      }),
+      description: this.i18n.instant('common.actionCannotBeUndone'),
       buttons: [
         {
           name: 'cancel',
-          text: 'Cancel',
+          text: this.i18n.instant('common.actions.cancel'),
         },
         {
           color: 'warn',
           name: 'delete',
-          text: 'Delete',
+          text: this.i18n.instant('common.actions.delete'),
         },
       ],
     });
@@ -82,7 +87,7 @@ export class SettingsUsersComponent implements OnInit {
       if (HasFailed(result)) {
         this.errorService.showFailure(result, this.logger);
       } else {
-        this.errorService.success('User deleted');
+        this.errorService.success(this.i18n.instant('settings.users.deleted'));
       }
     }
 
