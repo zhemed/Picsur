@@ -40,10 +40,8 @@ services:
       PICSUR_MAX_FILE_SIZE: ${PICSUR_MAX_FILE_SIZE:-128000000}
 
       # 注意：这个 env 只影响启动日志里的一行提示，**真正的遥测开关是数据库系统首选项**
-      # enable_telemetry（默认 true，会定时出网到已停维护的 metrics.picsur.org）。
-      # 关法（已在本机执行）：
-      #   TOKEN=... ; curl -X POST localhost:8080/api/pref/sys/enable_telemetry \
-      #     -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"value":false}'
+      # enable_telemetry。本仓库已在代码层把上报端点置空（backend/src/config/config.static.ts），
+      # 因此即使该首选项为 true 也不会出网。
       PICSUR_TELEMETRY: 'false'
 
       # 不要开：会把 JWT secret / DB 口令明文写进日志

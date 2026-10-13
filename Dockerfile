@@ -1,8 +1,8 @@
 # Picsur 自有镜像（zhemed/Picsur）
 #
 # 与上游 support/picsur-stage1.Dockerfile + picsur-stage2.Dockerfile 的区别：
-#   1. JS 构建阶段内联在本文件里 —— 上游 stage2 依赖上游私有中间镜像
-#      ghcr.io/caramelfur/picsur-alpha-stage1:latest，那个镜像一旦被清理，镜像就构建不出来。
+#   1. JS 构建阶段内联在本文件里 —— 上游那套 stage2 依赖它自己的**私有中间镜像**，
+#      那个镜像随时可能被清理，构建就废了；本文件不依赖任何外部构建产物。
 #   2. pnpm 固定为 9.6.0，与根 package.json 的 packageManager 字段一致（可复现）。
 #   3. libvips 编译限制并行度（-j4），避免在小内存机器上 OOM。
 #   4. 生产依赖在「目标平台 + 全局 libvips」下重新安装，保证 sharp 是针对 musl + 全局 vips 编译的。
