@@ -93,6 +93,19 @@ const SettingsRoutes: PRoutes = [
           },
         },
       },
+      {
+        path: 'about',
+        loadChildren: () =>
+          import('./about/settings-about.module').then((m) => m.default),
+        data: {
+          permissions: [Permission.SysPrefAdmin],
+          page: {
+            title: 'settings.pages.about',
+            icon: 'info_outline',
+            category: 'system',
+          },
+        },
+      },
     ],
     canActivate: [PermissionGuard],
     canActivateChild: [PermissionGuard],

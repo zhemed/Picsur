@@ -1,0 +1,58 @@
+<h1>{{ 'settings.about.title' | translate }}</h1>
+
+<div class="about">
+  <div class="about-versions">
+    <div>
+      <span class="about-label">{{ 'settings.about.currentVersion' | translate }}</span>
+      <span class="about-value">{{ currentVersion }}</span>
+    </div>
+    <div>
+      <span class="about-label">{{ 'settings.about.latestVersion' | translate }}</span>
+      <span class="about-value">{{ latestVersion ?? ('settings.about.unknown' | translate) }}</span>
+    </div>
+  </div>
+
+  <div class="about-actions">
+    <button
+      mat-stroked-button
+      type="button"
+      [disabled]="checking || applying"
+      (click)="checkForUpdates()"
+    >
+      <mat-icon>refresh</mat-icon>
+      {{ 'settings.about.check' | translate }}
+    </button>
+
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      [disabled]="!canUpgrade"
+      (click)="apply()"
+    >
+      <mat-icon>system_update_alt</mat-icon>
+      {{ (applying ? 'settings.about.upgrading' : 'settings.about.upgrade') | translate }}
+    </button>
+  </div>
+
+  <p class="about-status" *ngIf="statusMessage !== null">
+    {{ statusMessage | translate }}
+  </p>
+
+  <p class="about-status about-warn" *ngIf="lastUpdateMessage !== null">
+    {{ lastUpdateMessage | translate }}
+  </p>
+
+  <ng-container *ngIf="!selfUpdateEnabled">
+    <p>{{ 'settings.about.selfUpdateDisabled' | translate }}</p>
+
+    <copy-field
+      *ngIf="checkResult !== null"
+      [label]="'settings.about.command'"
+      [value]="checkResult.command"
+    ></copy-field>
+
+    <p class="about-hint">{{ 'settings.about.manualHint' | translate }}</p>
+    <p class="about-hint">{{ 'settings.about.enableHint' | translate }}</p>
+  </ng-container>
+</div>

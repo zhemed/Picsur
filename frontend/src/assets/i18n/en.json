@@ -190,12 +190,33 @@
       "shareX": "ShareX",
       "users": "Users",
       "roles": "Roles",
-      "system": "System Settings"
+      "system": "System Settings",
+      "about": "About"
     },
     "preferences": {
       "updated": "Updated {{ name }}",
       "enabled": "Enabled {{ name }}",
       "disabled": "Disabled {{ name }}"
+    },
+    "about": {
+      "title": "About & updates",
+      "currentVersion": "Current version",
+      "latestVersion": "Latest version",
+      "unknown": "unknown",
+      "check": "Check for updates",
+      "checking": "Checking for updates\u2026",
+      "upgrade": "Update now",
+      "upgrading": "Update running\u2026",
+      "updateAvailable": "Version {{ version }} is available",
+      "upToDate": "This instance is up to date",
+      "stateRunning": "An update is running, this instance will restart in a moment",
+      "stateSuccess": "The last update was installed successfully",
+      "stateFailed": "The last update failed, check the container logs",
+      "selfUpdateDisabled": "Updating from the panel is disabled. Update manually with:",
+      "command": "Update command",
+      "manualHint": "Using docker compose? run \u201cdocker compose pull && docker compose up -d\u201d in your install directory, or re-run install.sh.",
+      "enableHint": "Want the one click update? Mount /var/run/docker.sock into this container and set PICSUR_ALLOW_SELF_UPDATE=true. That gives the panel control over the host docker daemon, so only enable it if you trust every panel admin.",
+      "started": "Update to {{ version }} started. This instance restarts now, the page reloads when it is back."
     },
     "roles": {
       "title": "Roles",

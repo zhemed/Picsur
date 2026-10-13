@@ -190,12 +190,33 @@
       "shareX": "ShareX",
       "users": "用户",
       "roles": "角色",
-      "system": "系统设置"
+      "system": "系统设置",
+      "about": "关于"
     },
     "preferences": {
       "updated": "已更新 {{ name }}",
       "enabled": "已启用 {{ name }}",
       "disabled": "已禁用 {{ name }}"
+    },
+    "about": {
+      "title": "关于与升级",
+      "currentVersion": "当前版本",
+      "latestVersion": "最新版本",
+      "unknown": "未知",
+      "check": "检查更新",
+      "checking": "正在检查更新\u2026",
+      "upgrade": "立即升级",
+      "upgrading": "升级进行中\u2026",
+      "updateAvailable": "发现新版本 {{ version }}",
+      "upToDate": "当前已是最新版本",
+      "stateRunning": "升级正在进行，实例稍后会自动重启",
+      "stateSuccess": "上次升级已成功完成",
+      "stateFailed": "上次升级失败，请查看容器日志",
+      "selfUpdateDisabled": "面板内升级未启用。可手动执行以下命令升级：",
+      "command": "升级命令",
+      "manualHint": "使用 docker compose 部署？在安装目录执行「docker compose pull && docker compose up -d」，或重新运行 install.sh。",
+      "enableHint": "想要一键升级？把 /var/run/docker.sock 挂进本容器并设置 PICSUR_ALLOW_SELF_UPDATE=true。这等于把宿主 docker 的控制权交给面板，请确认你信任所有面板管理员后再开启。",
+      "started": "已开始升级到 {{ version }}，实例即将重启，恢复后页面会自动刷新。"
     },
     "roles": {
       "title": "角色",
