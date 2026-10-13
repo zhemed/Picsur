@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 9
+- **Total Sessions**: 10
 - **Last Active**: 2026-10-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~210 | Active |
+| `journal-1.md` | ~233 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 10 | 2026-10-13 | 0.7.0：默认简体中文 + 面板内版本检测/可选自升级，并发布 | `fe83659` | `master` |
 | 9 | 2026-10-13 | README 命令折行（消除代码块横向滚动） | `260579b` | `master` |
 | 8 | 2026-10-13 | 一键部署：all-in-one 镜像（内嵌 Postgres）+ install.sh | - | `master` |
 | 7 | 2026-10-13 | 对标 Komari：发布 ghcr 镜像 + README 压到 31 行 + 运维手册 | `b351d8a` | `master` |

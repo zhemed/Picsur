@@ -208,3 +208,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 10: 0.7.0：默认简体中文 + 面板内版本检测/可选自升级，并发布
+<!-- trellis-session: v=2 fp=38e6b1c6f78e9053 -->
+
+**Date**: 2026-10-13
+**Task**: 0.7.0：默认简体中文 + 面板内版本检测/可选自升级，并发布
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+团队两线并行：① zh-default（默认语言改 zh、Material 分页器 MatPaginatorIntl 接 i18n、页脚/页头 aria 补齐，词典 265→280 双向对齐，浏览器实测清空 localStorage 首访即中文）；② upgrade-panel（后端 POST /api/system/update/check 查 GitHub tags，缓存 1h/超时 5s/离线降级，PICSUR_UPDATE_CHECK 默认开；可选自升级 PICSUR_ALLOW_SELF_UPDATE=true + docker.sock，用 Docker API 重建自身容器，真机在测试容器上验过升级成功 0.6.0→0.7.0、坏镜像触发回滚、并发 409；未启用时前端给出可复制命令；不引入新依赖、审计 0）。Lead：合并、版本号升 0.7.0（四处）、spec §3.1 补两个新变量（含安全说明）、README/手册补升级说明、打 tag v0.7.0 → CI 成功发布 :v0.7.0/:0.7/:latest/:allinone。发布版实测：/api/info=0.7.0、默认中文（html.lang=zh、localStorage=zh）、检测接口 201 且 selfUpdateEnabled=false、匿名 403、命令回退正常。回归 32/34——缺的 2 项是我重建测试夹具时缺 heif/qoi 源文件（curl 读数失败），非产品缺陷；原夹具集在 0.6.0 容器上曾 34/34。教训：/tmp 夹具会被清理动作冲掉，support/regression-image-api.sh 的夹具生成器参数约定不明确，值得后续固化。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fe83659` | chore(release): 0.7.0 -- Simplified Chinese by default, online updates |
+
+### Status
+
+[OK] **Completed**

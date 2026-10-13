@@ -9,6 +9,7 @@ set -a
 set +a
 
 TAG="${1:-latest}"
+EXPECT_VER="${2:-${TAG#v}}"   # 期望版本号：默认取 tag（v0.7.0 -> 0.7.0）
 IMAGE="ghcr.io/zhemed/picsur:${TAG}"
 PROJECT=picsur-ghcr
 PORT=8099
@@ -66,7 +67,7 @@ done
 
 echo "=== 4. 版本与来源 ==="
 VER=$(curl -s "$BASE/api/info" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"]["version"])' 2> /dev/null || echo PARSE_FAIL)
-[ "$VER" = "0.6.0" ] && ok "/api/info version=0.6.0" || bad "/api/info version=$VER（期望 0.6.0）"
+[ "$VER" = "$EXPECT_VER" ] && ok "/api/info version=$VER" || bad "/api/info version=$VER（期望 $EXPECT_VER）"
 RUNNING=$(docker inspect picsur-verify --format '{{.Config.Image}}' 2> /dev/null)
 [ "$RUNNING" = "$IMAGE" ] && ok "容器确实跑的是 $RUNNING" || bad "容器镜像=$RUNNING（期望 $IMAGE）"
 
