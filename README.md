@@ -5,7 +5,10 @@
 ## 部署
 
 ```bash
-docker run -d --name picsur --restart always -p 8080:8080 -v ./data:/data ghcr.io/zhemed/picsur:allinone
+docker run -d --name picsur --restart always \
+  -p 8080:8080 \
+  -v ./data:/data \
+  ghcr.io/zhemed/picsur:allinone
 ```
 
 面板 `http://<主机>:8080`（登录名固定 `admin`，首次启动的管理员口令打印在 `docker logs picsur`）。
@@ -14,7 +17,8 @@ docker run -d --name picsur --restart always -p 8080:8080 -v ./data:/data ghcr.i
 想要独立 Postgres（多容器、生产口径）：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zhemed/picsur/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/zhemed/picsur/master/install.sh \
+  | bash
 ```
 
 ## 自检
