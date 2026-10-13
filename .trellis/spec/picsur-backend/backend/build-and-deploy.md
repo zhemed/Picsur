@@ -303,6 +303,8 @@ SVG 与其它格式不同：**按原始向量存为 master，绝不交给 sharp 
 **契约**：新增后端运行时依赖后必须重跑 `pnpm audit --prod`，生产口径保持 **0**（见 §8.1）。
 若要减轻依赖，替代方案是换更轻的 DOM 实现（如 linkedom），但需重新验证净化行为。
 
+> 部署形态见 §12（all-in-one 单容器 / compose+install.sh）。
+
 **取回契约**：`/i/<id>.svg` 响应必须带
 `Content-Security-Policy: sandbox; default-src 'none'; … script-src 'none'` 与
 `X-Content-Type-Options: nosniff`（见 `image-api-contracts.md` §3.4）。动这条链路时要连带验证这两个头。
@@ -351,3 +353,35 @@ env -u PICSUR_ADMIN_PASSWORD -u PICSUR_JWT_SECRET docker compose up -d --force-r
 实际上是旧值生效、`.env` 已漂移。
 
 **轮换后必跑**：`support/regression-image-api.sh`（34 项）——确认凭据变化没有连带影响取图与鉴权。
+
+---
+
+## 12. 一键部署的两条路径（2026-10-13）
+
+| 路径 | 什么时候用 | 一条命令 |
+|---|---|---|
+| **all-in-one**（单容器，内嵌 PostgreSQL 17） | 单机自用，要 Komari 那种"一条 docker run" | `docker run -d --name picsur --restart always -p 8080:8080 -v ./data:/data ghcr.io/zhemed/picsur:allinone` |
+| **compose + `install.sh`** | 生产/正式口径，独立 Postgres 容器 | `curl -fsSL https://raw.githubusercontent.com/zhemed/picsur/master/install.sh \| bash` |
+
+两者都发布在 `ghcr.io/zhemed/picsur`（`release-image.yml`：常规 tag + `:allinone`）。
+
+**all-in-one 的契约**
+- 数据全在 `/data`（PGDATA + `allinone.env`）；`PICSUR_ADMIN_PASSWORD`/`PICSUR_JWT_SECRET`
+  没给就**自动生成并打印**，并落 `/data/allinone.env`(0600)。
+- 幂等：`/data` 非空则跳过 initdb；迁移仍由应用启动时执行（`migrationsRun`）。
+- 信号：tini 为 PID 1，SIGTERM 先停应用再 `pg_ctl -m fast stop`（`docker stop` 退出码 0）。
+- **局限（写进 README/手册）**：单副本（一个 `/data` 一个 postmaster）、必须 root、Postgres 默认参数、
+  备份靠 `tar ./data`（别丢 `allinone.env`）。
+- 常规 `Dockerfile` 与 `docker-compose.yml` **不受影响**（all-in-one 只是额外变体）。
+
+**踩过的三个坑（改这个镜像前先看）**
+1. alpine 3.23 包名是 `postgresql17` 系列，且 **`postgresql17-contrib` 必需** —— uuid 主键要
+   `CREATE EXTENSION "uuid-ossp"`，缺了首启迁移直接 FATAL。
+2. `pg_ctl -l /dev/stdout` 在 `su-exec` 下降权后 `Permission denied`（postgres 用户打不开 root 的 stdout）→
+   改前台 postgres，日志直接进 `docker logs`。
+3. 绕过 `pnpm run` 直接 `node backend/dist/main.js` 时，要自己注入 `npm_package_version`，
+   否则 `/api/info` 的版本号会退化成 `0.0.0`。
+
+**`install.sh` 的契约**：幂等（重跑=升级，不覆盖 `.env`/不重建卷）、`--dir/--port/--version/--admin-password`、
+缺 docker 或端口占用时**非零退出**、下载 compose 失败时回退脚本内置副本；端口与容器名通过安装目录内
+受管的 `docker-compose.override.yml`（`!override`，需 compose ≥ 2.24）覆盖，仓库里的 compose 不被改动。

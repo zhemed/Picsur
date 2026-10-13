@@ -63,6 +63,31 @@ docker compose pull && docker compose up -d
 - 升级：`git pull && docker compose pull && docker compose up -d`。数据库迁移随容器启动自动执行，
   只前进不回退。
 
+### 3.1 两种部署形态
+
+**all-in-one（单容器，一条 `docker run`）** —— 镜像 `ghcr.io/zhemed/picsur:allinone`，容器内自带
+PostgreSQL 17，数据全在 `-v ./data:/data`：
+
+```bash
+docker run -d --name picsur --restart always -p 8080:8080 -v ./data:/data ghcr.io/zhemed/picsur:allinone
+```
+
+- 首启自动 initdb + 建库，并**自动生成**管理员口令与 JWT secret（打印在 `docker logs`，
+  也落盘在 `./data/allinone.env`，权限 600）；用 `-e PICSUR_ADMIN_PASSWORD=... -e PICSUR_JWT_SECRET=...` 可覆盖。
+- 升级：`docker rm -f picsur` → 用新 tag 跑同一条命令（同 `/data`），迁移自动执行；**先备份**。
+- 备份：`docker stop picsur && tar czf picsur-backup.tgz -C ./data .`（含 `allinone.env`，别丢）。
+- 局限：单机自用定位；**不支持多副本**（一个 `/data` 只能一个 postmaster）；必须 root 运行；
+  Postgres 用默认参数。要更大规模请走下面的 compose 路径。
+
+**compose + install.sh（多容器，生产口径）** —— 独立 Postgres 容器，脚本自动生成密钥并部署：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zhemed/picsur/master/install.sh | bash
+```
+
+脚本是**幂等**的（重复执行=升级，不覆盖已有 `.env`、不重建数据卷），支持 `--dir/--port/--version/--admin-password`；
+无 docker、端口被占用、`.env` 缺变量等都会明确报错并非零退出。
+
 ## 4. 备份与恢复
 
 **备份**（全量就是数据库）：

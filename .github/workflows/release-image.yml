@@ -59,6 +59,19 @@ jobs:
           cache-to: type=gha,mode=max
 
       # 让运行页直接看到拉取命令
+      # all-in-one 变体（内嵌 PostgreSQL 17）：在常规镜像推完之后构建，基底就是刚推的 :latest
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.allinone
+          push: true
+          build-args: |
+            PICSUR_BASE_IMAGE=ghcr.io/${{ github.repository }}:latest
+          tags: ghcr.io/${{ github.repository }}:allinone
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 让运行页直接看到拉取命令
       - name: summary
         run: |
           {

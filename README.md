@@ -5,14 +5,17 @@
 ## 部署
 
 ```bash
-git clone https://github.com/zhemed/picsur && cd picsur
-cp .env.example .env # 至少改 PICSUR_ADMIN_PASSWORD 与 PICSUR_JWT_SECRET
-docker compose pull && docker compose up -d
+docker run -d --name picsur --restart always -p 8080:8080 -v ./data:/data ghcr.io/zhemed/picsur:allinone
 ```
 
-面板 `http://<主机>:8080`（登录名固定 `admin`）。数据在 `picsur-data` 卷里（Postgres），
-应用容器没有任何挂载。**升级**：`git pull && docker compose pull && docker compose up -d`；
-不想用发布镜像就 `docker compose up -d --build` 从源码构建。
+面板 `http://<主机>:8080`（登录名固定 `admin`，首次启动的管理员口令打印在 `docker logs picsur`）。
+数据全在 `./data`。**升级**：`docker rm -f picsur` 后用新 tag 再跑同一条命令，迁移自动执行。
+
+想要独立 Postgres（多容器、生产口径）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zhemed/picsur/master/install.sh | bash
+```
 
 ## 自检
 
