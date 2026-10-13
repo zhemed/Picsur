@@ -1,5 +1,3 @@
-<img align="left" width="84" height="84" style="border-radius:15%" src="branding/logo/picsur.svg"/>
-
 # Picsur
 
 自用图床：NestJS 后端 + 内嵌 Angular 面板，图片与元数据都存在 Postgres 里。版本线 `0.6.x`（当前 0.6.0）。
