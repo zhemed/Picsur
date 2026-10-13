@@ -27,7 +27,7 @@ if [ "${DRY:-0}" != "1" ]; then
 fi
 
 echo "▶ 构建 $IMAGE:$VERSION（同时打 :latest 与 :$MINOR）"
-docker build -t "$IMAGE:$VERSION" -t "$IMAGE:$MINOR" -t "$IMAGE:latest" .
+docker build -t "$IMAGE:$VERSION" -t "$IMAGE:v$VERSION" -t "$IMAGE:$MINOR" -t "$IMAGE:latest" .
 if [ "$BUILD_ALLINONE" = "1" ]; then
   echo "▶ 构建 $IMAGE:allinone（基底用刚构建的 :$VERSION）"
   docker build -f Dockerfile.allinone --build-arg "PICSUR_BASE_IMAGE=$IMAGE:$VERSION" -t "$IMAGE:allinone" .
