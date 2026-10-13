@@ -1,10 +1,7 @@
 <h1>{{ 'settings.apiKeys.title' | translate }}</h1>
 
 <div class="manual-copy" *ngIf="manualCopyKey !== null">
-  <p>
-    Automatic copying was blocked by your browser. Select the key below and
-    copy it manually (Ctrl/Cmd + C):
-  </p>
+  <p>{{ 'settings.apiKeys.copyFailedManual' | translate }}</p>
   <input
     class="manual-copy-key"
     type="text"

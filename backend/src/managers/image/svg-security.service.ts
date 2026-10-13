@@ -9,18 +9,21 @@ import { optimize } from 'svgo';
 // shared between requests on purpose: the configured hooks below are constant.
 const SvgDOMPurify = createDOMPurify(new JSDOM('').window);
 
-// `use` is allowed (it is how SVG symbols/sprites are composed), but only with
-// local fragment references. An external `xlink:href`/`href` would let an
-// uploaded SVG pull in remote content when a browser renders it.
+// Only local fragment references and inline *raster* images are allowed.
+// Anything else in `href`/`xlink:href` — `https:`, protocol relative,
+// `javascript:`, `data:image/svg+xml`, `file:` — is a way for an uploaded SVG
+// to reference remote or active content when a browser renders it, so it is
+// dropped. This applies to every element, not just `use`: `<image
+// href="https://…">` (and `<a href="https://…">`) reference content the same
+// way.
+const AllowedSvgHref =
+  /^(#[^#]*|data:image\/(png|jpeg|jpg|gif|webp|avif|bmp|tiff);base64,[A-Za-z0-9+/=]*)$/;
+
 SvgDOMPurify.addHook('afterSanitizeAttributes', (node) => {
-  if (node.tagName && node.tagName.toLowerCase() === 'use') {
-    const xlinkHref = node.getAttribute('xlink:href');
-    if (xlinkHref && !xlinkHref.startsWith('#')) {
-      node.removeAttribute('xlink:href');
-    }
-    const href = node.getAttribute('href');
-    if (href && !href.startsWith('#')) {
-      node.removeAttribute('href');
+  for (const attribute of ['xlink:href', 'href']) {
+    const value = node.getAttribute(attribute);
+    if (value !== null && !AllowedSvgHref.test(value.trim())) {
+      node.removeAttribute(attribute);
     }
   }
 });
