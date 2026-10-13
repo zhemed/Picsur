@@ -1,0 +1,62 @@
+# Picsur all-in-one 镜像：同一个容器里跑 Postgres 17 + Picsur 应用，/data 是唯一持久化目录。
+#
+#   docker run -d --name picsur --restart always -p 8080:8080 -v ./data:/data zhemed/picsur:allinone
+#
+# 与常规 `Dockerfile` / `docker-compose.yml` 的关系：
+#   * 本文件**不改动**常规镜像与 compose 的默认路径，二者并存（常规路径仍是正式部署方式）。
+#   * 基底直接复用常规镜像的最终阶段 —— 里面已经有 Node 20、自编译 libvips 8.18.7
+#     （HEIF / JXL / JP2 编解码）和三包产物，本文件只加 Postgres 与入口脚本。
+#
+# 构建（仓库根目录）：
+#   docker build -f Dockerfile.allinone -t zhemed/picsur:allinone .                     # 默认基于 ghcr 发布镜像
+#   docker build --build-arg PICSUR_BASE_IMAGE=zhemed/picsur:local \
+#     -f Dockerfile.allinone -t zhemed/picsur:allinone .                               # 或复用本地刚构建的常规镜像
+#
+# 说明：
+#   * alpine 3.23 的包名已实测：postgresql17 / postgresql17-client（PostgreSQL 17.11）。
+#   * tini 作为 PID 1（收尸 + 转发信号），su-exec 用来以 postgres 用户启动数据库。
+#   * 镜像内的 Postgres 只监听容器内的 127.0.0.1:5432 与 unix socket，不对外暴露；
+#     端口只用 -p 8080:8080 发布应用。
+
+ARG PICSUR_BASE_IMAGE=ghcr.io/zhemed/picsur:latest
+FROM ${PICSUR_BASE_IMAGE}
+
+LABEL org.opencontainers.image.title="picsur-all-in-one" \
+      org.opencontainers.image.description="Picsur 图床 + 内嵌 PostgreSQL 17，数据落在 /data" \
+      org.opencontainers.image.source="https://github.com/zhemed/picsur"
+
+# Postgres 17（alpine 3.23 包名已实测：postgresql17 / postgresql17-client / postgresql17-contrib）
+#   * contrib 不是可选项：主键 uuid 需要 `CREATE EXTENSION "uuid-ossp"`（typeorm 启动时自动建），
+#     官方 postgres:17-alpine 自带 contrib，我们也必须带上，否则首次迁移直接失败。
+#   * tini = PID 1（收尸 + 转发信号）；su-exec = 以 postgres 用户启动数据库。
+RUN apk add --no-cache postgresql17 postgresql17-client postgresql17-contrib tini su-exec \
+    && mkdir -p /data /run/postgresql \
+    && chown postgres:postgres /run/postgresql
+
+COPY support/allinone-entrypoint.sh /usr/local/bin/picsur-allinone-entrypoint
+RUN chmod 0755 /usr/local/bin/picsur-allinone-entrypoint
+
+# 与常规镜像/compose 一致的运行契约；DB 指向容器内的本地 Postgres
+ENV PICSUR_PRODUCTION=true \
+    PICSUR_HOST=0.0.0.0 \
+    PICSUR_PORT=8080 \
+    PICSUR_DB_HOST=127.0.0.1 \
+    PICSUR_DB_PORT=5432 \
+    PICSUR_DB_USERNAME=picsur \
+    PICSUR_DB_DATABASE=picsur \
+    PICSUR_STATIC_FRONTEND_ROOT=/picsur/frontend/dist \
+    PICSUR_MAX_FILE_SIZE=128000000 \
+    PICSUR_TELEMETRY=false \
+    PICSUR_VERBOSE=false \
+    PICSUR_DATA_DIR=/data
+
+EXPOSE 8080
+VOLUME ["/data"]
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=5 \
+    CMD wget -q -O /dev/null "http://127.0.0.1:${PICSUR_PORT:-8080}/api/info" || exit 1
+
+# 直接 exec node（与常规镜像的 start:prod = `node dist/main` 同一个入口），
+# 少一层 pnpm 包装，SIGTERM 能直接打到应用进程上
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/picsur-allinone-entrypoint"]
+CMD ["node", "backend/dist/main.js"]

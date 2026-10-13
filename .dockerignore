@@ -6,6 +6,8 @@ node_modules
 .env.*
 .run
 .worktrees
+# all-in-one 的默认数据目录（./data:/data）：整个 Postgres + 明文密钥，别进上下文
+/data
 
 # AI 工作区，与镜像无关
 .trellis
@@ -13,6 +15,9 @@ node_modules
 .dsh
 
 support
+# 例外：all-in-one 镜像的入口脚本必须进构建上下文（Dockerfile.allinone 会 COPY 它）。
+# 常规 Dockerfile 不 COPY support/，多一个未被使用的上下文文件不改变它的产物与行为。
+!support/allinone-entrypoint.sh
 backend/dist
 frontend/dist
 shared/dist

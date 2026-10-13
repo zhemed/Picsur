@@ -19,5 +19,8 @@ temp
 .run/
 *.log
 
+# all-in-one 镜像的默认数据目录（./data:/data）：里面有整个 Postgres 与明文密钥，绝不入库
+/data/
+
 # Team worktrees (each stream gets its own checkout)
 .worktrees/
