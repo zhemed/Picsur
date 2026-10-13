@@ -78,8 +78,11 @@
 - [x] 7.1 质量检查：`trellis-check` 子代理全量复核（AC1–AC6/AC8 实测通过，密钥审计干净，自修 4 处）
 - [x] 7.2 3.3 更新 spec：`spec/picsur-backend/backend/build-and-deploy.md`、`image-api-contracts.md` +
       两处索引 + `guides/index.md` 思考触发项
-- [ ] 7.3 3.4 提交：分组提交，**不 push**（等用户确认端口暴露面后执行）
-- [ ] 7.4 3.5 提醒用户 `/finish-work`
+- [x] 7.3 3.4 提交：5 个分组提交（前端 webpack 修复 / 部署产物 / 文档 / Trellis 引导 / 改名收尾），
+      均带 `[task:10-13-handover-baseline]` 锚点；已按用户授权 **push 到 origin**（`f47df7f..d103d32`）
+- [x] 7.4 3.5 已在交付汇报里提醒用户 `/finish-work`（本文件随后随归档提交一起落库）
+- [x] 7.5 提交后**用已提交的树重建镜像**并复跑最终验收：7 种格式全 200、重启 3s 恢复、
+      旧 token 存活、遥测仍为关闭（证据 `.run/final-verify.log`）
 
 ## 审查门
 
