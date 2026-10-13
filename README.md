@@ -1,93 +1,74 @@
-<img align="left" width="100" height="100" style="border-radius: 15%" src="branding/logo/picsur.svg"/>
+<img align="left" width="90" height="90" style="border-radius: 15%" src="branding/logo/picsur.svg"/>
 
 # Picsur
 
-> Self-hosted image sharing — an Imgur / Pastebin hybrid.
+自建的图片分享服务（Imgur + Pastebin 混合体），自己部署、数据在自己手里。
 
-**This repository is an independently maintained fork** of
-[Picsur](https://github.com/CaramelFur/Picsur) (by Caramel, AGPL-3.0).
-Upstream stopped being maintained in 2024; this fork is maintained by
-[@zhemed](https://github.com/zhemed) and carries its own build, deploy and
-dependency-security pipeline.
+> 本仓库由 [@zhemed](https://github.com/zhemed) 自维护，**不依赖上游、不上报遥测**。
+> 代码源自 [Picsur](https://github.com/CaramelFur/Picsur)（作者 Caramel，AGPL-3.0，上游 2024 年起停止维护）。
 
-> 上游已停止维护。本仓库是自维护分支：自带构建/部署流水线、独立的依赖安全基线，
-> 并且**不向上游或任何第三方上报遥测数据**（`ReportUrl` 已置空，见 `backend/src/config/config.static.ts`）。
-
-## Features
-
-- Uploading and viewing images, anonymous uploads
-- User accounts, roles and permissions
-- EXIF stripping, optional "keep original"
-- Formats: QOI, JPG, PNG, WEBP (animated), TIFF, HEIF, BMP, GIF (animated), JPEG-XL, JPEG-2000,
-  **SVG** (kept as vector, sanitised on upload and served with a strict CSP)
-- UI available in **English and 中文** (switch in the header; remembered per browser)
-- Convert & edit images: resize, rotate, flip, strip transparency, negative, greyscale
-- Deletable and expiring images, ShareX endpoint, proper DB migrations
-- Self-built container image with the **full codec set** (HEIF / JXL / JP2 — the
-  upstream prebuilt `sharp` binaries do not have these; see `Dockerfile`)
-
-## Quick start (Docker)
+## 快速开始
 
 ```bash
-cp .env.example .env # set PICSUR_ADMIN_PASSWORD and PICSUR_JWT_SECRET
+cp .env.example .env # 至少改 PICSUR_ADMIN_PASSWORD 与 PICSUR_JWT_SECRET
 docker compose up -d --build
-# -> http://localhost:8080  (login: admin / whatever you set)
+# 打开 http://localhost:8080  登录名固定为 admin
 ```
 
-The image is built from the [`Dockerfile`](./Dockerfile) in this repository.
-It does **not** pull any upstream image and does **not** depend on upstream's
-private build layers.
+镜像用本仓库的 `Dockerfile` 自己构建，不拉任何上游镜像。
 
-## Build from source
+## 能做什么
 
-Requires **Node 20** and **pnpm 9.6.0** (see `.nvmrc` / `packageManager`):
+- 上传 / 浏览图片，支持匿名上传；账号、角色、权限
+- 格式：QOI、JPG、PNG、WEBP（动图）、TIFF、HEIF、BMP、GIF（动图）、JPEG-XL、JPEG-2000、
+  **SVG**（按向量保存，上传即净化，取回带严格 CSP）
+- 转换与编辑：缩放、旋转、翻转、去透明、负片、灰度；EXIF 剥离，「保留原图」可选
+- 删除与过期、ShareX 端点、数据库迁移
+- 界面**中英文**可切（页头切换，按浏览器记忆）
+- 自编译镜像，编解码器齐全（HEIF / JXL / JP2 —— 上游预编译的 `sharp` 没有这些）
+
+## 从源码构建
+
+必须 **Node 20 + pnpm 9.6.0**：`qoi-img` / `bmp-img` / `posix.js` 在 Node ≥ 22.16 装不上
+（构建产物本身可以在更高版本的 Node 上跑）。
 
 ```bash
 corepack enable && corepack prepare pnpm@9.6.0 --activate
 pnpm install
-pnpm --filter picsur-shared build
-pnpm --filter picsur-backend build
-pnpm --filter picsur-frontend build
-node backend/dist/main.js # after setting the env vars from .env
+pnpm build                              # shared → backend → frontend
+pnpm --filter picsur-backend start:prod # 需要先配好 .env
 ```
 
-> ⚠️ Installing dependencies with **Node ≥ 22.16 fails**: `qoi-img`, `bmp-img`
-> and `posix.js` compile native code that no longer builds against the newer
-> N-API signatures. Running the built output on newer Node is fine.
-> Full toolchain contract: [`.trellis/spec/picsur-backend/backend/build-and-deploy.md`](.trellis/spec/picsur-backend/backend/build-and-deploy.md).
+## 配置
 
-## Configuration
+变量都以 `PICSUR_` 开头，完整清单见 [`.env.example`](./.env.example)。常用的：
 
-All variables are prefixed `PICSUR_` (see [`.env.example`](./.env.example)):
+| 变量                                               | 默认                            | 说明                                               |
+| -------------------------------------------------- | ------------------------------- | -------------------------------------------------- |
+| `PICSUR_ADMIN_PASSWORD`                            | 必填                            | 管理员口令（用户名固定 `admin`）                   |
+| `PICSUR_JWT_SECRET`                                | 随机                            | 不设则每次重启所有人掉线                           |
+| `PICSUR_DB_{HOST,PORT,USERNAME,PASSWORD,DATABASE}` | `localhost` / `5432` / `picsur` | Postgres 连接                                      |
+| `PICSUR_PORT` / `PICSUR_HOST`                      | `8080` / `0.0.0.0`              | 监听地址                                           |
+| `PICSUR_MAX_FILE_SIZE`                             | `128000000`                     | 上传字节上限                                       |
+| `PICSUR_MAX_IMAGE_PIXELS`                          | `268402689`                     | 像素上限（`宽 × 高`），`0` = 不限                  |
+| `PICSUR_PRODUCTION`                                | `false`                         | **生产必须设 `true`**（否则 TypeORM 会同步表结构） |
+| `PICSUR_VERBOSE`                                   | `false`                         | ⚠️ **别开**：会把 JWT secret 与库口令明文打进日志  |
 
-| Variable                                           | Default                            | Notes                                                                             |
-| -------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------- |
-| `PICSUR_ADMIN_PASSWORD`                            | —                                  | required; username is always `admin`                                              |
-| `PICSUR_JWT_SECRET`                                | random                             | set it, otherwise every restart logs everyone out                                 |
-| `PICSUR_DB_{HOST,PORT,USERNAME,PASSWORD,DATABASE}` | `localhost` / `5432` / `picsur` ×3 |                                                                                   |
-| `PICSUR_PORT` / `PICSUR_HOST`                      | `8080` / `0.0.0.0`                 |                                                                                   |
-| `PICSUR_MAX_FILE_SIZE`                             | `128000000`                        | bytes                                                                             |
-| `PICSUR_MAX_IMAGE_PIXELS`                          | `268402689`                        | `width × height` limit; oversized uploads return a readable 400 (`0` disables it) |
-| `PICSUR_STATIC_FRONTEND_ROOT`                      | `/picsur/frontend/dist`            | change only with a custom frontend                                                |
-| `PICSUR_PRODUCTION`                                | `false`                            | **set `true` in production** (otherwise TypeORM synchronizes the schema)          |
-| `PICSUR_VERBOSE`                                   | `false`                            | ⚠️ do **not** enable: it logs the JWT secret and DB password in plaintext         |
-| `PICSUR_TELEMETRY`                                 | `true`                             | cosmetic only — reporting is disabled because no endpoint is configured           |
+## 运维
 
-## API
+- **升级**：`git pull && docker compose up -d --build`；数据库迁移随容器启动自动执行。
+- **备份**：图片、用户、配置**全部存在 Postgres 里**（应用容器没有任何挂载），所以
+  `docker compose exec postgres pg_dump -U picsur picsur > picsur-$(date +%F).sql` 就是全量备份。
+- **自检**：`bash support/regression-image-api.sh http://localhost:8080 "<admin口令>"`（34 项断言：
+  上传 / 取回 / 7 种格式 / 删除语义 / 像素上限）。
+- **凭据轮换**：步骤与三个坑见 [build-and-deploy.md §11](.trellis/spec/picsur-backend/backend/build-and-deploy.md)。
 
-TypeScript schemas live in [`shared/`](./shared); the HTTP contract (paths,
-status codes, error matrix) is documented in
-[`.trellis/spec/picsur-backend/backend/image-api-contracts.md`](.trellis/spec/picsur-backend/backend/image-api-contracts.md).
+## 现状
 
-## Status
+- 生产依赖审计 **0 告警**：`pnpm audit --prod --registry https://registry.npmjs.org/`
+- 还没做：Angular 大版本升级、可插拔存储后端（本地文件 / S3）、相册 / 公开画廊
 
-- Production dependency audit: **0 advisories** (`pnpm audit --prod`); the
-  upgrade record is under `.trellis/tasks/archive/`.
-- Not done yet: Angular major upgrade (browser-side advisories in the shipped
-  bundle), pluggable storage backends (local files / S3), albums / public gallery.
+## 许可
 
-## License
-
-AGPL-3.0 — see [`LICENSE`](./LICENSE). This repository contains code
-copyright Caramel and contributors, originally from
-<https://github.com/CaramelFur/Picsur>, and is distributed under the same license.
+**AGPL-3.0**，见 [`LICENSE`](./LICENSE)。代码版权归 Caramel 及贡献者所有，源自
+<https://github.com/CaramelFur/Picsur>，本仓库以同一许可分发。
