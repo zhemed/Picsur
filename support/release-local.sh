@@ -36,4 +36,12 @@ fi
 if [ "${DRY:-0}" = "1" ]; then echo "✅ dry-run：镜像已构建但未推送"; exit 0; fi
 for t in "$VERSION" "v$VERSION" "$MINOR" latest; do echo "▶ push $IMAGE:$t"; docker push "$IMAGE:$t"; done
 [ "$BUILD_ALLINONE" = "1" ] && { echo "▶ push $IMAGE:allinone"; docker push "$IMAGE:allinone"; }
+# 自动打并推送 git tag（版本检测读的就是它；以前 CI 靠 tag 触发天然有，改本地发布后必须自己打）
+if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+  echo "▶ git tag v$VERSION 已存在，跳过"
+else
+  git tag -a "v$VERSION" -m "release $VERSION"
+  git push origin "v$VERSION"
+  echo "▶ 已推送 git tag v$VERSION"
+fi
 echo "✅ 完成：$IMAGE:$VERSION / :v$VERSION / :$MINOR / :latest${BUILD_ALLINONE:+ / :allinone}"
