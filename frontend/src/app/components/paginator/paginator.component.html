@@ -3,10 +3,16 @@
   (click)="changePage(1)"
   *ngIf="showFirstLast"
   [disabled]="page <= 1"
+  [attr.aria-label]="'pagination.firstPage' | translate"
 >
   <mat-icon>first_page</mat-icon>
 </button>
-<button mat-icon-button (click)="changePage(page - 1)" [disabled]="page <= 1">
+<button
+  mat-icon-button
+  (click)="changePage(page - 1)"
+  [disabled]="page <= 1"
+  [attr.aria-label]="'pagination.previousPage' | translate"
+>
   <mat-icon>chevron_left</mat-icon>
 </button>
 
@@ -15,6 +21,7 @@
     mat-icon-button
     (click)="changePage(i)"
     *ngFor="let i of firstPagesRange | range"
+    [attr.aria-label]="i"
   >
     <span>{{ i }}</span>
   </button>
@@ -29,6 +36,7 @@
   (click)="changePage(i)"
   [class.mat-flat-button]="i === page"
   *ngFor="let i of pagesRange | range"
+  [attr.aria-label]="i"
 >
   <span>{{ i }}</span>
 </button>
@@ -42,6 +50,7 @@
     mat-icon-button
     (click)="changePage(i)"
     *ngFor="let i of lastPagesRange | range"
+    [attr.aria-label]="i"
   >
     <span>{{ i }}</span>
   </button>
@@ -51,6 +60,7 @@
   mat-icon-button
   (click)="changePage(page + 1)"
   [disabled]="page >= totalPages"
+  [attr.aria-label]="'pagination.nextPage' | translate"
 >
   <mat-icon>chevron_right</mat-icon>
 </button>
@@ -59,6 +69,7 @@
   (click)="changePage(totalPages)"
   *ngIf="showFirstLast"
   [disabled]="page >= totalPages"
+  [attr.aria-label]="'pagination.lastPage' | translate"
 >
   <mat-icon>last_page</mat-icon>
 </button>
