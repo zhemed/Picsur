@@ -5,6 +5,7 @@ import { EarlyConfigModule } from '../early/early-config.module.js';
 import { EarlyJwtConfigService } from '../early/early-jwt.config.service.js';
 import { InfoConfigService } from './info.config.service.js';
 import { JwtConfigService } from './jwt.config.service.js';
+import { UpdateConfigService } from './update.config.service.js';
 import { UsageConfigService } from './usage.config.service.js';
 
 // This module contains all configservices that depend on the syspref module
@@ -14,12 +15,18 @@ import { UsageConfigService } from './usage.config.service.js';
 
 @Module({
   imports: [EarlyConfigModule, PreferenceDbModule],
-  providers: [JwtConfigService, InfoConfigService, UsageConfigService],
+  providers: [
+    JwtConfigService,
+    InfoConfigService,
+    UsageConfigService,
+    UpdateConfigService,
+  ],
   exports: [
     EarlyConfigModule,
     JwtConfigService,
     InfoConfigService,
     UsageConfigService,
+    UpdateConfigService,
   ],
 })
 export class LateConfigModule implements OnModuleInit {
