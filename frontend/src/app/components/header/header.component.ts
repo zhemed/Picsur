@@ -15,6 +15,7 @@ import { HasFailed } from 'picsur-shared/dist/types/failable';
 import {
   AvailableLanguage,
   availableLanguages,
+  defaultLanguage,
   I18nService,
 } from '../../i18n/i18n.service';
 
@@ -57,7 +58,7 @@ export class HeaderComponent implements OnInit {
   public canUpload = false;
   public canRegister = false;
   public readonly availableLanguages = [...availableLanguages];
-  public currentLanguage: AvailableLanguage = 'en';
+  public currentLanguage: AvailableLanguage = defaultLanguage;
 
   public get user() {
     return this.currentUser;

@@ -5,7 +5,8 @@ import { Observable, Subject } from 'rxjs';
 import chineseTranslations from '../../assets/i18n/zh.json';
 import englishTranslations from '../../assets/i18n/en.json';
 
-export const availableLanguages = ['en', 'zh'] as const;
+// 顺序即语言菜单的显示顺序：中文在前（项目所有者 2026-10-13 定）
+export const availableLanguages = ['zh', 'en'] as const;
 export type AvailableLanguage = (typeof availableLanguages)[number];
 
 /**
