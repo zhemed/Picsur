@@ -73,6 +73,7 @@ export class SelfUpdateService {
   private readonly logger = new Logger(SelfUpdateService.name);
 
   private running = false;
+  private beginTimer: NodeJS.Timeout | null = null;
   private lastUpdate: UpdateStatusInfo | null = null;
 
   constructor(
@@ -187,6 +188,18 @@ export class SelfUpdateService {
       throw Fail(FT.Conflict, 'An update is already running');
     }
 
+    // Take the lock here, not in begin(): two parallel POSTs would both pass
+    // the check above before either of them reaches begin().
+    this.running = true;
+    try {
+      return await this.prepareLocked(tagOverride);
+    } catch (error) {
+      this.running = false;
+      throw error;
+    }
+  }
+
+  private async prepareLocked(tagOverride?: string): Promise<UpdatePlan> {
     try {
       await this.docker.getVersion(5000);
     } catch (error) {
@@ -227,6 +240,19 @@ export class SelfUpdateService {
     const appPort = Number(env['PICSUR_PORT'] ?? 8080) || 8080;
 
     const stamp = Date.now();
+
+    // Safety net: if the response never reaches the client, begin() is never
+    // called and the lock would stay forever (until restart).
+    this.beginTimer = setTimeout(() => {
+      if (this.beginTimer === null) return;
+      this.beginTimer = null;
+      this.running = false;
+      this.logger.warn(
+        'The update was prepared but never started (response did not finish), lock released',
+      );
+    }, 120000);
+    this.beginTimer.unref?.();
+
     return {
       self,
       containerName: name,
@@ -245,7 +271,10 @@ export class SelfUpdateService {
    * this process lives in may be stopped at any moment from here on.
    */
   public async begin(plan: UpdatePlan): Promise<void> {
-    this.running = true;
+    if (this.beginTimer !== null) {
+      clearTimeout(this.beginTimer);
+      this.beginTimer = null;
+    }
     this.logger.log(
       `Self update starting: ${plan.imageRef} (container ${plan.containerName})`,
     );
