@@ -51,3 +51,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 3: 脱离上游（一）：仓库切换 + 去上游化改造
+<!-- trellis-session: v=2 fp=d0aa80b3d1a61535 -->
+
+**Date**: 2026-10-13
+**Task**: 脱离上游（一）：仓库切换 + 去上游化改造
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+把项目从上游彻底摘出来：① 仓库层面——原 fork 改名 zhemed/Picsur-fork-archive 并归档（只读），新建非 fork 仓库 zhemed/picsur，origin 切过去、upstream remote 删除、全历史推送；② 运行时——遥测断链（ReportUrl 编译期置空 + UsageService 端点为空即跳过），DB 首选项置 true 也不出网（tcpdump 0 包验证）；③ 元数据——四个 package.json 换到自有版本线 0.6.0、repository/author 指向新仓库；④ 品牌保留 Picsur，只去掉上游指向（页脚、og 标签、README 重写、删上游 FUNDING.yml）。验证：三包构建、容器 7 格式全 200、SPA 深链、/api/info version=0.6.0、密钥零入库、白名单外零上游字样。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8dbf5f0` | chore: reword comments that still carried upstream coordinates |
+
+### Status
+
+[OK] **Completed**
