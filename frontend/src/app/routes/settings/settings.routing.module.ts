@@ -101,7 +101,11 @@ const SettingsRoutes: PRoutes = [
           permissions: [Permission.SysPrefAdmin],
           page: {
             title: 'settings.pages.about',
-            icon: 'info_outline',
+            // Must be a ligature that exists in the "Material Icons Outlined" set.
+            // `info_outline` only exists in the filled set: with the outlined font it
+            // renders as literal text, which stretches the sidebar icon to ~216px
+            // and pushes the label out of line.
+            icon: 'info',
             category: 'system',
           },
         },
