@@ -10,9 +10,8 @@ name: release-image
 # 镜像内容与本地 `docker compose up -d --build` 完全一致（同一个 Dockerfile）。
 
 on:
-  push:
-    tags:
-      - 'v*'
+  # 发版默认走本地：`bash support/release-local.sh`（热缓存约 2 分钟；GitHub runner 要 7+ 分钟）。
+  # 这个工作流保留为备用/可复现路径（干净检出、无本地缓存），只手动触发。
   workflow_dispatch:
 
 permissions:
