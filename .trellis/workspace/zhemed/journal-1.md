@@ -323,3 +323,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 15: 还原页脚（0.7.6）——revert 时踩到两个坑
+<!-- trellis-session: v=2 fp=b48a176b20ae9610 -->
+
+**Date**: 2026-10-13
+**Task**: 还原页脚（0.7.6）——revert 时踩到两个坑
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户改主意要把页脚请回来。执行：revert 掉删除页脚的提交，但撞了两个坑：① 那次提交里夹着 Trellis 任务目录归档移动，revert 出现 rename/delete 冲突（git add -A 后按保留归档解决）；② revert 把同一次提交里的版本号一并退回 0.7.4，导致发布脚本按 0.7.4 又推了一次（:0.7.4/:v0.7.4/:0.7/:latest/:allinone 被覆盖成『带页脚的版本』）——版本标签因此短暂不单调。收拾：版本号拨到 0.7.6 并重新发布，面板升级实例到 0.7.6（50s、数据无损），实测 app-footer 元素回来了、底部那行文字在、版本 0.7.6。教训：revert 前先看该提交是否夹带了版本号/任务目录等非功能改动，避免顺带回退。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `98710bf` | chore(release): 0.7.6 |
+
+### Status
+
+[OK] **Completed**

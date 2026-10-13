@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 14
+- **Total Sessions**: 15
 - **Last Active**: 2026-10-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~325 | Active |
+| `journal-1.md` | ~348 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 15 | 2026-10-13 | 还原页脚（0.7.6）——revert 时踩到两个坑 | `98710bf` | `master` |
 | 14 | 2026-10-13 | 去掉页脚 + 发布 0.7.5 | `8ee0d99` | `master` |
 | 13 | 2026-10-13 | 修复界面文字选不中（删除全局 user-select:none）+ 发布 0.7.4 | `1d79f3a` | `master` |
 | 12 | 2026-10-13 | 语言菜单中文置顶 + 本地发布流程修 v 前缀 + 实例面板升级到 0.7.3 | `90c3d35` | `master` |
