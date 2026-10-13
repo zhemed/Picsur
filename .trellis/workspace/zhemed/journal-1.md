@@ -118,3 +118,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 6: 重整提交历史（450 → 32）并把 README 换成简体中文精简版
+<!-- trellis-session: v=2 fp=63603405cebc87e1 -->
+
+**Date**: 2026-10-13
+**Task**: 重整提交历史（450 → 32）并把 README 换成简体中文精简版
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户质疑 450 个提交：查明 419 个是上游继承（rubikscraft 342/Caramel 49/…），我们自己只有 31 个。按用户选择把上游压成 1 个起点提交、保留我们的 31 个：git rebase 会丢 merge 提交（团队三条战线的合并处冲突），改用 filter-branch --parent-filter 只改父链接，不用三方合并，一次成功；树经 git diff 证明逐字节未变（否则要重新验证）。起点提交被提交闸门拦（整树都是老文件），用官方 Allow-Stale-Files 逃逸通过。README 由英文 93 行/5405 字符改为中文 74 行/3234 字符：这是什么/快速开始/能做什么/源码构建/配置/运维（升级·备份·自检·轮换）/现状/许可，其中每条命令都当场跑过（pnpm build OK、回归脚本可执行、spec §11 存在）。备份：本地 backup/pre-squash-2026-10-13 与 refs/original/refs/heads/master 均指向旧 tip 3e3d73a。已 --force-with-lease 推送，远端提交数 33。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4c8b8e0` | docs: rewrite the README in Simplified Chinese for a self-maintained project |
+
+### Status
+
+[OK] **Completed**
