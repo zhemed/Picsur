@@ -254,3 +254,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 12: 语言菜单中文置顶 + 本地发布流程修 v 前缀 + 实例面板升级到 0.7.3
+<!-- trellis-session: v=2 fp=c97431d59dfb79d5 -->
+
+**Date**: 2026-10-13
+**Task**: 语言菜单中文置顶 + 本地发布流程修 v 前缀 + 实例面板升级到 0.7.3
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+① availableLanguages 由 ['en','zh'] 改为 ['zh','en']（这个数组顺序就是菜单顺序），页头占位初值改用 defaultLanguage；复核确认默认语言链路无浏览器嗅探（只读 localStorage，否则 defaultLanguage=zh），清空存储首访 html.lang=zh。② 发布走本地 support/release-local.sh：0.7.3 构建+推送 1m59s（CI 7m26s）。③ 修脚本：本地发布漏推 v 前缀 tag（CI 原来会推 v0.7.1 + 0.7.1），导致面板升级 v0.7.3 报 'Could not pull the new image: docker answered with 404'——顺带证明失败路径是安全的（state=failed、旧容器保留、数据无损）；补推 v tag 后重试成功：0.7.2 → 0.7.3，50 秒，图片 sha 一致。④ 经验：验证发布产物要绕开浏览器缓存（旧 bundle 会让人误判没生效）。⑤ 过程失误：提交命令多带了一个参数导致误 amend 上一提交、push 被拒，用 reset --soft origin/master 恢复后重新提交。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `90c3d35` | build: tag locally published images with a v prefix too |
+
+### Status
+
+[OK] **Completed**
