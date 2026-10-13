@@ -277,3 +277,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 13: 修复界面文字选不中（删除全局 user-select:none）+ 发布 0.7.4
+<!-- trellis-session: v=2 fp=a6fbb164946f12ce -->
+
+**Date**: 2026-10-13
+**Task**: 修复界面文字选不中（删除全局 user-select:none）+ 发布 0.7.4
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+根因：fixes.scss 里上游遗留的 :not(input){user-select:none}（全局引入），除 <input> 外整站不可选中——这正是'只有图片链接能复制'的原因（链接在 input 里，copy-field 从 input 取值）。用户选方案 1：直接删除该规则（Material 自身已对按钮/图标/菜单项禁用选中）。发 0.7.4 并经面板升级常驻实例（50s，数据一致）。过程中我的本地发布脚本又一个 bug：推送 :v<version> 但构建时没打该 tag，导致推送静默失败、面板升级 404（失败路径再次证明安全：state=failed、旧容器保留、数据无损）；已修脚本并重推，重试升级成功。验证：实例 0.7.4 上 body/span 的 user-select 不再为 none，DOM 选区能选出正文。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1d79f3a` | build: create the v-prefixed tag before pushing it |
+
+### Status
+
+[OK] **Completed**
