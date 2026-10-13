@@ -1,5 +1,7 @@
 import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { I18nService } from '../../../i18n/i18n.service';
+
 import { ImageService } from '../../../services/api/image.service';
 
 export interface CustomizeDialogData {
@@ -17,8 +19,6 @@ export interface CustomizeDialogData {
   styleUrls: ['./customize-dialog.component.scss'],
 })
 export class CustomizeDialogComponent {
-  public sizeTooltip = 'Leave empty to keep original aspect ratio';
-
   public rotationOptions = [0, 90, 180, 270];
   public formatOptions: {
     value: string;
@@ -41,6 +41,7 @@ export class CustomizeDialogComponent {
   constructor(
     public readonly dialogRef: MatDialogRef<CustomizeDialogComponent>,
     private readonly imageService: ImageService,
+    private readonly i18n: I18nService,
     @Inject(MAT_DIALOG_DATA) data: CustomizeDialogData,
   ) {
     this.formatOptions = data.formatOptions;
@@ -50,6 +51,10 @@ export class CustomizeDialogComponent {
 
   close() {
     this.dialogRef.close();
+  }
+
+  get sizeTooltip() {
+    return this.i18n.instant('view.customize.sizeTooltip');
   }
 
   getURL(): string {

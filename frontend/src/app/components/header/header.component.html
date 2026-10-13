@@ -31,7 +31,29 @@
   <span class="spacer"></span>
 
   <button
-    matTooltip="Upload an image"
+    [matTooltip]="'header.language' | translate"
+    mat-icon-button
+    class="me-3"
+    [matMenuTriggerFor]="languageMenu"
+  >
+    <mat-icon fontSet="material-icons-outlined">language</mat-icon>
+  </button>
+
+  <mat-menu #languageMenu="matMenu" xPosition="before">
+    <button
+      *ngFor="let language of availableLanguages"
+      mat-menu-item
+      (click)="setLanguage(language)"
+    >
+      <mat-icon fontSet="material-icons-outlined">
+        {{ currentLanguage === language ? 'check' : '' }}
+      </mat-icon>
+      <span>{{ 'languages.' + language | translate }}</span>
+    </button>
+  </mat-menu>
+
+  <button
+    [matTooltip]="'header.uploadImage' | translate"
     *ngIf="canUpload"
     mat-icon-button
     class="me-3"
@@ -41,19 +63,22 @@
   </button>
 
   <button
-    [matTooltip]="canRegister ? 'Login or Register' : 'Login to your account'"
+    [matTooltip]="
+      (canRegister ? 'header.loginOrRegister' : 'header.loginAccount')
+        | translate
+    "
     *ngIf="!isLoggedIn && canLogIn"
     mat-stroked-button
     (click)="doLogin()"
   >
-    LOGIN
+    {{ 'common.actions.login' | translate }}
   </button>
 
   <!-- <span *ngIf="isLoggedIn" class="me-3 d-none d-sm-block">
     {{ user?.username }}
   </span> -->
   <button
-    matTooltip="Your account"
+    [matTooltip]="'header.yourAccount' | translate"
     *ngIf="isLoggedIn"
     mat-icon-button
     [matMenuTriggerFor]="menu"
@@ -70,15 +95,15 @@
       </span>
       <button *ngIf="canUpload" mat-menu-item (click)="doImages()">
         <mat-icon fontSet="material-icons-outlined">image</mat-icon>
-        <span>My Images</span>
+        <span>{{ 'header.myImages' | translate }}</span>
       </button>
       <button *ngIf="canAccessSettings" mat-menu-item (click)="doSettings()">
         <mat-icon fontSet="material-icons-outlined">settings</mat-icon>
-        <span>Settings</span>
+        <span>{{ 'header.settings' | translate }}</span>
       </button>
       <button mat-menu-item (click)="doLogout()">
         <mat-icon fontSet="material-icons-outlined">logout</mat-icon>
-        <span>Logout</span>
+        <span>{{ 'header.logout' | translate }}</span>
       </button>
     </ng-template>
   </mat-menu>

@@ -6,6 +6,7 @@ import {
   OnInit,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { I18nService } from '../../i18n/i18n.service';
 import { ImageMetaResponse } from 'picsur-shared/dist/dto/api/image.dto';
 import { ImageLinks } from 'picsur-shared/dist/dto/image-links.class';
 import {
@@ -13,6 +14,7 @@ import {
   ImageFileType,
   SupportedFileTypeCategory,
 } from 'picsur-shared/dist/dto/mimes.dto';
+
 import { EImage } from 'picsur-shared/dist/entities/image.entity';
 import { EUser } from 'picsur-shared/dist/entities/user.entity';
 
@@ -42,6 +44,7 @@ export class ViewComponent implements OnInit, OnDestroy {
     private readonly errorService: ErrorService,
     private readonly utilService: UtilService,
     private readonly changeDetector: ChangeDetectorRef,
+    private readonly i18n: I18nService,
   ) {}
 
   private id = '';
@@ -120,7 +123,10 @@ export class ViewComponent implements OnInit, OnDestroy {
 
       this.id = params.get('id') ?? '';
       if (!UUIDRegex.test(this.id)) {
-        return this.errorService.quitError('Invalid image link', this.logger);
+        return this.errorService.quitError(
+          this.i18n.instant('images.invalidLink'),
+          this.logger,
+        );
       }
     }
 
@@ -132,7 +138,10 @@ export class ViewComponent implements OnInit, OnDestroy {
 
       if (metadata.image.expires_at !== null) {
         if (metadata.image.expires_at <= new Date())
-          return this.errorService.quitWarn('Image not found', this.logger);
+          return this.errorService.quitWarn(
+            this.i18n.instant('images.notFound'),
+            this.logger,
+          );
 
         this.subscribeTimeout(metadata.image.expires_at);
       }
@@ -213,12 +222,14 @@ export class ViewComponent implements OnInit, OnDestroy {
   }
 
   private getOriginalFormatLabel(): string {
-    if (this.metadata === null) return 'Original';
+    if (this.metadata === null) return this.i18n.instant('view.original');
 
     const originalFiletype =
       this.metadata.fileTypes.original ?? this.metadata.fileTypes.master;
 
-    return originalFiletype === ImageFileType.SVG ? 'SVG' : 'Original';
+    return originalFiletype === ImageFileType.SVG
+      ? 'SVG'
+      : this.i18n.instant('view.original');
   }
 
   private subscribeTimeout(expires_at: Date | null) {
@@ -227,7 +238,10 @@ export class ViewComponent implements OnInit, OnDestroy {
     if (expires_at === null) return;
 
     this.expires_timeout = timer(expires_at).subscribe(() => {
-      this.errorService.quitWarn('Image expired', this.logger);
+      this.errorService.quitWarn(
+        this.i18n.instant('images.expired'),
+        this.logger,
+      );
     });
   }
 }

@@ -3,6 +3,7 @@ import {
   MatFormFieldAppearance,
   SubscriptSizing,
 } from '@angular/material/form-field';
+import { I18nService } from '../../i18n/i18n.service';
 import { Logger } from '../../services/logger/logger.service';
 import { ClipboardService } from '../../util/clipboard.service';
 import { ErrorService } from '../../util/error-manager/error.service';
@@ -16,8 +17,8 @@ export class CopyFieldComponent {
   private readonly logger = new Logger(CopyFieldComponent.name);
 
   // Two parameters: name, value
-  @Input() label = 'Loading...';
-  @Input() value = 'Loading...';
+  @Input() label = 'common.loading';
+  @Input() value = 'common.loading';
 
   @Input() showHideButton = false;
   @Input() hidden = false;
@@ -32,13 +33,18 @@ export class CopyFieldComponent {
   constructor(
     private readonly clipboard: ClipboardService,
     private readonly errorService: ErrorService,
+    private readonly i18n: I18nService,
   ) {}
 
   public async copy() {
     const result = await this.clipboard.copy(this.value);
 
     if (result.success) {
-      this.errorService.info(`Copied ${this.label}!`);
+      this.errorService.info(
+        this.i18n.instant('copyField.copied', {
+          label: this.i18n.instant(this.label),
+        }),
+      );
       this.onCopy.emit(this.value);
       return;
     }
@@ -50,7 +56,9 @@ export class CopyFieldComponent {
     }
 
     this.errorService.error(
-      `Could not copy ${this.label} automatically. Select the text and copy it manually.`,
+      this.i18n.instant('copyField.copyFailedManual', {
+        label: this.i18n.instant(this.label),
+      }),
       this.logger,
     );
   }

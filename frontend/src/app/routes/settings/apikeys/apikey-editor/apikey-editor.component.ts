@@ -1,5 +1,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormControl, Validators } from '@angular/forms';
+import { I18nService } from '../../../../i18n/i18n.service';
+
 import { Logger } from '../../../../services/logger/logger.service';
 
 @Component({
@@ -9,6 +11,8 @@ import { Logger } from '../../../../services/logger/logger.service';
 })
 export class SettingsApiKeyEditorComponent {
   private readonly logger = new Logger(SettingsApiKeyEditorComponent.name);
+
+  constructor(private readonly i18n: I18nService) {}
 
   @Input() set value(value: string) {
     this.field.setValue(value);
@@ -35,17 +39,17 @@ export class SettingsApiKeyEditorComponent {
 
   getErrorMessage() {
     if (this.field.hasError('required')) {
-      return 'You must enter a value';
+      return this.i18n.instant('settings.apiKeys.errors.required');
     }
 
     if (this.field.hasError('minlength')) {
-      return 'Minimum length is 3';
+      return this.i18n.instant('settings.apiKeys.errors.minLength');
     }
 
     if (this.field.hasError('maxlength')) {
-      return 'Maximum length is 255';
+      return this.i18n.instant('settings.apiKeys.errors.maxLength');
     }
 
-    return 'Unknown error';
+    return this.i18n.instant('settings.apiKeys.errors.unknown');
   }
 }

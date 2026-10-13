@@ -1,5 +1,7 @@
 import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { I18nService } from '../../../i18n/i18n.service';
+
 import { EImage } from 'picsur-shared/dist/entities/image.entity';
 import { HasFailed } from 'picsur-shared/dist/types/failable';
 import { ImageService } from '../../../services/api/image.service';
@@ -19,16 +21,16 @@ export class EditDialogComponent {
   private readonly logger = new Logger(EditDialogComponent.name);
 
   public readonly ExpireOptions: Array<[string, number]> = [
-    ['Never', 0],
-    ['5 Minutes', 5 * 60],
-    ['10 Minutes', 10 * 60],
-    ['30 Minutes', 30 * 60],
-    ['1 Hour', 60 * 60],
-    ['6 Hours', 2 * 60 * 60],
-    ['12 Hours', 12 * 60 * 60],
-    ['1 Day', 24 * 60 * 60],
-    ['1 Week', 7 * 24 * 60 * 60],
-    ['1 Month', 30 * 24 * 60 * 60],
+    ['view.edit.never', 0],
+    ['view.edit.fiveMinutes', 5 * 60],
+    ['view.edit.tenMinutes', 10 * 60],
+    ['view.edit.thirtyMinutes', 30 * 60],
+    ['view.edit.oneHour', 60 * 60],
+    ['view.edit.sixHours', 2 * 60 * 60],
+    ['view.edit.twelveHours', 12 * 60 * 60],
+    ['view.edit.oneDay', 24 * 60 * 60],
+    ['view.edit.oneWeek', 7 * 24 * 60 * 60],
+    ['view.edit.oneMonth', 30 * 24 * 60 * 60],
   ];
 
   public expiresAfter?: number = undefined;
@@ -38,6 +40,7 @@ export class EditDialogComponent {
     public readonly dialogRef: MatDialogRef<EditDialogComponent>,
     private readonly imageService: ImageService,
     private readonly errorService: ErrorService,
+    private readonly i18n: I18nService,
     @Inject(MAT_DIALOG_DATA) data: EditDialogData,
   ) {
     if (!data.image) {
@@ -62,7 +65,7 @@ export class EditDialogComponent {
       return this.close();
     }
 
-    this.errorService.success('Image successfully updated');
+    this.errorService.success(this.i18n.instant('images.updated'));
 
     this.dialogRef.close(result);
   }

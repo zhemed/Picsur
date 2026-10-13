@@ -1,5 +1,7 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { I18nService } from '../../../i18n/i18n.service';
+
 import { AutoUnsubscribe } from 'ngx-auto-unsubscribe-decorator';
 import { EApiKey } from 'picsur-shared/dist/entities/apikey.entity';
 import { HasFailed } from 'picsur-shared/dist/types/failable';
@@ -44,6 +46,7 @@ export class SettingsApiKeysComponent implements OnInit {
     private readonly clipboard: ClipboardService,
     private readonly errorService: ErrorService,
     private readonly dialogService: DialogService,
+    private readonly i18n: I18nService,
     // Public because used in template
     public readonly bootstrapService: BootstrapService,
   ) {}
@@ -69,7 +72,9 @@ export class SettingsApiKeysComponent implements OnInit {
 
     const copied = await this.copyToClipboard(result.key);
     if (copied) {
-      this.errorService.success('Api key created and copied to clipboard');
+      this.errorService.success(
+        this.i18n.instant('settings.apiKeys.createdCopied'),
+      );
     } else {
       this.showManualCopyHint(result.key);
     }
@@ -78,7 +83,7 @@ export class SettingsApiKeysComponent implements OnInit {
   public async copyKey(apikey: string) {
     const copied = await this.copyToClipboard(apikey);
     if (copied) {
-      this.errorService.success('Api key copied to clipboard');
+      this.errorService.success(this.i18n.instant('settings.apiKeys.copied'));
     } else {
       this.showManualCopyHint(apikey);
     }
@@ -97,7 +102,7 @@ export class SettingsApiKeysComponent implements OnInit {
   private showManualCopyHint(apikey: string) {
     this.manualCopyKey = apikey;
     this.errorService.error(
-      'Could not copy the api key automatically. Select it in the box below to copy it manually.',
+      this.i18n.instant('settings.apiKeys.copyFailedManual'),
       this.logger,
     );
   }
@@ -110,17 +115,17 @@ export class SettingsApiKeysComponent implements OnInit {
 
   public async deleteApiKey(apikeyId: string) {
     const pressedButton = await this.dialogService.showDialog({
-      title: `Are you sure you want to delete this api key?`,
-      description: 'This action cannot be undone.',
+      title: this.i18n.instant('settings.apiKeys.deleteConfirmTitle'),
+      description: this.i18n.instant('common.actionCannotBeUndone'),
       buttons: [
         {
           name: 'cancel',
-          text: 'Cancel',
+          text: this.i18n.instant('common.actions.cancel'),
         },
         {
           color: 'warn',
           name: 'delete',
-          text: 'Delete',
+          text: this.i18n.instant('common.actions.delete'),
         },
       ],
     });
@@ -130,7 +135,9 @@ export class SettingsApiKeysComponent implements OnInit {
       if (HasFailed(result)) {
         this.errorService.showFailure(result, this.logger);
       } else {
-        this.errorService.success('Api key deleted');
+        this.errorService.success(
+          this.i18n.instant('settings.apiKeys.deleted'),
+        );
       }
     }
 
@@ -149,7 +156,9 @@ export class SettingsApiKeysComponent implements OnInit {
     if (HasFailed(result))
       return this.errorService.showFailure(result, this.logger);
 
-    this.errorService.success('Api key name updated');
+    this.errorService.success(
+      this.i18n.instant('settings.apiKeys.nameUpdated'),
+    );
   }
 
   @AutoUnsubscribe()

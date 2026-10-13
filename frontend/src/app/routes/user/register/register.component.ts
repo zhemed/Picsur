@@ -1,5 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
+import { I18nService } from '../../../i18n/i18n.service';
+
 import { AutoUnsubscribe } from 'ngx-auto-unsubscribe-decorator';
 import { Permission } from 'picsur-shared/dist/dto/permissions.enum';
 import { HasFailed } from 'picsur-shared/dist/types/failable';
@@ -28,6 +30,7 @@ export class RegisterComponent implements OnInit {
     private readonly permissionService: PermissionService,
     private readonly router: Router,
     private readonly errorService: ErrorService,
+    private readonly i18n: I18nService,
   ) {}
 
   ngOnInit(): void {
@@ -73,9 +76,11 @@ export class RegisterComponent implements OnInit {
         return this.errorService.showFailure(loginResult, this.logger);
       }
 
-      this.errorService.success('Register successful');
+      this.errorService.success(this.i18n.instant('auth.registerSuccess'));
     } else {
-      this.errorService.success('Register successful, did not log in');
+      this.errorService.success(
+        this.i18n.instant('auth.registerSuccessNoLogin'),
+      );
     }
 
     this.loading = false;

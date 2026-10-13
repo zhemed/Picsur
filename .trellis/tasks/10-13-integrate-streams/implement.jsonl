@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/picsur-backend/backend/build-and-deploy.md", "reason": "构建/部署契约（Node 20、镜像、compose、环境变量、版本契约）"}
+{"file": ".trellis/spec/picsur-backend/backend/image-api-contracts.md", "reason": "对外 API 契约（bugs 线已改删除语义为 404）"}
