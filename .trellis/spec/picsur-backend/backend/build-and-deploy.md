@@ -63,6 +63,7 @@ docker compose restart picsur           # 验证重启恢复
 | `PICSUR_STATIC_FRONTEND_ROOT` | 镜像内 | `/picsur/frontend/dist` | 前端产物目录 |
 | `PICSUR_PRODUCTION` | ✅(生产) | `false` | **不设 = TypeORM `synchronize:true`，会直改 schema** |
 | `PICSUR_MAX_FILE_SIZE` | — | `128000000` | 上传字节上限 |
+| `PICSUR_MAX_IMAGE_PIXELS` | — | `268402689` | 图像**像素**上限（`w*h`，sharp 默认 `0x3FFF^2`）；超限上传返回 400 并回显该值，`0` = 不限制。2026-10-13 起（issue #107） |
 | `PICSUR_VERBOSE` | ❌ 不要开 | `false` | **开了会把 JWT secret 与 DB 口令明文写进日志** |
 | `PICSUR_TELEMETRY` | — | `true` | **纯装饰**：只影响启动日志里的一行提示，不控制是否出网 |
 
@@ -98,8 +99,9 @@ if (!(await this.usageConfig.getMetricsUrl())) return;       // ② 端点为空
 | compose 缺 `PICSUR_ADMIN_PASSWORD` | ❌ compose 启动前直接报错（by design） |
 | `.env` 未进 `.dockerignore` | ❌ 密钥进入镜像层（`docker history` 可捞） |
 | 请求 `/i/<uuid>`（不带扩展名） | 200 + 品牌占位图 `notfound.png`（**不是原图，也不是 index.html**） |
-| 请求不存在的 `/i/<uuid>`（无扩展名） | 400 JSON 错误 |
-| 删除后再取 `/i/<uuid>.<ext>` | 200 + 占位图 + `Cache-Control: max-age=2592000`（状态码语义可疑，见改造清单） |
+| 请求不存在的 `/i/<uuid>`（无扩展名） | 404 + 占位图 + `Cache-Control: no-store` |
+| 删除后再取 `/i/<uuid>.<ext>` | **404** + 占位图 + `no-store`（2026-10-13 修复；此前是 200 + 30 天缓存，见 `image-api-contracts.md` §3.4/§3.7） |
+| 上传超过 `PICSUR_MAX_IMAGE_PIXELS` 的图片 | 400 `usrvalidation`，消息含实际像素数与上限（2026-10-13 修复；此前是 500 `Worker closed`） |
 
 ---
 
@@ -211,9 +213,12 @@ pkill -x node          # 或先 pgrep 拿 PID 再 kill <pid>
 3. **`@fastify/multipart` ≥10 → `@fastify/busboy@3.2.3` 的类型增补有缺陷**：它从 `'node:stream'` 引入 `Readable`
    却 `declare module 'stream'`（裸名），NodeNext 下把裸 `stream` 的 `Readable` 压成只有 `'limit'` 一个重载。
    需要时用 `as NodeJS.ReadableStream` 拓宽（纯类型补丁，运行时无变化）。
-4. **宿主环境不支持 JXL/JP2 编码**：sharp 的**预编译** libvips 没有这两个编码器，`/i/<id>.jxl|.jp2` 在宿主
-   会 500（`jxlsave_buffer not found` / `JP2 output requires OpenJPEG`）。**只有自编译 libvips 才有**，
-   所以格式验证必须在**容器里**做，不能在宿主做。
+4. **宿主环境不支持 JXL/JP2**：sharp 的**预编译** libvips 没有这两个编解码器。
+   宿主的症状分两段：`/i/<id>.jxl|.jp2` 转码在旧代码里 500（`jxlsave_buffer not found` /
+   `JP2 output requires OpenJPEG`），**源格式上传**则是 400
+   `Failed to read image metadata: Input buffer contains unsupported image format`
+   （2026-10-13 起会回显底层原因，见 `image-api-contracts.md` §4）。**只有自编译 libvips 才有**，
+   所以格式验证必须在**容器里**做，不能在宿主做（`support/regression-image-api.sh` 在宿主会失败这 4 项）。
 
 5. ⚠️ **sharp ≥0.33 默认不会用你的自编译 libvips**（2026-10-13 实际踩到，镜像里 JXL/JP2 全 500）：
    - sharp 的 `install` 只装预编译 `@img/sharp-*`（自带一份精简 libvips，**不含 JXL/JP2**）；
