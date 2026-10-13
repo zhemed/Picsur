@@ -371,17 +371,17 @@
 [OK] **Completed**
 
 
-## Session 17: 排查 189y.de「升级未启用」→ 连带修出两个真 bug（0.7.7 / 0.7.8）
+## Session 17: 排查 某台测试服务器（主机名已脱敏）「升级未启用」→ 连带修出两个真 bug（0.7.7 / 0.7.8）
 <!-- trellis-session: v=2 fp=a0c415ad12ba0691 -->
 
 **Date**: 2026-10-13
-**Task**: 排查 189y.de「升级未启用」→ 连带修出两个真 bug（0.7.7 / 0.7.8）
+**Task**: 排查 某台测试服务器（主机名已脱敏）「升级未启用」→ 连带修出两个真 bug（0.7.7 / 0.7.8）
 **Package**: picsur-shared
 **Branch**: `master`
 
 ### Summary
 
-用户报 189y.de 面板显示「面板内升级未启用」。只读排查（SSH，主机密钥变了先征得确认后重信任）：socket 已挂、容器用 docker run 起、数据 /root/data，但 PICSUR_ALLOW_SELF_UPDATE 未设 → 应用兜底默认 false。根因=0.7.2 时只把默认值落到 compose，README 的一行命令和应用兜底都没跟上 → 0.7.7 把应用默认改成 true（真正的门槛是 socket 挂载）。随后在他服务器上实测面板升级，又暴露第二个 bug：resolveTarget 用『仓库+版本 tag』拼目标镜像，丢掉了 allinone 这个变体标签 → 给 all-in-one 部署换上了普通版镜像，新容器起不来（exec /sbin/tini 不存在）→ 自动回滚保住服务（回滚机制正确）。0.7.8 修：保留非版本变体标签、重拉同一个 tag（发布流水线持续把它指向最新构建）。另发现 docker run 部署不会自动 pull，他主机上的 :allinone 是旧缓存，必须先 docker pull 再重建。最终在他服务器上端到端验证：pull→重建→面板 apply→target=ghcr.io/zhemed/picsur:allinone→10s 完成→版本 0.7.8→healthy、数据无损。顺带给发布脚本加了脏树/未推送守卫（--allow-dirty 可跳过）——本次 0.7.7 曾因提交被闸门拒绝后仍发布，导致镜像与 tag 不对应，事后已把 tag 移到正确提交。
+用户报 某台测试服务器（主机名已脱敏） 面板显示「面板内升级未启用」。只读排查（SSH，主机密钥变了先征得确认后重信任）：socket 已挂、容器用 docker run 起、数据 /root/data，但 PICSUR_ALLOW_SELF_UPDATE 未设 → 应用兜底默认 false。根因=0.7.2 时只把默认值落到 compose，README 的一行命令和应用兜底都没跟上 → 0.7.7 把应用默认改成 true（真正的门槛是 socket 挂载）。随后在他服务器上实测面板升级，又暴露第二个 bug：resolveTarget 用『仓库+版本 tag』拼目标镜像，丢掉了 allinone 这个变体标签 → 给 all-in-one 部署换上了普通版镜像，新容器起不来（exec /sbin/tini 不存在）→ 自动回滚保住服务（回滚机制正确）。0.7.8 修：保留非版本变体标签、重拉同一个 tag（发布流水线持续把它指向最新构建）。另发现 docker run 部署不会自动 pull，他主机上的 :allinone 是旧缓存，必须先 docker pull 再重建。最终在他服务器上端到端验证：pull→重建→面板 apply→target=ghcr.io/zhemed/picsur:allinone→10s 完成→版本 0.7.8→healthy、数据无损。顺带给发布脚本加了脏树/未推送守卫（--allow-dirty 可跳过）——本次 0.7.7 曾因提交被闸门拒绝后仍发布，导致镜像与 tag 不对应，事后已把 tag 移到正确提交。
 
 ### Git Commits
 
@@ -404,7 +404,7 @@
 
 ### Summary
 
-回答用户三问并补掉最后一处：README 原话『docker rm -f picsur 后再跑同一条命令』会用到本地旧镜像缓存（docker run 不会自动 pull，实测在 189y.de 上正是如此，缓存是几小时前的），已改成先 docker pull 再重建，并指向面板「立即升级」。这是本轮排查暴露的最后一个问题；其余（应用默认开启 0.7.7、变体标签保留 0.7.8、git tag 补录与自动打 tag、发布脚本脏树守卫、189y.de 升到 0.7.8）均已解决。
+回答用户三问并补掉最后一处：README 原话『docker rm -f picsur 后再跑同一条命令』会用到本地旧镜像缓存（docker run 不会自动 pull，实测在 某台测试服务器（主机名已脱敏） 上正是如此，缓存是几小时前的），已改成先 docker pull 再重建，并指向面板「立即升级」。这是本轮排查暴露的最后一个问题；其余（应用默认开启 0.7.7、变体标签保留 0.7.8、git tag 补录与自动打 tag、发布脚本脏树守卫、某台测试服务器（主机名已脱敏） 升到 0.7.8）均已解决。
 
 ### Git Commits
 

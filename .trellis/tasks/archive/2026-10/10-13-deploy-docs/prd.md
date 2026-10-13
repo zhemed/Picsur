@@ -2,7 +2,7 @@
 
 ## 背景
 
-`docker run` 不会自动拉新镜像；README 原话「docker rm -f picsur 后再跑同一条命令」会用到本地旧缓存，实测在 189y.de 上导致版本没变。
+`docker run` 不会自动拉新镜像；README 原话「docker rm -f picsur 后再跑同一条命令」会用到本地旧缓存，实测在 某台测试服务器（主机名已脱敏） 上导致版本没变。
 
 ## 改动
 
