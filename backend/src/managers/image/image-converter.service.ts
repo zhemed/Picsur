@@ -195,7 +195,14 @@ export class ImageConverterService {
       width = metadata.width;
       height = metadata.height;
     } catch (e) {
-      return Fail(FT.UsrValidation, 'Failed to read image metadata', e);
+      // The image cannot be read at all (corrupt, or a format this libvips
+      // build has no decoder for - JXL/JP2 on the prebuilt sharp). Surfacing
+      // the underlying reason makes that deploy-time difference visible.
+      const reason = e instanceof Error ? e.message : String(e);
+      return Fail(
+        FT.UsrValidation,
+        `Failed to read image metadata: ${reason}`,
+      );
     }
 
     if (!IsWithinPixelLimit(maxPixels, width, height)) {
