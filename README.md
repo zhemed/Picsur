@@ -124,6 +124,18 @@ It is only possible to use the clipboard functionality on HTTPS websites or loca
 
 ## Running your own instance
 
+> **Fork note (`zhemed/Picsur`)** — 本 fork 用自己构建的镜像，**不要**照抄下面这个拉上游镜像的例子
+> （上游已停止维护）。实际做法：
+>
+> ```bash
+> cp .env.example .env      # 至少设置 PICSUR_ADMIN_PASSWORD / PICSUR_JWT_SECRET
+> docker compose up -d --build
+> ```
+>
+> 镜像由仓库根目录 `Dockerfile` 构建（不依赖上游私有中间镜像，自带 HEIF/JXL/JP2 编解码）。
+> 工具链契约（**装依赖/构建必须 Node 20 + pnpm 9.6.0**）见
+> `.trellis/spec/picsur-backend/backend/build-and-deploy.md`。
+
 You easily run this service yourself via Docker. Here is an example docker-compose file:
 
 ```yaml
