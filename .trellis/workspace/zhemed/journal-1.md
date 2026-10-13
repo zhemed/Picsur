@@ -185,3 +185,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 9: README 命令折行（消除代码块横向滚动）
+<!-- trellis-session: v=2 fp=4a94639e42efa523 -->
+
+**Date**: 2026-10-13
+**Task**: README 命令折行（消除代码块横向滚动）
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户对比 Komari 指出我们的 docker run 单行 100+ 字符导致 GitHub 代码块出横向滚动条。按参照物用反斜杠折行：docker run 那条拆成 4 行、install.sh 那条在管道处拆成 2 行，两条都做了逐 token 等价断言（去掉续行符后与原命令完全一致），代码块内所有行 ≤80 字符。两条折行后的命令都按原文执行验证：install.sh 管道真从 raw.githubusercontent 取到脚本并打印 --help；docker run 真起 all-in-one 容器 4s 就绪、/api/info=0.6.0。README 仍 34 行。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `260579b` | docs: wrap the long deploy commands so GitHub does not scroll them |
+
+### Status
+
+[OK] **Completed**
