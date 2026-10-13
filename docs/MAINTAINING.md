@@ -42,12 +42,12 @@ docker build -t zhemed/picsur:local . # 想另起名字也行，用 PICSUR_IMAGE
 3. **CI 发布镜像**：`.github/workflows/release-image.yml` 在 tag 推送时构建并推送
    `ghcr.io/zhemed/picsur:0.6.1`、`:0.6`、`:latest`；也可以手动 `workflow_dispatch` 只刷 `:latest`。
    用内置 `GITHUB_TOKEN`（`packages: write`），不需要额外 secret。
-4. **验证发布的镜像**（别只信 CI 绿）：
+4. **验证发布的镜像**（别只信 CI 绿）：一条脚本搞定——拉发布镜像、用**隔离的** compose 项目/端口
+   （默认 8099）/独立卷起一套、查版本与迁移条数、跑 34 项回归、再拆干净，全程不碰常驻栈：
    ```bash
-   docker pull ghcr.io/zhemed/picsur:0.6.1
-   PICSUR_IMAGE=ghcr.io/zhemed/picsur:0.6.1 docker compose up -d
-   bash support/regression-image-api.sh http://localhost:8080 "$PICSUR_ADMIN_PASSWORD" # 34 项
+   bash support/verify-published-image.sh latest # 或传版本号：... v0.6.1 / 0.6.1
    ```
+   脚本跑完会打印"常驻栈未受影响"的探活结果；期望 `通过 8 / 失败 0`。
 
 ## 3. 部署
 

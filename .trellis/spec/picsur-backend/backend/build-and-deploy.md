@@ -17,36 +17,38 @@
 
 ```bash
 # 依赖安装（必须 Node 20；用仓库内 corepack 固定 pnpm 9.6.0）
-export PATH="/root/picsur/.run/node20/bin:$PATH"     # 本机 Node 20 位置（gitignored）
+export PATH="/root/picsur/.run/node20/bin:$PATH" # 本机 Node 20 位置（gitignored）
 corepack enable && corepack prepare pnpm@9.6.0 --activate
 pnpm install --frozen-lockfile
 
 # 三包构建（顺序不可换：backend / frontend 直接 import picsur-shared/dist/*）
-pnpm --filter picsur-shared   build     # -> shared/dist/index.js
-pnpm --filter picsur-backend  build     # -> backend/dist/main.js
-pnpm --filter picsur-frontend build     # -> frontend/dist/index.html
+pnpm --filter picsur-shared build   # -> shared/dist/index.js
+pnpm --filter picsur-backend build  # -> backend/dist/main.js
+pnpm --filter picsur-frontend build # -> frontend/dist/index.html
 
 # 本机开发形态（生产模式起后端，前端由后端托管）
-set -a; . ./.env; set +a
-node backend/dist/main.js               # 8080
+set -a
+. ./.env
+set +a
+node backend/dist/main.js # 8080
 
 # 常驻部署（仓库根目录，自建镜像）
 docker compose up -d --build
 docker compose ps
-docker compose restart picsur           # 验证重启恢复
+docker compose restart picsur # 验证重启恢复
 ```
 
 **镜像契约**：`Dockerfile`（仓库根目录）必须满足
 
-| 约束 | 值 / 原因 |
-|---|---|
-| JS 构建 stage 基础镜像 | `node:20`（**不能 `-slim`**：`qoi-img`/`bmp-img`/`posix.js` 需 node-gyp 编译，slim 无 python3/gcc） |
-| pnpm | 固定 `9.6.0`（与根 `package.json` 的 `packageManager` 一致） |
-| libvips | 源码编译 **8.18.7**（sharp 0.35 的硬要求；HEIF/JXL/JP2 编解码只有这层有） |
-| 生产依赖 stage | `SHARP_FORCE_GLOBAL_LIBVIPS=1` + `python3/build-base`，**并且必须显式跑一次 sharp 源码构建**（见 §8.3 第 5 条） |
-| **禁止** | `FROM ghcr.io/caramelfur/picsur-alpha-stage1:*`（上游私有中间镜像，随时可能消失） |
-| 构建产物 | 只拷贝 `{frontend,backend,shared}/{dist,package.json}` + 锁文件 + `branding` |
-| 运行时 | `PICSUR_PRODUCTION=true`（TypeORM 不 synchronize，只跑 migrations） |
+| 约束                   | 值 / 原因                                                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------- |
+| JS 构建 stage 基础镜像 | `node:20`（**不能 `-slim`**：`qoi-img`/`bmp-img`/`posix.js` 需 node-gyp 编译，slim 无 python3/gcc）             |
+| pnpm                   | 固定 `9.6.0`（与根 `package.json` 的 `packageManager` 一致）                                                    |
+| libvips                | 源码编译 **8.18.7**（sharp 0.35 的硬要求；HEIF/JXL/JP2 编解码只有这层有）                                       |
+| 生产依赖 stage         | `SHARP_FORCE_GLOBAL_LIBVIPS=1` + `python3/build-base`，**并且必须显式跑一次 sharp 源码构建**（见 §8.3 第 5 条） |
+| **禁止**               | `FROM ghcr.io/caramelfur/picsur-alpha-stage1:*`（上游私有中间镜像，随时可能消失）                               |
+| 构建产物               | 只拷贝 `{frontend,backend,shared}/{dist,package.json}` + 锁文件 + `branding`                                    |
+| 运行时                 | `PICSUR_PRODUCTION=true`（TypeORM 不 synchronize，只跑 migrations）                                             |
 
 ---
 
@@ -54,25 +56,25 @@ docker compose restart picsur           # 验证重启恢复
 
 ### 3.1 环境变量（前缀 `PICSUR_`，见 `backend/src/config/config.static.ts`）
 
-| Key | 必填 | 默认 | 说明 |
-|---|:--:|---|---|
-| `PICSUR_DB_HOST/PORT/USERNAME/PASSWORD/DATABASE` | ✅(生产) | `localhost` / `5432` / `picsur`×3 | compose 内用服务名 `picsur_postgres` |
-| `PICSUR_HOST` / `PICSUR_PORT` | — | `0.0.0.0` / `8080` | — |
-| `PICSUR_ADMIN_PASSWORD` | ✅ | — | 账号名固定 `admin`，这是初始口令 |
-| `PICSUR_JWT_SECRET` | ✅(生产) | 随机 | 不固定会导致每次重启登录态失效 |
-| `PICSUR_STATIC_FRONTEND_ROOT` | 镜像内 | `/picsur/frontend/dist` | 前端产物目录 |
-| `PICSUR_PRODUCTION` | ✅(生产) | `false` | **不设 = TypeORM `synchronize:true`，会直改 schema** |
-| `PICSUR_MAX_FILE_SIZE` | — | `128000000` | 上传字节上限 |
-| `PICSUR_MAX_IMAGE_PIXELS` | — | `268402689` | 图像**像素**上限（`w*h`，sharp 默认 `0x3FFF^2`）；超限上传返回 400 并回显该值，`0` = 不限制。2026-10-13 起（issue #107） |
-| `PICSUR_VERBOSE` | ❌ 不要开 | `false` | **开了会把 JWT secret 与 DB 口令明文写进日志** |
-| `PICSUR_TELEMETRY` | — | `true` | **纯装饰**：只影响启动日志里的一行提示，不控制是否出网 |
+| Key                                              |   必填    | 默认                              | 说明                                                                                                                     |
+| ------------------------------------------------ | :-------: | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `PICSUR_DB_HOST/PORT/USERNAME/PASSWORD/DATABASE` | ✅(生产)  | `localhost` / `5432` / `picsur`×3 | compose 内用服务名 `picsur_postgres`                                                                                     |
+| `PICSUR_HOST` / `PICSUR_PORT`                    |     —     | `0.0.0.0` / `8080`                | —                                                                                                                        |
+| `PICSUR_ADMIN_PASSWORD`                          |    ✅     | —                                 | 账号名固定 `admin`，这是初始口令                                                                                         |
+| `PICSUR_JWT_SECRET`                              | ✅(生产)  | 随机                              | 不固定会导致每次重启登录态失效                                                                                           |
+| `PICSUR_STATIC_FRONTEND_ROOT`                    |  镜像内   | `/picsur/frontend/dist`           | 前端产物目录                                                                                                             |
+| `PICSUR_PRODUCTION`                              | ✅(生产)  | `false`                           | **不设 = TypeORM `synchronize:true`，会直改 schema**                                                                     |
+| `PICSUR_MAX_FILE_SIZE`                           |     —     | `128000000`                       | 上传字节上限                                                                                                             |
+| `PICSUR_MAX_IMAGE_PIXELS`                        |     —     | `268402689`                       | 图像**像素**上限（`w*h`，sharp 默认 `0x3FFF^2`）；超限上传返回 400 并回显该值，`0` = 不限制。2026-10-13 起（issue #107） |
+| `PICSUR_VERBOSE`                                 | ❌ 不要开 | `false`                           | **开了会把 JWT secret 与 DB 口令明文写进日志**                                                                           |
+| `PICSUR_TELEMETRY`                               |     —     | `true`                            | **纯装饰**：只影响启动日志里的一行提示，不控制是否出网                                                                   |
 
 **遥测为什么出不了网（2026-10-13 起）**：`ReportUrl` 在 `config.static.ts` 里是**空字符串**
 （编译期常量，运行期改不了），`UsageService.execute()` 两道守卫：
 
 ```ts
-if (!(await this.usageConfig.getMetricsEnabled())) return;   // ① DB 首选项（现在已纯装饰）
-if (!(await this.usageConfig.getMetricsUrl())) return;       // ② 端点为空 → 直接跳过（真正的断链）
+if (!(await this.usageConfig.getMetricsEnabled())) return; // ① DB 首选项（现在已纯装饰）
+if (!(await this.usageConfig.getMetricsUrl())) return; // ② 端点为空 → 直接跳过（真正的断链）
 ```
 
 ②是为了「将来有人把 URL 改回某个地址、却忘了重置首选项」这种情形留的兜底。
@@ -89,20 +91,20 @@ if (!(await this.usageConfig.getMetricsUrl())) return;       // ② 端点为空
 
 ## 4. Validation & Error Matrix
 
-| 条件 | 结果 |
-|---|---|
-| Node ≥ 22.16 跑 `pnpm install` | ❌ 失败：`qoi-img` 等 C++ 编译报 `node_api_basic_finalize` 签名错。必须 Node 20 |
-| 用全局 pnpm 12 装依赖 | ❌ 锁文件 v9 与工具链不匹配；用 corepack 固定 9.6.0 |
+| 条件                                                 | 结果                                                                                                                       |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Node ≥ 22.16 跑 `pnpm install`                       | ❌ 失败：`qoi-img` 等 C++ 编译报 `node_api_basic_finalize` 签名错。必须 Node 20                                            |
+| 用全局 pnpm 12 装依赖                                | ❌ 锁文件 v9 与工具链不匹配；用 corepack 固定 9.6.0                                                                        |
 | `frontend/custom-webpack.config.js` 保持 `.js` + ESM | ❌ Node ≥20.19 下 `require(esm)` 成功返回命名空间 → webpack `unknown property 'default'`。必须是 `.cjs` + `module.exports` |
-| `PICSUR_PRODUCTION` 未设就跑生产 | ❌ TypeORM `synchronize:true` 直改 schema |
-| `PICSUR_VERBOSE=true` | ⚠️ JWT secret / DB 口令明文入日志 |
-| compose 缺 `PICSUR_ADMIN_PASSWORD` | ❌ compose 启动前直接报错（by design） |
-| `.env` 未进 `.dockerignore` | ❌ 密钥进入镜像层（`docker history` 可捞） |
-| 请求 `/i/<uuid>`（不带扩展名） | 200 + 品牌占位图 `notfound.png`（**不是原图，也不是 index.html**） |
-| 请求不存在的 `/i/<uuid>`（无扩展名） | 404 + 占位图 + `Cache-Control: no-store` |
-| 请求**存在但没有保留原图**的 `/i/<uuid>`（无扩展名） | 也返回 **404 + no-store**（#129 吸收后按"原图有无"分流；有原图才是 200） |
-| 删除后再取 `/i/<uuid>.<ext>` | **404** + 占位图 + `no-store`（2026-10-13 修复；此前是 200 + 30 天缓存，见 `image-api-contracts.md` §3.4/§3.7） |
-| 上传超过 `PICSUR_MAX_IMAGE_PIXELS` 的图片 | 400 `usrvalidation`，消息含实际像素数与上限（2026-10-13 修复；此前是 500 `Worker closed`） |
+| `PICSUR_PRODUCTION` 未设就跑生产                     | ❌ TypeORM `synchronize:true` 直改 schema                                                                                  |
+| `PICSUR_VERBOSE=true`                                | ⚠️ JWT secret / DB 口令明文入日志                                                                                          |
+| compose 缺 `PICSUR_ADMIN_PASSWORD`                   | ❌ compose 启动前直接报错（by design）                                                                                     |
+| `.env` 未进 `.dockerignore`                          | ❌ 密钥进入镜像层（`docker history` 可捞）                                                                                 |
+| 请求 `/i/<uuid>`（不带扩展名）                       | 200 + 品牌占位图 `notfound.png`（**不是原图，也不是 index.html**）                                                         |
+| 请求不存在的 `/i/<uuid>`（无扩展名）                 | 404 + 占位图 + `Cache-Control: no-store`                                                                                   |
+| 请求**存在但没有保留原图**的 `/i/<uuid>`（无扩展名） | 也返回 **404 + no-store**（#129 吸收后按"原图有无"分流；有原图才是 200）                                                   |
+| 删除后再取 `/i/<uuid>.<ext>`                         | **404** + 占位图 + `no-store`（2026-10-13 修复；此前是 200 + 30 天缓存，见 `image-api-contracts.md` §3.4/§3.7）            |
+| 上传超过 `PICSUR_MAX_IMAGE_PIXELS` 的图片            | 400 `usrvalidation`，消息含实际像素数与上限（2026-10-13 修复；此前是 500 `Worker closed`）                                 |
 
 ---
 
@@ -121,18 +123,18 @@ if (!(await this.usageConfig.getMetricsUrl())) return;       // ② 端点为空
 
 ## 6. Tests Required（验收断言点）
 
-| 场景 | 命令 | 断言 |
-|---|---|---|
-| 构建 | 三包 `pnpm --filter <pkg> build` | `shared/dist/index.js`、`backend/dist/main.js`、`frontend/dist/index.html` 存在；exit 0 |
-| 服务 | `curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/info` | `200`，且 body 里 `production:true` |
-| 迁移 | `docker exec picsur_postgres psql -U picsur -d picsur -tAc "select count(*) from migrations;"` | **`8`**（7 条基线 + `AddImageSourceFiletype`，2026-10-13 #128 引入），且 `e_user_backend` 里有 `admin`/`guest` |
-| 上传 | `POST /api/image/upload`（multipart 字段 `file`） | `201`，返回 `data.id`（UUID） |
-| 取回 | `GET /i/<id>.png` | `200` + `image/png`；与原始图片**像素一致**（字节不保证一致） |
-| 转码 | `GET /i/<id>.{qoi,webp,avif,jxl,jp2,heif}` | 全部 `200`（证明镜像里的自编译 libvips **并且** sharp 是源码构建的） |
-| SPA 深链 | `curl -o /dev/null -w '%{http_code} %{content_type}' localhost:8080/some/spa/route` | `200 text/html` —— `@nestjs/serve-static` ≥11 的 `fallthrough` 回归只有这条能抓到 |
-| 删除 | `POST /api/image/delete` `{"ids":[...]}` | `201`，且三张表 `e_image_backend`/`e_image_derivative_backend`/`e_image_file_backend` 计数归零 |
-| 持久化 | `docker compose restart picsur` 后再取原图 | `200` 且内容一致 |
-| 密钥 | `git grep` 扫跟踪范围 | 无真实口令/secret；`.env`、`.run/` 不在 `git status` 视野 |
+| 场景     | 命令                                                                                           | 断言                                                                                                           |
+| -------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 构建     | 三包 `pnpm --filter <pkg> build`                                                               | `shared/dist/index.js`、`backend/dist/main.js`、`frontend/dist/index.html` 存在；exit 0                        |
+| 服务     | `curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/info`                               | `200`，且 body 里 `production:true`                                                                            |
+| 迁移     | `docker exec picsur_postgres psql -U picsur -d picsur -tAc "select count(*) from migrations;"` | **`8`**（7 条基线 + `AddImageSourceFiletype`，2026-10-13 #128 引入），且 `e_user_backend` 里有 `admin`/`guest` |
+| 上传     | `POST /api/image/upload`（multipart 字段 `file`）                                              | `201`，返回 `data.id`（UUID）                                                                                  |
+| 取回     | `GET /i/<id>.png`                                                                              | `200` + `image/png`；与原始图片**像素一致**（字节不保证一致）                                                  |
+| 转码     | `GET /i/<id>.{qoi,webp,avif,jxl,jp2,heif}`                                                     | 全部 `200`（证明镜像里的自编译 libvips **并且** sharp 是源码构建的）                                           |
+| SPA 深链 | `curl -o /dev/null -w '%{http_code} %{content_type}' localhost:8080/some/spa/route`            | `200 text/html` —— `@nestjs/serve-static` ≥11 的 `fallthrough` 回归只有这条能抓到                              |
+| 删除     | `POST /api/image/delete` `{"ids":[...]}`                                                       | `201`，且三张表 `e_image_backend`/`e_image_derivative_backend`/`e_image_file_backend` 计数归零                 |
+| 持久化   | `docker compose restart picsur` 后再取原图                                                     | `200` 且内容一致                                                                                               |
+| 密钥     | `git grep` 扫跟踪范围                                                                          | 无真实口令/secret；`.env`、`.run/` 不在 `git status` 视野                                                      |
 
 ---
 
@@ -159,7 +161,7 @@ export PATH="/root/picsur/.run/node20/bin:$PATH"
 pkill -f "node backend/dist/main.js"
 
 # Correct
-pkill -x node          # 或先 pgrep 拿 PID 再 kill <pid>
+pkill -x node # 或先 pgrep 拿 PID 再 kill <pid>
 ```
 
 ### 7.3 加环境变量
@@ -178,18 +180,18 @@ pkill -x node          # 或先 pgrep 拿 PID 再 kill <pid>
 
 ### 8.1 版本底线（低于这些会重新引入已知漏洞，或直接跑不起来）
 
-| 包 | 契约版本 | 为什么不能低 |
-|---|---|---|
-| Node | **20 用于装依赖/构建**；运行期不强制 | 安装：≥22.16 时 `qoi-img`/`bmp-img`/`posix.js` 编译失败。运行：N-API 产物在 v22 可正常加载（见 §7.1） |
-| pnpm | **9.6.0**（corepack 固定） | 与 lockfileVersion 9 对齐 |
-| `@nestjs/*` | **^12** | Nest 11 内嵌 `@fastify/middie@9.0.3`，**修不掉那条 critical**（需 ≥9.3.2；Nest 12 = 9.3.5） |
-| `fastify` | **^5** | Fastify 4 线上没有 `@fastify/reply-from`/`static` 的修复版 |
-| `@fastify/static` | **≥10.1.2** | 低于它有路由守卫绕过/路径穿越 |
-| `typeorm` | **^0.3.31** | <0.3.26 有 SQL 注入；不上 1.x（跨大版本） |
-| `sharp` | **^0.35.5** | 继承的 libvips CVE |
-| **libvips（镜像内自编译）** | **≥8.18.7** | sharp 0.35 的 `config.libvips` 硬要求；低于它镜像构建会在 `pnpm install --prod` 阶段失败 |
-| `file-type`（**我们自己的直接依赖**） | **^21.3.4，不能用 22** | `file-type@22` 的 `engines` 是 `node >= 22`。⚠️ 注意：`@nestjs/common@12.1.3` 自己依赖 `file-type@22.1.1`（Nest 的 `FileTypeValidator` 用 `import()` 懒加载，**本项目未启用该功能**）——它确实在生产树里，但不会被加载 |
-| `zod` | ^3（暂不动） | v4 是破坏性升级，属 T6 |
+| 包                                    | 契约版本                             | 为什么不能低                                                                                                                                                                                                          |
+| ------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node                                  | **20 用于装依赖/构建**；运行期不强制 | 安装：≥22.16 时 `qoi-img`/`bmp-img`/`posix.js` 编译失败。运行：N-API 产物在 v22 可正常加载（见 §7.1）                                                                                                                 |
+| pnpm                                  | **9.6.0**（corepack 固定）           | 与 lockfileVersion 9 对齐                                                                                                                                                                                             |
+| `@nestjs/*`                           | **^12**                              | Nest 11 内嵌 `@fastify/middie@9.0.3`，**修不掉那条 critical**（需 ≥9.3.2；Nest 12 = 9.3.5）                                                                                                                           |
+| `fastify`                             | **^5**                               | Fastify 4 线上没有 `@fastify/reply-from`/`static` 的修复版                                                                                                                                                            |
+| `@fastify/static`                     | **≥10.1.2**                          | 低于它有路由守卫绕过/路径穿越                                                                                                                                                                                         |
+| `typeorm`                             | **^0.3.31**                          | <0.3.26 有 SQL 注入；不上 1.x（跨大版本）                                                                                                                                                                             |
+| `sharp`                               | **^0.35.5**                          | 继承的 libvips CVE                                                                                                                                                                                                    |
+| **libvips（镜像内自编译）**           | **≥8.18.7**                          | sharp 0.35 的 `config.libvips` 硬要求；低于它镜像构建会在 `pnpm install --prod` 阶段失败                                                                                                                              |
+| `file-type`（**我们自己的直接依赖**） | **^21.3.4，不能用 22**               | `file-type@22` 的 `engines` 是 `node >= 22`。⚠️ 注意：`@nestjs/common@12.1.3` 自己依赖 `file-type@22.1.1`（Nest 的 `FileTypeValidator` 用 `import()` 懒加载，**本项目未启用该功能**）——它确实在生产树里，但不会被加载 |
+| `zod`                                 | ^3（暂不动）                         | v4 是破坏性升级，属 T6                                                                                                                                                                                                |
 
 ### 8.2 `pnpm.overrides` 策略（根 `package.json`）
 
@@ -227,7 +229,7 @@ pkill -x node          # 或先 pgrep 拿 PID 再 kill <pid>
    - 必须**显式跑一次源码构建**：
      ```dockerfile
      RUN cd /picsur/backend/node_modules/sharp \
-      && SHARP_FORCE_GLOBAL_LIBVIPS=1 NODE_PATH=/usr/local/lib/node_modules node install/build.js
+       && SHARP_FORCE_GLOBAL_LIBVIPS=1 NODE_PATH=/usr/local/lib/node_modules node install/build.js
      ```
      （`node-addon-api` / `node-gyp` 要在 NODE_PATH 里能解析，sharp 自己的 node_modules 是空的）
    - **验证方法**（别只看镜像能起来）：
@@ -240,6 +242,7 @@ pkill -x node          # 或先 pgrep 拿 PID 再 kill <pid>
      —— 两个进程用的是不同的 libvips。
 
 ### 8.4 残留风险（本任务明确未覆盖，别当成已解决）
+
 - **前端 Angular 18 的浏览器端告警**：Angular 的运行时包（`@angular/core|common|router` 等）被放在
   `frontend` 的 `devDependencies` 里，因此 `pnpm audit --prod` **看不见**它们，但它们**确实会打进浏览器产物**。
   这部分（XSS / XSRF 类）**未修**，归属 **T6（Angular 大版本升级）**。
@@ -252,18 +255,22 @@ pkill -x node          # 或先 pgrep 拿 PID 再 kill <pid>
 
 ## 9. 仓库来源与发布口径（2026-10-13 起生效）
 
-| 项 | 约定 |
-|---|---|
-| 仓库 | `https://github.com/zhemed/picsur`，**非 fork**（原 fork 已改名 `zhemed/Picsur-fork-archive` 留档） |
-| 上游关系 | **无**：不设 `upstream` remote，不依赖上游镜像 / 二进制 / 服务。上游代码只作为历史来源 |
-| 遥测出网 | **已断链**：`ReportUrl` 编译期为空（`backend/src/config/config.static.ts`），`UsageService.execute()` 见端点为空即跳过。`enable_telemetry` 首选项与 `PICSUR_TELEMETRY` 现在都**不控制**出网；要接自己的统计后端才需要改 `ReportUrl` |
-| 版本线 | 自有版本线，从 **`0.6.0`** 起；四个 `package.json` 同步，`/api/info` 与前端页脚都读它 |
-| 许可 | AGPL-3.0（`LICENSE` 不动）。README 保留上游出处声明 —— 这是**合规声明**，不是依赖 |
-| 发布 | 提交默认 push 到 `origin`（见 `AGENTS.md`）；镜像 tag 自定，不推上游 registry |
-| 允许出现上游字样的位置 | 仅 `LICENSE`、README 的出处声明、`.trellis/**` 历史记录；**其余一律清空** |
+| 项                     | 约定                                                                                                                                                                                                                                                                                                                                |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 仓库                   | `https://github.com/zhemed/picsur`，**非 fork**（原 fork 已改名 `zhemed/Picsur-fork-archive` 留档）                                                                                                                                                                                                                                 |
+| 上游关系               | **无**：不设 `upstream` remote，不依赖上游镜像 / 二进制 / 服务。上游代码只作为历史来源                                                                                                                                                                                                                                              |
+| 遥测出网               | **已断链**：`ReportUrl` 编译期为空（`backend/src/config/config.static.ts`），`UsageService.execute()` 见端点为空即跳过。`enable_telemetry` 首选项与 `PICSUR_TELEMETRY` 现在都**不控制**出网；要接自己的统计后端才需要改 `ReportUrl`                                                                                                 |
+| 版本线                 | 自有版本线，从 **`0.6.0`** 起；四个 `package.json` 同步，`/api/info` 与前端页脚都读它                                                                                                                                                                                                                                               |
+| 许可                   | AGPL-3.0（`LICENSE` 不动）。README 保留上游出处声明 —— 这是**合规声明**，不是依赖                                                                                                                                                                                                                                                   |
+| 发布（提交）           | 提交默认 push 到 `origin`（见 `AGENTS.md`）                                                                                                                                                                                                                                                                                         |
+| 发布（镜像）           | **`v*` tag 推送即自动构建并发布到 `ghcr.io/zhemed/picsur`**（`.github/workflows/release-image.yml`，标签 `:<版本>`、`:<主>.<次>`、`:latest`）；也可手动 `workflow_dispatch` 只刷 `:latest`。用内置 `GITHUB_TOKEN` + `packages: write`，**不需要额外 secret**。发布后必须 `docker pull` 起一次隔离栈跑 34 项回归（CI 绿 ≠ 镜像可用） |
+| 部署镜像来源           | `docker-compose.yml` 的 `image: ${PICSUR_IMAGE:-ghcr.io/zhemed/picsur:latest}`：默认拉发布镜像，`--build` 仍可本地构建；固定版本用 `PICSUR_IMAGE=ghcr.io/zhemed/picsur:0.6.0`                                                                                                                                                       |
+| 文档分工               | README 只讲"跑起来"（≤35 行），运维细节在 `docs/MAINTAINING.md`，可执行契约在本文件                                                                                                                                                                                                                                                 |
+| 允许出现上游字样的位置 | 仅 `LICENSE`、README 的出处声明、`.trellis/**` 历史记录；**其余一律清空**                                                                                                                                                                                                                                                           |
 
 > 检查命令（用 `git grep` 跟着 `.gitignore` 走，避免扫到 `.run/` 里的历史产物造成假阳性；
 > 白名单之外应为空）：
+>
 > ```bash
 > git grep -ni "picsur\.org\|caramelfur\|discord\.gg" -- . \
 >   ':!LICENSE' ':!README.md' ':!.trellis'
@@ -275,12 +282,12 @@ pkill -x node          # 或先 pgrep 拿 PID 再 kill <pid>
 
 SVG 与其它格式不同：**按原始向量存为 master，绝不交给 sharp 栅格化当源**，因此多了一套 XML 处理依赖。
 
-| 包 | 用途 | 注意 |
-|---|---|---|
-| `svgo` | 压缩 / 规范化 SVG | 精确锁定版本（安全面） |
-| `jsdom` | 给 `dompurify` 提供 DOM 实现 | **重量级**（约 30 个传递依赖），也是下面那组告警的来源 |
-| `dompurify` | 净化：删 `<script>` / `onload` / 外部引用 | 精确锁定版本 |
-| `is-svg` | 判定"这是不是 SVG" | — |
+| 包          | 用途                                      | 注意                                                   |
+| ----------- | ----------------------------------------- | ------------------------------------------------------ |
+| `svgo`      | 压缩 / 规范化 SVG                         | 精确锁定版本（安全面）                                 |
+| `jsdom`     | 给 `dompurify` 提供 DOM 实现              | **重量级**（约 30 个传递依赖），也是下面那组告警的来源 |
+| `dompurify` | 净化：删 `<script>` / `onload` / 外部引用 | 精确锁定版本                                           |
+| `is-svg`    | 判定"这是不是 SVG"                        | —                                                      |
 
 它们**只在后端**使用（`backend/src/managers/image/svg-security.service.ts`），不进前端产物。
 
@@ -331,7 +338,7 @@ curl -X POST localhost:8080/api/user/update -H "Authorization: Bearer $TOKEN" \
 #    自己写个临时脚本（bcrypt.hash(pw,10) + UPDATE e_user_backend SET hashed_password），
 #    口令通过 stdin 传以免暴露在 argv/env；脚本必须放在 /picsur/backend 下才能解析到 node_modules，
 #    用完 `docker exec picsur rm -f …` 删掉。
-printf '%s' "$NEW_PW" | docker exec -i -w /picsur/backend picsur node /picsur/backend/<临时脚本>.cjs
+printf '%s' "$NEW_PW" | docker exec -i -w /picsur/backend picsur node /picsur/backend/ < 临时脚本 > .cjs
 
 # 4) 把新值写回 .env，然后**清掉 shell 里的旧变量**再重建容器
 env -u PICSUR_ADMIN_PASSWORD -u PICSUR_JWT_SECRET docker compose up -d --force-recreate picsur
@@ -344,4 +351,3 @@ env -u PICSUR_ADMIN_PASSWORD -u PICSUR_JWT_SECRET docker compose up -d --force-r
 实际上是旧值生效、`.env` 已漂移。
 
 **轮换后必跑**：`support/regression-image-api.sh`（34 项）——确认凭据变化没有连带影响取图与鉴权。
-
