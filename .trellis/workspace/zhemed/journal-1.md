@@ -164,3 +164,24 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 8: 一键部署：all-in-one 镜像（内嵌 Postgres）+ install.sh
+<!-- trellis-session: v=2 fp=5dfb2200d3647056 -->
+
+**Date**: 2026-10-13
+**Task**: 一键部署：all-in-one 镜像（内嵌 Postgres）+ install.sh
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户指出部署不是一键、并要求调用团队。团队两线并行：① all-in-one 镜像（Dockerfile.allinone + support/allinone-entrypoint.sh，内嵌 postgresql17+contrib，/data 卷，密钥自动生成并打印+落盘 allinone.env(0600)，tini 收尸，SIGTERM 先停应用再 pg_ctl fast stop）：空目录冷启 3.24s、34 项回归全过、持久化不重跑 initdb、优雅停止退出码 0、无僵尸进程、镜像 684MB（+34.2MB 层）；② install.sh（666 行，幂等、自动生成密钥、下载 compose 失败有内置兜底、缺 docker/端口占用非零退出、overlay 用 !override 保证仓库 compose 不被改）。Lead 集成：合并两分支、CI 加 :allinone 发布步骤、README 部署段换成一条 docker run（32 行）、手册加两种部署形态对比、spec 加 §12 与三个坑（alpine 包名+contrib 必需、pg_ctl 在 su-exec 下权限、绕过 pnpm 需自注入 npm_package_version）。发布验证：CI 成功产出 :allinone，照 README 原样一条命令起容器 → 0.6.0 → 从 allinone.env 取自动生成口令登录 201 → 34 项回归全过 → rm -f 后同 /data 再起数据完好不重跑 initdb；并确认日志 banner 打印的口令与落盘值逐字符一致。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
