@@ -1,11 +1,18 @@
 import { Injectable } from '@angular/core';
 import * as moment from 'moment';
 import 'moment/locale/zh-cn';
+import { Observable, Subject } from 'rxjs';
 import chineseTranslations from '../../assets/i18n/zh.json';
 import englishTranslations from '../../assets/i18n/en.json';
 
 export const availableLanguages = ['en', 'zh'] as const;
 export type AvailableLanguage = (typeof availableLanguages)[number];
+
+/**
+ * The language used when the visitor has no stored preference yet. Chinese is
+ * the primary audience of this instance, so a first visit opens in Chinese.
+ */
+export const defaultLanguage: AvailableLanguage = 'zh';
 
 type TranslationDictionary = Record<string, unknown>;
 
@@ -19,7 +26,8 @@ const dictionaries: Record<AvailableLanguage, TranslationDictionary> = {
  *
  * All translations are bundled with the application (see `src/assets/i18n`),
  * so switching languages never requires a network roundtrip or a page reload.
- * The chosen language is persisted in localStorage and defaults to English.
+ * The chosen language is persisted in localStorage and defaults to Chinese
+ * (see `defaultLanguage`).
  *
  * The translation keys themselves are strings like `common.actions.login`,
  * they are looked up in the bundled dictionaries by `instant()`.
@@ -29,7 +37,12 @@ const dictionaries: Record<AvailableLanguage, TranslationDictionary> = {
 })
 export class I18nService {
   private readonly storageKey = 'picsur.language';
-  private readonly fallbackLanguage: AvailableLanguage = 'en';
+  private readonly fallbackLanguage: AvailableLanguage = defaultLanguage;
+
+  /** Emits the new language code whenever the language changes. */
+  private readonly languageSubject = new Subject<AvailableLanguage>();
+  public readonly languageChange: Observable<AvailableLanguage> =
+    this.languageSubject.asObservable();
 
   private currentLanguage: AvailableLanguage;
 
@@ -61,8 +74,11 @@ export class I18nService {
       // Storage may be unavailable (private mode), the session still works.
     }
 
+    if (this.currentLanguage === language) return;
+
     this.currentLanguage = language;
     this.applyLanguage(language);
+    this.languageSubject.next(language);
   }
 
   public getCurrentLanguage(): AvailableLanguage {

@@ -1,6 +1,24 @@
 {
   "app": {
-    "logoTextAlt": "Picsur 文字标志"
+    "logoTextAlt": "Picsur 文字标志",
+    "logoIconAlt": "Picsur 图标标志",
+    "loading": "加载中",
+    "noScript": "抱歉，您需要启用 JavaScript",
+    "unknownVersion": "未知版本",
+    "footer": {
+      "madeWith": "由",
+      "by": "制作",
+      "demoVersion": "演示版本",
+      "sourceCode": "源代码"
+    }
+  },
+  "pagination": {
+    "itemsPerPage": "每页条目数：",
+    "nextPage": "下一页",
+    "previousPage": "上一页",
+    "firstPage": "第一页",
+    "lastPage": "最后一页",
+    "range": "第 {{ start }} – {{ end }} 条，共 {{ length }} 条"
   },
   "common": {
     "actions": {
@@ -26,6 +44,7 @@
     "hide": "隐藏"
   },
   "header": {
+    "menu": "菜单",
     "uploadImage": "上传图片",
     "loginOrRegister": "登录或注册",
     "loginAccount": "登录您的账户",
@@ -101,7 +120,7 @@
   "copyField": {
     "copied": "已复制 {{ label }}！",
     "copyFailed": "复制到剪贴板失败",
-      "copyFailedManual": "无法自动复制，请选中内容后手动复制。"
+    "copyFailedManual": "无法自动复制，请选中内容后手动复制。"
   },
   "valuesPicker": {
     "addPlaceholder": "添加 {{ name }}..."
