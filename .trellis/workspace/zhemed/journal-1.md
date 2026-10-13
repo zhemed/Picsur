@@ -392,3 +392,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 18: 修正部署文档：手动升级必须先 pull
+<!-- trellis-session: v=2 fp=ce48d93d5978fc5d -->
+
+**Date**: 2026-10-13
+**Task**: 修正部署文档：手动升级必须先 pull
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+回答用户三问并补掉最后一处：README 原话『docker rm -f picsur 后再跑同一条命令』会用到本地旧镜像缓存（docker run 不会自动 pull，实测在 189y.de 上正是如此，缓存是几小时前的），已改成先 docker pull 再重建，并指向面板「立即升级」。这是本轮排查暴露的最后一个问题；其余（应用默认开启 0.7.7、变体标签保留 0.7.8、git tag 补录与自动打 tag、发布脚本脏树守卫、189y.de 升到 0.7.8）均已解决。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5bf0b0f` | docs: the manual upgrade path has to pull first |
+
+### Status
+
+[OK] **Completed**
