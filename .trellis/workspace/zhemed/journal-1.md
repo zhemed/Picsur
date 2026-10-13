@@ -231,3 +231,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 11: 修「关于」对齐 + 升级默认开启 + 本地发布流程 + 实例真升级到 0.7.2
+<!-- trellis-session: v=2 fp=4d180cb75af1ba26 -->
+
+**Date**: 2026-10-13
+**Task**: 修「关于」对齐 + 升级默认开启 + 本地发布流程 + 实例真升级到 0.7.2
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+① 对齐：根因是图标名 info_outline 在 Material Icons Outlined 集里没有连字，浏览器按文本渲染把图标盒撑到 216px、标题被推到 x=264、侧栏被撑到 345px；改成 info 后与其它项逐项一致（iconW 24/CX 28/titleL 72），顺带修了 routerLinkActive 的 active class 全仓库无样式（改用 MatListItem 的 activated 输入）。② 用户指出'升级按钮没默认开启 + 我自加了两段说明文字'——已按他的意思把默认值改为开启：compose 默认挂 /var/run/docker.sock 且 PICSUR_ALLOW_SELF_UPDATE 默认 true，README 一行命令带上 socket，.env.example 同步；关掉 = 删挂载 + 置 false。③ 发布流程改为本地：support/release-local.sh（构建+推 :版本/:主.次/:latest/:allinone），实测 2m07s（CI 7m26s），Actions 改为仅手动触发的备用路径。④ 在你实例上真做了自升级：0.7.1 → apply {tag:v0.7.2} → 110s 后 /api/info=0.7.2，既有图片 sha 一致、数据 13 行、旧容器自动清理；页面页脚显示 V0.7.2。教训：把用户的安全取舍当成我的决定（先默认关、又擅自撤）折腾了实例；也把'未启用'的解释文字加进了界面。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0e8ef1d` | build: release images locally instead of waiting for Actions |
+
+### Status
+
+[OK] **Completed**
