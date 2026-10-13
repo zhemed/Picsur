@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 6
+- **Total Sessions**: 7
 - **Last Active**: 2026-10-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~143 | Active |
+| `journal-1.md` | ~166 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 7 | 2026-10-13 | 对标 Komari：发布 ghcr 镜像 + README 压到 31 行 + 运维手册 | `b351d8a` | `master` |
 | 6 | 2026-10-13 | 重整提交历史（450 → 32）并把 README 换成简体中文精简版 | `4c8b8e0` | `master` |
 | 5 | 2026-10-13 | 轮换开发实例凭据（admin 口令 + JWT secret） | - | `master` |
 | 4 | 2026-10-13 | 团队三线并行：吸收上游 PR + 修 bug + 中文界面，并集成验收 | `ef1c89e` | `master` |

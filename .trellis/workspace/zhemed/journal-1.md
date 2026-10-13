@@ -141,3 +141,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 7: 对标 Komari：发布 ghcr 镜像 + README 压到 31 行 + 运维手册
+<!-- trellis-session: v=2 fp=bcebfc26a2f4affd -->
+
+**Date**: 2026-10-13
+**Task**: 对标 Komari：发布 ghcr 镜像 + README 压到 31 行 + 运维手册
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户拿自己 komari 仓库的 README 做参照（一句话定位+版本线 → 一条 docker run 拉现成镜像 → 自检 → 指针），问能不能做到；选定'全都做'。交付：① .github/workflows/release-image.yml：v* tag 或手动触发构建并推 ghcr.io/zhemed/picsur（:版本/:主.次/:latest），只用内置 GITHUB_TOKEN + packages:write，无需新凭据；首次运行 v0.6.0 成功（7m26s）。② docker-compose.yml 的 image 改为 ${PICSUR_IMAGE:-ghcr.io/zhemed/picsur:latest}，--build 本地构建仍可用。③ docs/MAINTAINING.md（120 行）：构建/发版/部署/备份恢复/回滚/凭据轮换/自检/排障。④ README 74→31 行，Komari 同款结构。验证：拉发布镜像起隔离栈（8099/独立卷）→ /api/info=0.6.0 → migrations=8 → 34 项回归全过 → 拆除，常驻栈未受影响；包为 public，匿名可拉；固化了 support/verify-published-image.sh（8/8）。已知差异：Komari 用 sqlite 所以一条 docker run 带 -v ./data，我们数据全在 Postgres，最少是 compose 一条命令；面板内一键自升级不做（需把 docker socket 交给 Web 应用）。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b351d8a` | docs: record the ghcr release flow and ship the release verification script |
+
+### Status
+
+[OK] **Completed**
