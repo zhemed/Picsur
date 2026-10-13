@@ -1,0 +1,67 @@
+# Picsur 常驻部署（自有镜像 + Postgres）
+#
+# 用法（在仓库根目录）：
+#   cp .env.example .env      # 至少改掉 PICSUR_ADMIN_PASSWORD / PICSUR_JWT_SECRET
+#   docker compose up -d --build
+#
+# 说明：
+#   - 构建自己的镜像（根目录 Dockerfile），不拉上游 ghcr 镜像，也不依赖上游私有中间镜像。
+#   - .env 放在仓库根目录，compose 会自动读取（它就是给本文件做变量替换用的）。
+#   - 口令/密钥只从 .env 注入，不进版本库、不进镜像（.dockerignore 已排除 .env）。
+
+services:
+  picsur:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zhemed/picsur:local
+    container_name: picsur
+    ports:
+      # 有意发布在所有网卡（0.0.0.0:8080）：2026-10-13 由项目所有者确认保持，
+      # 目的是让同网段能直接访问图片直链。
+      # 要收窄成只允许本机/反代访问，改成 '127.0.0.1:8080:8080' 即可。
+      - '8080:8080'
+    environment:
+      PICSUR_HOST: '0.0.0.0'
+      PICSUR_PORT: 8080
+
+      # 容器内连 compose 网络里的数据库，与本地开发用的 127.0.0.1 无关
+      PICSUR_DB_HOST: picsur_postgres
+      PICSUR_DB_PORT: 5432
+      PICSUR_DB_USERNAME: picsur
+      PICSUR_DB_PASSWORD: ${PICSUR_DB_PASSWORD:-picsur}
+      PICSUR_DB_DATABASE: picsur
+
+      # 必须显式提供，缺失时 compose 直接报错（避免部署出一个默认口令的实例）
+      PICSUR_ADMIN_PASSWORD: ${PICSUR_ADMIN_PASSWORD:?请在 .env 里设置 PICSUR_ADMIN_PASSWORD}
+      PICSUR_JWT_SECRET: ${PICSUR_JWT_SECRET:?请在 .env 里设置 PICSUR_JWT_SECRET}
+
+      PICSUR_STATIC_FRONTEND_ROOT: /picsur/frontend/dist
+      PICSUR_MAX_FILE_SIZE: ${PICSUR_MAX_FILE_SIZE:-128000000}
+
+      # 注意：这个 env 只影响启动日志里的一行提示，**真正的遥测开关是数据库系统首选项**
+      # enable_telemetry（默认 true，会定时出网到已停维护的 metrics.picsur.org）。
+      # 关法（已在本机执行）：
+      #   TOKEN=... ; curl -X POST localhost:8080/api/pref/sys/enable_telemetry \
+      #     -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"value":false}'
+      PICSUR_TELEMETRY: 'false'
+
+      # 不要开：会把 JWT secret / DB 口令明文写进日志
+      PICSUR_VERBOSE: 'false'
+    depends_on:
+      - picsur_postgres
+    restart: unless-stopped
+
+  picsur_postgres:
+    image: postgres:17-alpine
+    container_name: picsur_postgres
+    environment:
+      POSTGRES_DB: picsur
+      POSTGRES_USER: picsur
+      POSTGRES_PASSWORD: ${PICSUR_DB_PASSWORD:-picsur}
+    volumes:
+      - picsur-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  picsur-data:

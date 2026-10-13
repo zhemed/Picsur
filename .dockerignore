@@ -1,6 +1,16 @@
 node_modules
 **/node_modules
 
+# 本地密钥与运行产物 —— 绝不能进构建上下文 / 镜像层
+.env
+.env.*
+.run
+
+# AI 工作区，与镜像无关
+.trellis
+.agents
+.dsh
+
 support
 backend/dist
 frontend/dist
