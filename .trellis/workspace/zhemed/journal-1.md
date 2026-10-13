@@ -300,3 +300,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 14: 去掉页脚 + 发布 0.7.5
+<!-- trellis-session: v=2 fp=cb3196ca1addbbba -->
+
+**Date**: 2026-10-13
+**Task**: 去掉页脚 + 发布 0.7.5
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户觉得每页底部「由 ♥ 制作 zhemed - V0.7.4 - 源代码」影响观感。改动：app.component.html 移除 <app-footer>（全仓唯一引用）+ 清掉 app.module.ts 里随之无用的 FooterModule 导入（组件文件保留）。发 0.7.5，面板升级常驻实例成功；实测 document.querySelector('app-footer') 为 null、页面底部不再有那行、版本 0.7.5、数据无损。备注：用户看到的 favorite_border 是心形图标的连字名（因为刚修好文字选中，复制到的是 DOM 原文）。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8ee0d99` | feat(ui): drop the footer |
+
+### Status
+
+[OK] **Completed**
