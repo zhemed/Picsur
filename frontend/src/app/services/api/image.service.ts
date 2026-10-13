@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import {
   ImageDeleteRequest,
   ImageDeleteResponse,
+  ImageListAllRequest,
+  ImageListAllResponse,
   ImageListRequest,
   ImageListResponse,
   ImageUpdateRequest,
@@ -84,6 +86,19 @@ export class ImageService {
     ).result;
   }
 
+  public async ListAllImagesUnpaged(
+    userID?: string,
+  ): AsyncFailable<ImageListAllResponse> {
+    return await this.api.post(
+      ImageListAllRequest,
+      ImageListAllResponse,
+      '/api/image/list/all',
+      {
+        user_id: userID,
+      },
+    ).result;
+  }
+
   public async ListMyImages(
     count: number,
     page: number,
@@ -94,6 +109,15 @@ export class ImageService {
     }
 
     return await this.ListAllImages(count, page, userID);
+  }
+
+  public async ListAllMyImagesUnpaged(): AsyncFailable<ImageListAllResponse> {
+    const userID = await this.userService.snapshot?.id;
+    if (userID === undefined) {
+      return Fail(FT.Authentication, 'User not logged in');
+    }
+
+    return await this.ListAllImagesUnpaged(userID);
   }
 
   public async UpdateImage(

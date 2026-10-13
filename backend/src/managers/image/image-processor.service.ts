@@ -37,6 +37,17 @@ export class ImageProcessorService {
     image: Buffer,
     filetype: FileType,
   ): AsyncFailable<ImageResult> {
+    // SVG has no internal representation to transcode to: it is stored as-is
+    // (already sanitized by SvgSecurityService) and rasterized on demand by
+    // the converter. Sending it through sharp here would either lose the
+    // vector data or require keeping a second, unsanitized copy around.
+    if (filetype.identifier === ImageFileType.SVG) {
+      return {
+        image,
+        filetype: filetype.identifier,
+      };
+    }
+
     const outputFileType = ParseFileType(ImageFileType.QOI);
     if (HasFailed(outputFileType)) return outputFileType;
 

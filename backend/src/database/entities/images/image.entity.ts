@@ -26,6 +26,14 @@ export class EImageBackend implements EImage {
   })
   file_name: string;
 
+  // Filetype the user actually uploaded, before the internal transcode.
+  // Nullable: rows created before this column existed have no value.
+  @Column({
+    type: 'varchar',
+    nullable: true,
+  })
+  source_filetype: string | null;
+
   @Column({
     type: 'timestamptz',
     nullable: true,

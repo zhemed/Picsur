@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { fileTypeFromBuffer, FileTypeResult } from 'file-type';
+import isSvg from 'is-svg';
 import { ImageRequestParams } from 'picsur-shared/dist/dto/api/image.dto';
 import { ImageEntryVariant } from 'picsur-shared/dist/dto/image-entry-variant.enum';
 import {
@@ -30,6 +31,7 @@ import { EImageBackend } from '../../database/entities/images/image.entity.js';
 import { MutexFallBack } from '../../util/mutex-fallback.js';
 import { ImageConverterService } from './image-converter.service.js';
 import { ImageProcessorService } from './image-processor.service.js';
+import { SvgSecurityService } from './svg-security.service.js';
 import { WebPInfo } from './webpinfo/webpinfo.js';
 
 @Injectable()
@@ -41,6 +43,7 @@ export class ImageManagerService {
     private readonly imageFilesService: ImageFileDBService,
     private readonly processService: ImageProcessorService,
     private readonly convertService: ImageConverterService,
+    private readonly svgSecurity: SvgSecurityService,
     private readonly userPref: UsrPreferenceDbService,
     private readonly sysPref: SysPreferenceDbService,
   ) {}
@@ -55,6 +58,12 @@ export class ImageManagerService {
     userid: string | undefined,
   ): AsyncFailable<FindResult<EImageBackend>> {
     return await this.imagesService.findMany(count, page, userid);
+  }
+
+  public async findAll(
+    userid: string | undefined,
+  ): AsyncFailable<{ results: EImageBackend[]; total: number }> {
+    return await this.imagesService.findAll(userid);
   }
 
   public async update(
@@ -93,6 +102,17 @@ export class ImageManagerService {
     const fileType = await this.getFileTypeFromBuffer(image);
     if (HasFailed(fileType)) return fileType;
 
+    // SVG is stored verbatim, so it must be sanitized before it is written
+    // anywhere. Everything else goes through the sharp transcode below, which
+    // normalizes the payload.
+    let uploadImage = image;
+    if (fileType.identifier === ImageFileType.SVG) {
+      const sanitized = this.svgSecurity.sanitize(image);
+      if (HasFailed(sanitized)) return sanitized;
+
+      uploadImage = sanitized;
+    }
+
     // Check if need to save orignal
     const keepOriginal = await this.userPref.getBooleanPreference(
       userid,
@@ -101,7 +121,10 @@ export class ImageManagerService {
     if (HasFailed(keepOriginal)) return keepOriginal;
 
     // Process
-    const processResult = await this.processService.process(image, fileType);
+    const processResult = await this.processService.process(
+      uploadImage,
+      fileType,
+    );
     if (HasFailed(processResult)) return processResult;
 
     // Strip extension from filename
@@ -115,6 +138,7 @@ export class ImageManagerService {
     const imageEntity = await this.imagesService.create(
       userid,
       name,
+      fileType.identifier,
       withDeleteKey,
     );
     if (HasFailed(imageEntity)) return imageEntity;
@@ -131,7 +155,7 @@ export class ImageManagerService {
       const originalFileEntity = await this.imageFilesService.setFile(
         imageEntity.id,
         ImageEntryVariant.ORIGINAL,
-        image,
+        uploadImage,
         fileType.identifier,
       );
       if (HasFailed(originalFileEntity)) return originalFileEntity;
@@ -148,6 +172,22 @@ export class ImageManagerService {
     const targetFileType = ParseFileType(fileType);
     if (HasFailed(targetFileType)) return targetFileType;
 
+    // SVG can only be served from an SVG master: it is a vector format, and
+    // rasterizing into SVG is not a thing. Requesting it for a raster image is
+    // a bad request rather than an internal conversion error.
+    if (targetFileType.identifier === ImageFileType.SVG) {
+      const masterFileType = await this.getMasterFileType(imageId);
+      if (HasFailed(masterFileType)) return masterFileType;
+
+      if (masterFileType.identifier !== ImageFileType.SVG) {
+        return Fail(
+          FT.UsrValidation,
+          'Unsupported conversion',
+          'Cannot convert a raster image to SVG',
+        );
+      }
+    }
+
     const converted_key = this.getConvertHash({ mime: fileType, ...options });
 
     const allow_editing = await this.sysPref.getBooleanPreference(
@@ -161,7 +201,7 @@ export class ImageManagerService {
         return this.imageFilesService.getDerivative(imageId, converted_key);
       },
       async () => {
-        const masterImage = await this.getMaster(imageId);
+        const masterImage = await this.getMasterFile(imageId);
         if (HasFailed(masterImage)) return masterImage;
 
         const sourceFileType = ParseFileType(masterImage.filetype);
@@ -195,6 +235,27 @@ export class ImageManagerService {
   // File getters ==============================================================
 
   public async getMaster(imageId: string): AsyncFailable<EImageFileBackend> {
+    // SVG masters are stored verbatim: tell the caller not to hand them to
+    // sharp, which cannot read them as a raster source. Callers that need the
+    // bytes regardless use `getMasterFile()`.
+    const filetype = await this.getMasterFileType(imageId);
+    if (HasFailed(filetype)) return filetype;
+
+    if (filetype.identifier === ImageFileType.SVG) {
+      return Fail(
+        FT.UsrValidation,
+        'Unsupported conversion',
+        'SVG images have no raster master file',
+      );
+    }
+
+    return this.imageFilesService.getFile(imageId, ImageEntryVariant.MASTER);
+  }
+
+  /** Returns the master file as stored, including SVG masters. */
+  public async getMasterFile(
+    imageId: string,
+  ): AsyncFailable<EImageFileBackend> {
     return this.imageFilesService.getFile(imageId, ImageEntryVariant.MASTER);
   }
 
@@ -248,8 +309,17 @@ export class ImageManagerService {
     let mime: string | undefined;
     if (filetypeResult === undefined) {
       if (IsQOI(image)) mime = 'image/x-qoi';
+      // file-type does not detect SVG: it has no binary signature.
+      else if (isSvg(image.toString('utf8'))) mime = 'image/svg+xml';
     } else {
       mime = filetypeResult.mime;
+      // XML-based SVG is reported as generic XML by file-type.
+      if (
+        (mime === 'application/xml' || mime === 'text/xml') &&
+        isSvg(image.toString('utf8'))
+      ) {
+        mime = 'image/svg+xml';
+      }
     }
 
     if (mime === undefined) mime = 'other/unknown';

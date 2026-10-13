@@ -16,12 +16,14 @@ export class ImageDBService {
   public async create(
     userid: string,
     filename: string,
+    sourceFiletype: string,
     withDeleteKey: boolean,
   ): AsyncFailable<EImageBackend> {
     let imageEntity = new EImageBackend();
     imageEntity.user_id = userid;
     imageEntity.created = new Date();
     imageEntity.file_name = filename;
+    imageEntity.source_filetype = sourceFiletype;
     if (withDeleteKey) imageEntity.delete_key = generateRandomString(32);
 
     try {
@@ -77,6 +79,28 @@ export class ImageDBService {
         total: amount,
         page,
         pages: Math.ceil(amount / count),
+      };
+    } catch (e) {
+      return Fail(FT.Database, e);
+    }
+  }
+
+  public async findAll(
+    userid: string | undefined,
+  ): AsyncFailable<{ results: EImageBackend[]; total: number }> {
+    try {
+      const [found, amount] = await this.imageRepo.findAndCount({
+        order: { created: 'DESC' },
+        where: {
+          user_id: userid,
+        },
+      });
+
+      if (found === undefined) return Fail(FT.NotFound, 'Images not found');
+
+      return {
+        results: found,
+        total: amount,
       };
     } catch (e) {
       return Fail(FT.Database, e);
