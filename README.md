@@ -8,13 +8,14 @@
 docker run -d --name picsur --restart always \
   -p 8080:8080 \
   -v ./data:/data \
+  -v /var/run/docker.sock:/var/run/docker.sock \
   ghcr.io/zhemed/picsur:allinone
 ```
 
 面板 `http://<主机>:8080`（登录名固定 `admin`，首次启动的管理员口令打印在 `docker logs picsur`）。
 数据全在 `./data`。**升级**：`docker rm -f picsur` 后用新 tag 再跑同一条命令，迁移自动执行。
-面板 → 设置 →「关于」可**检查新版本**；想在里面一键升级，需要挂 `/var/run/docker.sock` 并设
-`PICSUR_ALLOW_SELF_UPDATE=true`（等于把 docker 权限交给面板，默认关闭）。
+面板 → 设置 →「关于」可检查新版本并**一键升级**（默认可用）。上面那行 socket 挂载就是为它准备的；
+不想要这个能力就删掉它并设 `PICSUR_ALLOW_SELF_UPDATE=false`（此时页面只显示升级命令）。
 
 想要独立 Postgres（多容器、生产口径）：
 

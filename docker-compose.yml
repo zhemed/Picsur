@@ -50,16 +50,17 @@ services:
 
       # 在线升级（面板里的「关于与升级」区块）
       # 版本检测默认开启：只读 api.github.com 上的公共 tags，一小时最多一次，不出网任何实例数据。
-      # 自升级默认关闭：想开启必须同时挂载 docker socket（见下面注释掉的 volumes）并设
-      # PICSUR_ALLOW_SELF_UPDATE=true —— 那等于把宿主 docker 的控制权交给面板。
+      # 面板内「一键升级」——默认开启（配套下面的 docker.sock 挂载）。
+      # 关掉它：设 PICSUR_ALLOW_SELF_UPDATE=false 并删掉 socket 挂载；此时页面只显示升级命令。
+      # 注意：挂了 socket 等于把宿主 docker 的控制权交给面板，只应在信任所有管理员的机器上开启。
       PICSUR_UPDATE_CHECK: ${PICSUR_UPDATE_CHECK:-true}
-      PICSUR_ALLOW_SELF_UPDATE: ${PICSUR_ALLOW_SELF_UPDATE:-false}
+      PICSUR_ALLOW_SELF_UPDATE: ${PICSUR_ALLOW_SELF_UPDATE:-true}
 
       # 不要开：会把 JWT secret / DB 口令明文写进日志
       PICSUR_VERBOSE: 'false'
-    # 一键自升级需要 docker socket（默认关闭，想用再取消注释，并设 PICSUR_ALLOW_SELF_UPDATE=true）
-    # volumes:
-    #   - /var/run/docker.sock:/var/run/docker.sock
+    # 面板内一键升级（默认开启）需要它；不想要这个能力就删掉这个挂载并设 PICSUR_ALLOW_SELF_UPDATE=false
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - picsur_postgres
     restart: unless-stopped
