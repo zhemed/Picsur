@@ -77,3 +77,20 @@ export const ImageDeleteWithKeyResponseSchema = EImageSchema;
 export class ImageDeleteWithKeyResponse extends createZodDto(
   ImageDeleteWithKeyResponseSchema,
 ) {}
+
+// Image list all (unpaged)
+
+export const ImageListAllRequestSchema = z.object({
+  user_id: z.string().uuid().optional(),
+});
+export class ImageListAllRequest extends createZodDto(
+  ImageListAllRequestSchema,
+) {}
+
+export const ImageListAllResponseSchema = z.object({
+  results: z.array(EImageSchema),
+  total: IsPosInt(),
+});
+export class ImageListAllResponse extends createZodDto(
+  ImageListAllResponseSchema,
+) {}
