@@ -1,10 +1,10 @@
 {
   "name": "picsur-frontend",
-  "version": "0.5.7",
+  "version": "0.6.0",
   "description": "Frontend for Picsur",
   "license": "GPL-3.0",
-  "repository": "https://github.com/caramelfur/Picsur",
-  "author": "Caramel <picsur@caramelfur.dev>",
+  "repository": "https://github.com/zhemed/picsur",
+  "author": "zhemed",
   "type": "module",
   "scripts": {
     "ng": "ng",
