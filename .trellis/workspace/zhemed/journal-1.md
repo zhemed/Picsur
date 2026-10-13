@@ -74,3 +74,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 4: 团队三线并行：吸收上游 PR + 修 bug + 中文界面，并集成验收
+<!-- trellis-session: v=2 fp=706e6721daa067fe -->
+
+**Date**: 2026-10-13
+**Task**: 团队三线并行：吸收上游 PR + 修 bug + 中文界面，并集成验收
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+三条战线并行（各自 worktree/分支/库/端口）：prs 吸收 #128 默认PNG（带 migration）/ #115 list-all / #129 SVG（含净化+CSP）；bugs 修 #107 超像素400 / #112 剪贴板降级 / 删除语义改 404+no-store / meta no-store；i18n 吸收 #130 中文界面（自研 I18nService，无新依赖）。Lead 集成：4 处冲突手工解（headImage 双能力、view 的 SVG/i18n 分支、剪贴板结构化+文案、词典补 key），新增 jsdom/dompurify/svgo/is-svg 后又用 3 条 override 把生产告警压回 0；复核子代理抓出并修掉一个真安全洞（SVG 净化只查 <use>，外链可绕过）与一处漏翻；最终镜像重建后 34 项回归 + 21 项端到端全绿，容器内 7 格式可用，SVG 外链/script/javascript 全删。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ef1c89e` | docs: record the absorbed capabilities and the no-extension contract |
+
+### Status
+
+[OK] **Completed**
