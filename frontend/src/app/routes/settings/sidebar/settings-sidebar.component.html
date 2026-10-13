@@ -6,6 +6,8 @@
       mat-list-item
       [routerLink]="'/settings/' + route.path"
       routerLinkActive="active"
+      #rla="routerLinkActive"
+      [activated]="rla.isActive"
     >
       <mat-icon fontSet="material-icons-outlined" matListItemIcon>
         {{ route.data?.page?.icon }}
@@ -24,6 +26,8 @@
       mat-list-item
       [routerLink]="'/settings/' + route.path"
       routerLinkActive="active"
+      #rla="routerLinkActive"
+      [activated]="rla.isActive"
     >
       <mat-icon fontSet="material-icons-outlined" matListItemIcon>
         {{ route.data?.page?.icon }}
