@@ -2,7 +2,7 @@ import { Component, OnInit, ViewChild } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { AutoUnsubscribe } from 'ngx-auto-unsubscribe-decorator';
 import { EApiKey } from 'picsur-shared/dist/entities/apikey.entity';
-import { FT, Fail, HasFailed } from 'picsur-shared/dist/types/failable';
+import { HasFailed } from 'picsur-shared/dist/types/failable';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { ApiKeysService } from '../../../services/api/apikeys.service';
 import { UserService } from '../../../services/api/user.service';
@@ -32,6 +32,9 @@ export class SettingsApiKeysComponent implements OnInit {
   public dataSubject = new BehaviorSubject<EApiKey[]>([]);
   public updateSubject = new Subject<PageEvent>();
   public totalApiKeys = 0;
+
+  /** Set when the browser refused to copy, so the key stays selectable. */
+  public manualCopyKey: string | null = null;
 
   @ViewChild(MatPaginator) paginator: MatPaginator;
 
@@ -64,27 +67,45 @@ export class SettingsApiKeysComponent implements OnInit {
       this.paginator.firstPage();
     }
 
-    const clipboardResult = await this.clipboard.copy(result.key);
-    if (!clipboardResult) {
-      return this.errorService.showFailure(
-        Fail(FT.Internal, 'Failed to copy api key to clipboard'),
-        this.logger,
-      );
+    const copied = await this.copyToClipboard(result.key);
+    if (copied) {
+      this.errorService.success('Api key created and copied to clipboard');
+    } else {
+      this.showManualCopyHint(result.key);
     }
-
-    this.errorService.success('Api key created and copied to clipboard');
   }
 
   public async copyKey(apikey: string) {
-    const result = await this.clipboard.copy(apikey);
-    if (!result) {
-      return this.errorService.showFailure(
-        Fail(FT.Internal, 'Failed to copy api key to clipboard'),
-        this.logger,
-      );
+    const copied = await this.copyToClipboard(apikey);
+    if (copied) {
+      this.errorService.success('Api key copied to clipboard');
+    } else {
+      this.showManualCopyHint(apikey);
     }
+  }
 
-    this.errorService.success('Api key copied to clipboard');
+  private async copyToClipboard(text: string): Promise<boolean> {
+    const result = await this.clipboard.copy(text);
+    return result.success;
+  }
+
+  /**
+   * The browser can refuse a copy (the async Clipboard API needs a secure
+   * context, and the legacy fallback can be blocked as well). Say so
+   * explicitly and show the key so the user can still select it by hand.
+   */
+  private showManualCopyHint(apikey: string) {
+    this.manualCopyKey = apikey;
+    this.errorService.error(
+      'Could not copy the api key automatically. Select it in the box below to copy it manually.',
+      this.logger,
+    );
+  }
+
+  /** Select the whole key so a manual Ctrl/Cmd+C copies it in one go. */
+  public selectAll(event: Event) {
+    const target = event.target as HTMLInputElement | null;
+    target?.select();
   }
 
   public async deleteApiKey(apikeyId: string) {
