@@ -31,6 +31,12 @@ This directory contains guidelines for frontend development. Fill in each file w
 - [ ] 前端产物由 backend 托管（`PICSUR_STATIC_FRONTEND_ROOT`），构建产物路径必须是 `frontend/dist`。
 - [ ] 调 API 时路径看 [Image API Contracts](../../picsur-backend/backend/image-api-contracts.md)：
       `POST` 一律返回 **201**，图片直链必须带扩展名。
+- [ ] **用户可见文案必须走 i18n**（#130 起）：模板里用 `{{ 'some.key' | translate }}`，
+      TS 里用 `this.i18n.instant('some.key')`。**禁止硬编码英文/中文**。
+      - 词典：`frontend/src/assets/i18n/en.json` 与 `zh.json`，**两边 key 必须一一对应**（新增文案要同时加）。
+      - 缺 key 时原文原样输出（不会崩），但会在 UI 里露出裸 key —— PR 前请对照两份词典。
+      - 切换语言：`I18nService`，持久化在 `localStorage['picsur.language']`，默认 **en**。
+      - 组件里要注入 `I18nService`（不要再引入 `@ngx-translate/*`，本仓库没这个依赖）。
 
 ---
 

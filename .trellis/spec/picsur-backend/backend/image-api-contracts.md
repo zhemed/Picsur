@@ -19,7 +19,8 @@
 GET    /api/info                          # 服务信息（匿名）
 POST   /api/user/login                    # {"username","password"}
 POST   /api/image/upload                  # multipart, 字段名 file
-POST   /api/image/list                    # 列出自己的图片（分页）
+POST   /api/image/list                    # 列出自己的图片（分页；请求体 {count,page,user_id?}）
+POST   /api/image/list/all                # 列出当前用户全部图片（不分页，#115）
 POST   /api/image/update
 POST   /api/image/delete                  # {"ids":[...]}
 POST   /api/image/delete/key
@@ -63,8 +64,11 @@ GET    /api/pref/sys  /  /api/pref/sys/:key
 | `file_name` | string | 上传文件名的**去扩展名**形式 |
 | `expires_at` | ISO 时间 \| null | null = 永不过期 |
 | `delete_key` | string \| null | 带权限时返回，用于匿名删除 |
+| `source_filetype` | string \| null | **上传时的真实格式**（如 `image:png` / `image:jpeg`），#128 起新增；升级前的旧行为 `null` |
 
 - 默认存储格式为 **QOI**（无损）；能否保留原始文件取决于系统设置 `keep original`。
+- ⚠️ `source_filetype` 的用途是让**前端**默认选中「上传时的格式」（#128）：
+  **它不改变后端路由行为** —— `/i/<id>`（无扩展名）依然返回品牌占位图，这一点实测确认过。
 
 ### 3.4 `GET /i/:id` 与 `/i/:id.:ext`
 
@@ -76,12 +80,27 @@ GET    /api/pref/sys  /  /api/pref/sys/:key
 | `/i/<存在 id>.png` | 200 `image/png` + `Cache-Control: max-age=2592000`，**像素与原图一致**（字节不保证：经过 QOI 中转后重新编码） |
 | `/i/<存在 id>.qoi` | 200 `image/x-qoi` |
 | `/i/<存在 id>.webp/.avif/.jxl/.jp2/.heif` | 200，对应类型（依赖镜像内自编译 libvips） |
-| `/i/<存在 id>`（无扩展名） | 200，但返回**品牌占位图** `notfound.png`（512×361），不是原图、也不是 index.html |
+| `/i/<存在 id>`（无扩展名） | **取决于这个 id 有没有"原图"**：有保留原图 → 200 原图；SVG master → 200 净化 SVG + CSP；**没有保留原图的普通图 → 404 + `no-store`**（正文仍是品牌占位图 `notfound.png`）。前端只在 `hasOriginal` 时才提供这种链接，UI 不受影响 |
 | `/i/<不存在 id>`（无扩展名） | **404** + 占位图 + `no-store` |
 | 已删除的 `/i/<id>.<ext>` | **404** + 占位图 + `no-store`（修复前是 200 + 30 天缓存） |
 | 已删除的 `HEAD /i/<id>.<ext>` | **404** + `no-store`（修复前恒为 200，会让 HEAD 探测器误判） |
 | `/i/meta/<不存在 id>` | **404** + `no-store` |
 | `/i/meta/<存在 id>` | 200 + `no-store`（见 §3.7） |
+
+**SVG（#129 起）**：SVG 按**原始向量**存为 master，不走 sharp 栅格化。
+
+| 请求 | 实测结果 |
+|---|---|
+| `/i/<SVG id>.svg` | 200 `image/svg+xml` + `Content-Security-Policy: sandbox; default-src 'none'; … script-src 'none'` + `X-Content-Type-Options: nosniff`；正文是**净化后**的 SVG（`<script>`、`onload`、外部 `<use xlink:href>` 引用都会被删） |
+| `/i/<栅格图 id>.svg` | 4xx 用法错误（栅格图没有 SVG master，不是内部 500） |
+| SVG 上传后取 `.png` 等栅格格式 | 200（librsvg 栅格化，仍受像素/时间上限约束） |
+
+### 3.8 `POST /api/image/list/all`（#115）
+
+- 请求：`{}`（可选 `user_id`，但非 ImageAdmin 会被强制覆盖成调用者自己 → **不能越权列别人的图**）
+- 响应：`201` + `{"data":{"results": EImage[], "total": number}}`
+- 与分页版 `list` 的差别：不返回 `page`/`pages`，一次给全量
+- 匿名调用 → **403**（实测）
 
 ### 3.5 `POST /api/image/delete`
 
@@ -121,7 +140,7 @@ GET    /api/pref/sys  /  /api/pref/sys/:key
 
 | 输入 | 结果 |
 |---|---|
-| 无扩展名的 `/i/<有效 id>` | 200 + 占位图（**静默降级，最容易误判成"图片还在"**） |
+| 无扩展名的 `/i/<有效 id>` | 有保留原图 → 200 原图；无原图 → **404 + no-store**（正文仍是占位图）；SVG → 200。**#129 吸收后这条从"恒 200 占位图"变成了"按原图有无分流"**，改前端或文档前先读 §3.4 |
 | 无扩展名的 `/i/<无效 id>` | 404 + 占位图 + `no-store` |
 | 扩展名不在支持列表 | 400（`ImageFullIdPipe` 校验；具体列表见 `shared/src/util/common-regex.ts` / mime 枚举） |
 | 无 token 上传 | 201（匿名，落到 guest 用户），前提是 guest 角色有上传权限 |
@@ -181,7 +200,7 @@ docker run --rm -v /tmp/bugs-fx:/out -v "$PWD/support/make-image-fixtures.cjs:/p
 # Wrong —— 直觉得到的路径
 curl -X POST localhost:8080/api/image -F file=@a.png        # 404
 curl -X DELETE localhost:8080/api/image/<id>                # 404
-curl localhost:8080/i/<id>                                  # 200，但拿到的是占位图
+curl localhost:8080/i/<id>                                  # 取决于有无原图：200 原图 / 404+占位图（见 §3.4）
 
 # Correct
 curl -X POST localhost:8080/api/image/upload -H "Authorization: Bearer $TOKEN" -F "file=@a.png"

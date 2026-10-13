@@ -18,7 +18,9 @@ dependency-security pipeline.
 - Uploading and viewing images, anonymous uploads
 - User accounts, roles and permissions
 - EXIF stripping, optional "keep original"
-- Formats: QOI, JPG, PNG, WEBP (animated), TIFF, HEIF, BMP, GIF (animated), JPEG-XL, JPEG-2000
+- Formats: QOI, JPG, PNG, WEBP (animated), TIFF, HEIF, BMP, GIF (animated), JPEG-XL, JPEG-2000,
+  **SVG** (kept as vector, sanitised on upload and served with a strict CSP)
+- UI available in **English and 中文** (switch in the header; remembered per browser)
 - Convert & edit images: resize, rotate, flip, strip transparency, negative, greyscale
 - Deletable and expiring images, ShareX endpoint, proper DB migrations
 - Self-built container image with the **full codec set** (HEIF / JXL / JP2 — the
@@ -58,17 +60,18 @@ node backend/dist/main.js # after setting the env vars from .env
 
 All variables are prefixed `PICSUR_` (see [`.env.example`](./.env.example)):
 
-| Variable                                           | Default                            | Notes                                                                     |
-| -------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------- |
-| `PICSUR_ADMIN_PASSWORD`                            | —                                  | required; username is always `admin`                                      |
-| `PICSUR_JWT_SECRET`                                | random                             | set it, otherwise every restart logs everyone out                         |
-| `PICSUR_DB_{HOST,PORT,USERNAME,PASSWORD,DATABASE}` | `localhost` / `5432` / `picsur` ×3 |                                                                           |
-| `PICSUR_PORT` / `PICSUR_HOST`                      | `8080` / `0.0.0.0`                 |                                                                           |
-| `PICSUR_MAX_FILE_SIZE`                             | `128000000`                        | bytes                                                                     |
-| `PICSUR_STATIC_FRONTEND_ROOT`                      | `/picsur/frontend/dist`            | change only with a custom frontend                                        |
-| `PICSUR_PRODUCTION`                                | `false`                            | **set `true` in production** (otherwise TypeORM synchronizes the schema)  |
-| `PICSUR_VERBOSE`                                   | `false`                            | ⚠️ do **not** enable: it logs the JWT secret and DB password in plaintext |
-| `PICSUR_TELEMETRY`                                 | `true`                             | cosmetic only — reporting is disabled because no endpoint is configured   |
+| Variable                                           | Default                            | Notes                                                                             |
+| -------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------- |
+| `PICSUR_ADMIN_PASSWORD`                            | —                                  | required; username is always `admin`                                              |
+| `PICSUR_JWT_SECRET`                                | random                             | set it, otherwise every restart logs everyone out                                 |
+| `PICSUR_DB_{HOST,PORT,USERNAME,PASSWORD,DATABASE}` | `localhost` / `5432` / `picsur` ×3 |                                                                                   |
+| `PICSUR_PORT` / `PICSUR_HOST`                      | `8080` / `0.0.0.0`                 |                                                                                   |
+| `PICSUR_MAX_FILE_SIZE`                             | `128000000`                        | bytes                                                                             |
+| `PICSUR_MAX_IMAGE_PIXELS`                          | `268402689`                        | `width × height` limit; oversized uploads return a readable 400 (`0` disables it) |
+| `PICSUR_STATIC_FRONTEND_ROOT`                      | `/picsur/frontend/dist`            | change only with a custom frontend                                                |
+| `PICSUR_PRODUCTION`                                | `false`                            | **set `true` in production** (otherwise TypeORM synchronizes the schema)          |
+| `PICSUR_VERBOSE`                                   | `false`                            | ⚠️ do **not** enable: it logs the JWT secret and DB password in plaintext         |
+| `PICSUR_TELEMETRY`                                 | `true`                             | cosmetic only — reporting is disabled because no endpoint is configured           |
 
 ## API
 

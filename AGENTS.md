@@ -38,3 +38,13 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 4. **别开 `PICSUR_VERBOSE`**：它会把 JWT secret 与 DB 口令明文写进日志。
 5. **别把密钥写进仓库**：`PICSUR_ADMIN_PASSWORD` / `PICSUR_JWT_SECRET` 只放在 `.env`
    （已同时进 `.gitignore` 与 `.dockerignore`）。
+6. **依赖安全复测**：跑审计必须显式指定官方 registry —— 本机默认源是 npmmirror，**没有 audit 端点**：
+   ```bash
+   pnpm audit --prod --registry https://registry.npmjs.org/
+   ```
+   生产口径必须保持 **0**（新增后端运行时依赖后要重跑，见 spec §10）。
+7. **用户可见文案走 i18n**：模板 `| translate`、TS `i18n.instant()`，en/zh 两份词典同步
+   （细节见 `.trellis/spec/picsur-frontend/frontend/index.md` 的 Pre-Development Checklist）。
+8. **并行开发用 worktree**：多人/多线并行时各自 `git worktree add .worktrees/<stream> -b <branch>`，
+   各自独立库与端口（dev Postgres 已跑在 5432，可 `CREATE DATABASE picsur_<stream>`），
+   冲突由 Lead 集成时解决。`.worktrees/` 已 gitignore。

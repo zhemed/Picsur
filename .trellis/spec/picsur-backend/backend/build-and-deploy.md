@@ -100,6 +100,7 @@ if (!(await this.usageConfig.getMetricsUrl())) return;       // ② 端点为空
 | `.env` 未进 `.dockerignore` | ❌ 密钥进入镜像层（`docker history` 可捞） |
 | 请求 `/i/<uuid>`（不带扩展名） | 200 + 品牌占位图 `notfound.png`（**不是原图，也不是 index.html**） |
 | 请求不存在的 `/i/<uuid>`（无扩展名） | 404 + 占位图 + `Cache-Control: no-store` |
+| 请求**存在但没有保留原图**的 `/i/<uuid>`（无扩展名） | 也返回 **404 + no-store**（#129 吸收后按"原图有无"分流；有原图才是 200） |
 | 删除后再取 `/i/<uuid>.<ext>` | **404** + 占位图 + `no-store`（2026-10-13 修复；此前是 200 + 30 天缓存，见 `image-api-contracts.md` §3.4/§3.7） |
 | 上传超过 `PICSUR_MAX_IMAGE_PIXELS` 的图片 | 400 `usrvalidation`，消息含实际像素数与上限（2026-10-13 修复；此前是 500 `Worker closed`） |
 
@@ -124,7 +125,7 @@ if (!(await this.usageConfig.getMetricsUrl())) return;       // ② 端点为空
 |---|---|---|
 | 构建 | 三包 `pnpm --filter <pkg> build` | `shared/dist/index.js`、`backend/dist/main.js`、`frontend/dist/index.html` 存在；exit 0 |
 | 服务 | `curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/info` | `200`，且 body 里 `production:true` |
-| 迁移 | `docker exec picsur_postgres psql -U picsur -d picsur -tAc "select count(*) from migrations;"` | `7`（v0.5.x 起就固定的 migration 条数，与版本号无关），且 `e_user_backend` 里有 `admin`/`guest` |
+| 迁移 | `docker exec picsur_postgres psql -U picsur -d picsur -tAc "select count(*) from migrations;"` | **`8`**（7 条基线 + `AddImageSourceFiletype`，2026-10-13 #128 引入），且 `e_user_backend` 里有 `admin`/`guest` |
 | 上传 | `POST /api/image/upload`（multipart 字段 `file`） | `201`，返回 `data.id`（UUID） |
 | 取回 | `GET /i/<id>.png` | `200` + `image/png`；与原始图片**像素一致**（字节不保证一致） |
 | 转码 | `GET /i/<id>.{qoi,webp,avif,jxl,jp2,heif}` | 全部 `200`（证明镜像里的自编译 libvips **并且** sharp 是源码构建的） |
@@ -267,3 +268,34 @@ pkill -x node          # 或先 pgrep 拿 PID 再 kill <pid>
 > git grep -ni "picsur\.org\|caramelfur\|discord\.gg" -- . \
 >   ':!LICENSE' ':!README.md' ':!.trellis'
 > ```
+
+---
+
+## 10. SVG 依赖栈（2026-10-13，#129 吸收后）
+
+SVG 与其它格式不同：**按原始向量存为 master，绝不交给 sharp 栅格化当源**，因此多了一套 XML 处理依赖。
+
+| 包 | 用途 | 注意 |
+|---|---|---|
+| `svgo` | 压缩 / 规范化 SVG | 精确锁定版本（安全面） |
+| `jsdom` | 给 `dompurify` 提供 DOM 实现 | **重量级**（约 30 个传递依赖），也是下面那组告警的来源 |
+| `dompurify` | 净化：删 `<script>` / `onload` / 外部引用 | 精确锁定版本 |
+| `is-svg` | 判定"这是不是 SVG" | — |
+
+它们**只在后端**使用（`backend/src/managers/image/svg-security.service.ts`），不进前端产物。
+
+**引入时踩到的坑**：`jsdom` 拖进来的 `ws` / `form-data`（以及 `source-map-js`）在生产树上带进了
+1 critical + 3 high 告警 —— 按 §8.2 的策略用同大版本补丁线 override 顶掉：
+
+```jsonc
+"form-data@>=4.0.0 <4.0.6": "^4.0.6",
+"ws@>=8.0.0 <8.21.0": "^8.21.0",
+"source-map-js@>=1.0.0 <1.2.2": "^1.2.2"
+```
+
+**契约**：新增后端运行时依赖后必须重跑 `pnpm audit --prod`，生产口径保持 **0**（见 §8.1）。
+若要减轻依赖，替代方案是换更轻的 DOM 实现（如 linkedom），但需重新验证净化行为。
+
+**取回契约**：`/i/<id>.svg` 响应必须带
+`Content-Security-Policy: sandbox; default-src 'none'; … script-src 'none'` 与
+`X-Content-Type-Options: nosniff`（见 `image-api-contracts.md` §3.4）。动这条链路时要连带验证这两个头。
