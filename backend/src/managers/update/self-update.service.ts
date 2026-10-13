@@ -388,10 +388,28 @@ export class SelfUpdateService {
     tagOverride?: string,
   ): Promise<{ repository: string; tag: string }> {
     const override = this.updateConfig.getImageOverride();
+    const own = splitImageRef(ownImage);
     const parsed = splitImageRef(override ?? ownImage);
 
-    let tag = parsed.tag;
     const explicit = tagOverride ?? this.updateConfig.getTagOverride();
+
+    // A variant tag (our "allinone" is published as another tag of the same
+    // repository) must be preserved: replacing it with the plain version tag
+    // swaps in the regular image, which cannot start as an all-in-one
+    // deployment (different entrypoint). Re-pull the very tag we run; the
+    // release pipeline keeps moving it to the newest build.
+    const isVariableTag = (tag: string): boolean =>
+      tag !== '' && tag !== 'latest' && !/^v?\d+(\.\d+)*$/.test(tag);
+    if (override === undefined && isVariableTag(own.tag)) {
+      if (explicit !== undefined && explicit !== '' && explicit !== own.tag) {
+        this.logger.warn(
+          `Ignoring requested tag "${explicit}": this deployment runs the "${own.tag}" variant, which is published under that very tag`,
+        );
+      }
+      return { repository: own.repository, tag: own.tag };
+    }
+
+    let tag = parsed.tag;
     if (explicit !== undefined && explicit !== '') {
       tag = explicit;
     } else if (override === undefined) {
