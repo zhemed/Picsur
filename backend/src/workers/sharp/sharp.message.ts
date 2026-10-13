@@ -60,6 +60,19 @@ export interface SharpWorkerResultMessage {
   type: 'result';
   processingTime: number;
   result: SharpResult;
+  failure?: undefined;
+}
+
+/**
+ * Reported when the image itself is the problem (oversized or undecodable).
+ * The reason is a plain string so it survives the process boundary; the main
+ * process turns it back into a user facing error (see `image-pixel-limit.ts`).
+ */
+export interface SharpWorkerFailureMessage {
+  type: 'result';
+  processingTime: number;
+  result?: undefined;
+  failure: string;
 }
 
 // Accumulators
@@ -71,4 +84,5 @@ export type SharpWorkerSendMessage =
 
 export type SharpWorkerRecieveMessage =
   | SharpWorkerResultMessage
+  | SharpWorkerFailureMessage
   | SharpWorkerReadyMessage;

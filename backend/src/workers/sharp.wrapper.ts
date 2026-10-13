@@ -10,8 +10,13 @@ import {
   FT,
   HasFailed,
 } from 'picsur-shared/dist/types/failable';
+import {
+  DecodeWorkerFailure,
+  ReadMaxImagePixelsFromEnv,
+} from 'picsur-shared/dist/util/image-pixel-limit';
 import { Sharp, SharpOptions } from 'sharp';
 import {
+  SharpWorkerFailureMessage,
   SharpWorkerFinishOptions,
   SharpWorkerOperation,
   SharpWorkerRecieveMessage,
@@ -51,6 +56,9 @@ export class SharpWrapper {
       timeout: this.instance_timeout,
       env: {
         MEMORY_LIMIT_MB: this.memory_limit.toString(),
+        // Last line of defence for oversized input (issue #107); the main
+        // process normally rejects it before a worker is ever spawned.
+        MAX_IMAGE_PIXELS: ReadMaxImagePixelsFromEnv().toString(),
         NODE_OPTIONS: '--no-warnings',
       },
       stdio: 'overlapped',
@@ -148,18 +156,18 @@ export class SharpWrapper {
     }
 
     try {
-      const finishPromise = new Promise<SharpWorkerResultMessage>(
-        (resolve, reject) => {
-          if (!this.worker) return reject('Worker is not initialized');
+      const finishPromise = new Promise<
+        SharpWorkerResultMessage | SharpWorkerFailureMessage
+      >((resolve, reject) => {
+        if (!this.worker) return reject('Worker is not initialized');
 
-          this.worker.once('message', (message: SharpWorkerRecieveMessage) => {
-            if (message.type === 'result') {
-              resolve(message);
-            } else reject('Unknown message type');
-          });
-          this.worker.once('close', () => reject('Worker closed'));
-        },
-      );
+        this.worker.once('message', (message: SharpWorkerRecieveMessage) => {
+          if (message.type === 'result') {
+            resolve(message);
+          } else reject('Unknown message type');
+        });
+        this.worker.once('close', () => reject('Worker closed'));
+      });
 
       const result = await pTimeout(finishPromise, {
         milliseconds: this.instance_timeout,
@@ -170,6 +178,21 @@ export class SharpWrapper {
       );
 
       this.purge();
+
+      // The worker reports user facing problems (oversized or undecodable
+      // images) as a reason string; turn it back into a Failure so the client
+      // gets a readable 4xx instead of "Worker closed" / 500 (issue #107).
+      if (result.failure !== undefined) {
+        const reason = DecodeWorkerFailure(result.failure);
+        if (reason !== undefined) {
+          this.logger.verbose(
+            `Worker ${this.workerID} rejected input: ${reason}`,
+          );
+          return Fail(FT.UsrValidation, reason);
+        }
+
+        return Fail(FT.Internal, result.failure);
+      }
 
       return result.result;
     } catch (error) {

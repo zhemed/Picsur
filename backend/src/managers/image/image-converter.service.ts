@@ -3,6 +3,7 @@ import ms from 'ms';
 import { ImageRequestParams } from 'picsur-shared/dist/dto/api/image.dto';
 import {
   FileType,
+  ImageFileType,
   SupportedFileTypeCategory,
 } from 'picsur-shared/dist/dto/mimes.dto';
 import { SysPreference } from 'picsur-shared/dist/dto/sys-preferences.enum';
@@ -12,8 +13,13 @@ import {
   FT,
   HasFailed,
 } from 'picsur-shared/dist/types/failable';
-import { SharpOptions } from 'sharp';
+import {
+  BuildPixelLimitMessage,
+  IsWithinPixelLimit,
+} from 'picsur-shared/dist/util/image-pixel-limit';
+import sharp, { SharpOptions } from 'sharp';
 import { SysPreferenceDbService } from '../../collections/preference-db/sys-preference-db.service.js';
+import { ImageConfigService } from '../../config/early/image.config.service.js';
 import { SharpWrapper } from '../../workers/sharp.wrapper.js';
 import { ImageResult } from './imageresult.js';
 
@@ -26,7 +32,10 @@ export type ConvertOptions = ImageRequestParams & InternalConvertOptions;
 
 @Injectable()
 export class ImageConverterService {
-  constructor(private readonly sysPref: SysPreferenceDbService) {}
+  constructor(
+    private readonly sysPref: SysPreferenceDbService,
+    private readonly imageConfig: ImageConfigService,
+  ) {}
 
   public async convert(
     image: Buffer,
@@ -71,10 +80,26 @@ export class ImageConverterService {
     let timeLimitMS = ms(timeLimit as string);
     if (isNaN(timeLimitMS) || timeLimitMS === 0) timeLimitMS = 15 * 1000; // 15 seconds
 
+    const maxPixels = this.imageConfig.getMaxImagePixels();
     const sharpWrapper = new SharpWrapper(timeLimitMS, memLimit);
     const sharpOptions: SharpOptions = {
       animated: targetFiletype.category === SupportedFileTypeCategory.Animation,
+      // Issue #107: make the worker enforce the same limit as the pre-check
+      // below, so inputs that cannot be sniffed early (BMP/QOI, which are
+      // decoded to raw pixels first) still fail with a readable message
+      // instead of an opaque 500.
+      limitInputPixels: maxPixels > 0 ? maxPixels : false,
     };
+
+    // Issue #107: reject oversized input before a worker is spawned, and report
+    // the limit instead of letting sharp die with a generic 500.
+    const pixelLimit = await this.checkPixelLimit(
+      image,
+      sourceFiletype,
+      maxPixels,
+    );
+    if (HasFailed(pixelLimit)) return pixelLimit;
+
     const hasStarted = await sharpWrapper.start(
       image,
       sourceFiletype,
@@ -132,5 +157,56 @@ export class ImageConverterService {
       image: result.data,
       filetype: targetFiletype.identifier,
     };
+  }
+
+  /**
+   * Refuse images that exceed the configured pixel limit.
+   *
+   * Sharp enforces `limitInputPixels` itself, but that rejection happens inside
+   * the conversion worker (which then dies and returns an opaque "Worker
+   * closed" 500). Reading the header here is cheap, keeps the worker from being
+   * spawned for input it cannot handle, and lets the message name the limit.
+   */
+  private async checkPixelLimit(
+    image: Buffer,
+    filetype: FileType,
+    maxPixels: number,
+  ): Promise<AsyncFailable<true>> {
+    if (maxPixels <= 0) return true;
+
+    if (
+      filetype.identifier === ImageFileType.BMP ||
+      filetype.identifier === ImageFileType.QOI
+    ) {
+      // Raw formats have no header sharp can read; the worker enforces the
+      // limit on the decoded pixel buffer instead.
+      return true;
+    }
+
+    let width: number | undefined;
+    let height: number | undefined;
+    try {
+      // Read the dimensions even when the image itself exceeds the limit, so
+      // the rejection can name the actual size.
+      const metadata = await sharp(image, {
+        limitInputPixels: false,
+      }).metadata();
+
+      width = metadata.width;
+      height = metadata.height;
+    } catch (e) {
+      return Fail(FT.UsrValidation, 'Failed to read image metadata', e);
+    }
+
+    if (!IsWithinPixelLimit(maxPixels, width, height)) {
+      // Plain message: the marker that carries failures across the worker
+      // boundary must never leak into what the client sees.
+      return Fail(
+        FT.UsrValidation,
+        BuildPixelLimitMessage(maxPixels, width, height),
+      );
+    }
+
+    return true;
   }
 }
