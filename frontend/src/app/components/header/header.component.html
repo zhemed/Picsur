@@ -10,6 +10,7 @@
     *ngIf="_enableHamburger"
     class="me-3"
     mat-icon-button
+    [attr.aria-label]="'header.menu' | translate"
     (click)="onHamburgerClick.emit()"
   >
     <mat-icon>menu</mat-icon>
@@ -17,13 +18,16 @@
 
   <a [routerLink]="['/']" class="logo text-link">
     <div class="svg-logo">
-      <img src="/assets/branding/logo/picsur.svg" alt="Picsur Icon Logo" />
+      <img
+        src="/assets/branding/logo/picsur.svg"
+        [alt]="'app.logoIconAlt' | translate"
+      />
     </div>
     <div class="svg-logo-text">
       <img
         src="/assets/branding/text/picsur_light.svg"
         class="ms-3 d-none d-sm-block"
-        alt="Picsur Text Logo"
+        [alt]="'app.logoTextAlt' | translate"
       />
     </div>
   </a>
@@ -35,6 +39,7 @@
     mat-icon-button
     class="me-3"
     [matMenuTriggerFor]="languageMenu"
+    [attr.aria-label]="'header.language' | translate"
   >
     <mat-icon fontSet="material-icons-outlined">language</mat-icon>
   </button>
@@ -43,6 +48,9 @@
     <button
       *ngFor="let language of availableLanguages"
       mat-menu-item
+      [class.language-selected]="currentLanguage === language"
+      [attr.aria-checked]="currentLanguage === language"
+      role="menuitemradio"
       (click)="setLanguage(language)"
     >
       <mat-icon fontSet="material-icons-outlined">
@@ -57,6 +65,7 @@
     *ngIf="canUpload"
     mat-icon-button
     class="me-3"
+    [attr.aria-label]="'header.uploadImage' | translate"
     (click)="doUpload()"
   >
     <mat-icon fontSet="material-icons-outlined">upload</mat-icon>
@@ -82,6 +91,7 @@
     *ngIf="isLoggedIn"
     mat-icon-button
     [matMenuTriggerFor]="menu"
+    [attr.aria-label]="'header.yourAccount' | translate"
   >
     <mat-icon fontSet="material-icons-outlined">account_circle</mat-icon>
   </button>

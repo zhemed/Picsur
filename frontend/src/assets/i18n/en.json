@@ -1,6 +1,24 @@
 {
   "app": {
-    "logoTextAlt": "Picsur Text Logo"
+    "logoTextAlt": "Picsur Text Logo",
+    "logoIconAlt": "Picsur Icon Logo",
+    "loading": "Loading",
+    "noScript": "Sorry, but you need javascript",
+    "unknownVersion": "Unknown Version",
+    "footer": {
+      "madeWith": "Made with",
+      "by": "by",
+      "demoVersion": "Demo Version",
+      "sourceCode": "Source Code"
+    }
+  },
+  "pagination": {
+    "itemsPerPage": "Items per page:",
+    "nextPage": "Next page",
+    "previousPage": "Previous page",
+    "firstPage": "First page",
+    "lastPage": "Last page",
+    "range": "{{ start }} – {{ end }} of {{ length }}"
   },
   "common": {
     "actions": {
@@ -26,6 +44,7 @@
     "hide": "Hide"
   },
   "header": {
+    "menu": "Menu",
     "uploadImage": "Upload an image",
     "loginOrRegister": "Login or Register",
     "loginAccount": "Login to your account",
@@ -101,7 +120,7 @@
   "copyField": {
     "copied": "Copied {{ label }}!",
     "copyFailed": "Copying to clipboard failed",
-      "copyFailedManual": "Could not copy automatically. Select the value and copy it manually."
+    "copyFailedManual": "Could not copy automatically. Select the value and copy it manually."
   },
   "valuesPicker": {
     "addPlaceholder": "Add {{ name }}..."

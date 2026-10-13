@@ -35,7 +35,12 @@ This directory contains guidelines for frontend development. Fill in each file w
       TS 里用 `this.i18n.instant('some.key')`。**禁止硬编码英文/中文**。
       - 词典：`frontend/src/assets/i18n/en.json` 与 `zh.json`，**两边 key 必须一一对应**（新增文案要同时加）。
       - 缺 key 时原文原样输出（不会崩），但会在 UI 里露出裸 key —— PR 前请对照两份词典。
-      - 切换语言：`I18nService`，持久化在 `localStorage['picsur.language']`，默认 **en**。
+      - 切换语言：`I18nService`，持久化在 `localStorage['picsur.language']`，**默认 `zh`**
+        （`defaultLanguage`；无记录时用简体中文，用户显式切过就尊重其选择，`documentElement.lang` 同步）。
+      - **Material 内置文案也要接**：`MatPaginatorIntl` 已由 `PicsurPaginatorIntl`
+        （`app/i18n/paginator.i18n.ts`，在 `app.module.ts` provide）覆盖，走 `pagination.*`；
+        其它 Material 组件的硬编码文案（日期选择器、对话框等）同样要接到 `I18nService`。
+      - `I18nService.languageChange` 是语言切换流：切换语言后需要重算的派生值（分页器文案等）订阅它。
       - 组件里要注入 `I18nService`（不要再引入 `@ngx-translate/*`，本仓库没这个依赖）。
 
 ---

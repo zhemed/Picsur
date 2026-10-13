@@ -2,14 +2,14 @@
   <p>
     <!-- Made into two spans, make sure browsers break at the right point -->
     <span class="line">
-      Made with
+      {{ 'app.footer.madeWith' | translate }}
       <span class="material-icons-outlined heart"> favorite_border </span>
-      by
+      {{ 'app.footer.by' | translate }}
       <a class="link-unstyled" href="https://github.com/zhemed" target="_blank">
         zhemed
       </a>
 
-      {{ isDemo ? ' - Demo Version' : '' }}
+      {{ isDemo ? ' - ' + ('app.footer.demoVersion' | translate) : '' }}
     </span>
 
     <span class="line">
@@ -17,7 +17,7 @@
       {{ version }}
       -
       <a class="link-unstyled" href="https://github.com/zhemed/picsur">
-        Source Code
+        {{ 'app.footer.sourceCode' | translate }}
       </a>
     </span>
   </p>
