@@ -28,3 +28,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 2: T0 生产依赖安全升级（Nest 12 / Fastify 5 / TypeORM / sharp）
+<!-- trellis-session: v=2 fp=8d25d2215f02ebed -->
+
+**Date**: 2026-10-13
+**Task**: T0 生产依赖安全升级（Nest 12 / Fastify 5 / TypeORM / sharp）
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+生产依赖告警 118→0（critical 5→0、high 64→0）：Nest 10→12 + Fastify 4→5 + @fastify 四条线 + typeorm 0.3.31 + sharp 0.35.5 + file-type 21.3.4 + 11 条同大版本 override；修掉 4 处升级引入的编译/运行问题（其中 serve-static fallthrough 的 SPA 深链回归只有深链冒烟能抓到）；镜像内 libvips 8.16→8.18.7 并补上 sharp 源码构建（sharp>=0.33 不再认 SHARP_FORCE_GLOBAL_LIBVIPS，否则 JXL/JP2 静默消失）。验证：三包构建、既有库零 migration 重跑、容器内 7/7 格式、SPA 深链、5 条负例、重启恢复、与 pre-t0 镜像 A/B 契约一致。已 push 到 origin。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `050eaeb` | chore(deps): upgrade Nest 12 / Fastify 5 / TypeORM / sharp; prod audit 118 -> 0 |
+
+### Status
+
+[OK] **Completed**
