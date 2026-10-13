@@ -130,24 +130,31 @@ export class ViewComponent implements OnInit, OnDestroy {
 
     // Populate default selected format
     {
-      let masterFiletype = ParseFileType(this.metadata.fileTypes.master);
-      if (HasFailed(masterFiletype)) {
-        masterFiletype = {
-          identifier: ImageFileType.JPEG,
-          category: SupportedFileTypeCategory.Image,
-        };
-      }
+      // Uploads keep their original filetype in the default selection when that
+      // filetype is PNG: the stored master is always QOI, so without this an
+      // uploaded PNG would be shown as JPEG.
+      if (this.metadata.image.source_filetype === ImageFileType.PNG) {
+        this.selectedFormat = ImageFileType.PNG;
+      } else {
+        let masterFiletype = ParseFileType(this.metadata.fileTypes.master);
+        if (HasFailed(masterFiletype)) {
+          masterFiletype = {
+            identifier: ImageFileType.JPEG,
+            category: SupportedFileTypeCategory.Image,
+          };
+        }
 
-      switch (masterFiletype.category) {
-        case SupportedFileTypeCategory.Image:
-          this.selectedFormat = ImageFileType.JPEG;
-          break;
-        case SupportedFileTypeCategory.Animation:
-          this.selectedFormat = AnimFileType.GIF;
-          break;
-        default:
-          this.selectedFormat = this.metadata.fileTypes.master;
-          break;
+        switch (masterFiletype.category) {
+          case SupportedFileTypeCategory.Image:
+            this.selectedFormat = ImageFileType.JPEG;
+            break;
+          case SupportedFileTypeCategory.Animation:
+            this.selectedFormat = AnimFileType.GIF;
+            break;
+          default:
+            this.selectedFormat = this.metadata.fileTypes.master;
+            break;
+        }
       }
     }
 
