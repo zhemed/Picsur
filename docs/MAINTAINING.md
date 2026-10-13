@@ -116,7 +116,7 @@ docker compose start picsur
 
 - **默认**：设置 →「关于」显示当前/最新版本，可点「检查更新」（只读 GitHub tags，缓存 1 小时，可用
   `PICSUR_UPDATE_CHECK=false` 关闭）；「立即升级」禁用，但会给出**可复制的升级命令**。
-- **开启一键自升级**（可选）：给容器挂 docker socket 并显式开启：
+- **一键自升级默认就开**：只要给容器挂了 docker socket 即可（0.7.7 起应用默认 `PICSUR_ALLOW_SELF_UPDATE=true`；旧版本需显式设该变量）：
 
   ```bash
   docker run -d --name picsur --restart always -p 8080:8080 -v ./data:/data \

@@ -16,6 +16,7 @@ for a in "$@"; do
   case "$a" in
     --no-allinone) BUILD_ALLINONE=0 ;;
     --dry-run) DRY=1 ;;
+    --allow-dirty) ALLOW_DIRTY=1 ;;
   esac
 done
 
@@ -23,6 +24,20 @@ if ! docker info >/dev/null 2>&1; then echo "❌ docker 不可用"; exit 1; fi
 if [ "${DRY:-0}" != "1" ]; then
   if ! grep -q '"ghcr.io"' ~/.docker/config.json 2>/dev/null; then
     echo "⚠️  看起来还没登录 ghcr.io：docker login ghcr.io -u <用户> -p <token>"
+  fi
+fi
+
+# 脏树/未推送守卫：镜像必须对应一个已推送的提交，否则无从追溯（本次教训：提交被闸门拒后仍发布了镜像）
+if [ "${ALLOW_DIRTY:-0}" != "1" ]; then
+  if [ -n "$(git status --porcelain)" ]; then
+    echo "❌ 工作树不干净：请先提交（或用 --allow-dirty 显式跳过此检查）"
+    git status --short | head -10
+    exit 1
+  fi
+  if [ -n "$(git log --oneline @{u}..HEAD 2>/dev/null)" ]; then
+    echo "❌ 有未推送的提交：请先 git push（或用 --allow-dirty 跳过）"
+    git log --oneline @{u}..HEAD | head -5
+    exit 1
   fi
 fi
 

@@ -38,11 +38,17 @@ export class UpdateConfigService {
     return ParseBool(this.configService.get(`${EnvPrefix}UPDATE_CHECK`), true);
   }
 
-  /** PICSUR_ALLOW_SELF_UPDATE, default false. */
+  /**
+   * PICSUR_ALLOW_SELF_UPDATE, default true.
+   *
+   * 默认开启（项目所有者 2026-10-13 定）：真正的门槛是「有没有把 docker socket 挂进容器」——
+   * 没挂的话自升级在执行前的预检就会拒绝并给出可复制的升级命令，所以默认值不构成额外风险。
+   * 想显式关掉：设 PICSUR_ALLOW_SELF_UPDATE=false。
+   */
   public isSelfUpdateEnabled(): boolean {
     return ParseBool(
       this.configService.get(`${EnvPrefix}ALLOW_SELF_UPDATE`),
-      false,
+      true,
     );
   }
 
