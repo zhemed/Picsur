@@ -299,3 +299,49 @@ SVG 与其它格式不同：**按原始向量存为 master，绝不交给 sharp 
 **取回契约**：`/i/<id>.svg` 响应必须带
 `Content-Security-Policy: sandbox; default-src 'none'; … script-src 'none'` 与
 `X-Content-Type-Options: nosniff`（见 `image-api-contracts.md` §3.4）。动这条链路时要连带验证这两个头。
+
+---
+
+## 11. 轮换凭据（2026-10-13 实操记录）
+
+**先记住三条反直觉的事实**，否则会像本次一样"以为换了其实没换"：
+
+1. **改 `PICSUR_ADMIN_PASSWORD` 不会改已有 admin 的口令**。
+   `UserDbModule.ensureUserExists()` 是 `if (exists) return;` —— 只在用户**不存在**时创建。
+2. **`PICSUR_JWT_SECRET` 只在首选项不存在时被采用**。运行期读的是数据库首选项
+   `e_sys_preference_backend` 里 `key='jwt_secret'` 的值（`JwtConfigService.getJwtSecret()`）。
+3. ⚠️ **`docker compose` 优先用 shell 环境变量，而不是 `.env` 文件**。
+   如果你先 `set -a; . ./.env; set +a`（把旧值导出到 shell），再改 `.env`，然后
+   `docker compose up -d --force-recreate` —— 容器拿到的仍是**shell 里的旧值**。
+
+### 轮换步骤（实测可用）
+
+```bash
+# 1) 换 JWT secret：改数据库首选项（用当前有效的 token）
+curl -X POST localhost:8080/api/pref/sys/jwt_secret \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d "{\"value\":\"$(openssl rand -hex 32)\"}"
+
+# 2) 换 admin 口令：走接口（需要 admin 的 user id 与当前 token）
+curl -X POST localhost:8080/api/user/update -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d "{\"id\":\"<admin-uuid>\",\"password\":\"<新的>\"}"
+#    拿不到 token 时（例如口令已经丢了）只能用第 3 步的直接写法
+
+# 3) 兜底：直接用应用自带的 bcrypt-ts 写 hashed_password（等价于 usersService.updatePassword）
+#    自己写个临时脚本（bcrypt.hash(pw,10) + UPDATE e_user_backend SET hashed_password），
+#    口令通过 stdin 传以免暴露在 argv/env；脚本必须放在 /picsur/backend 下才能解析到 node_modules，
+#    用完 `docker exec picsur rm -f …` 删掉。
+printf '%s' "$NEW_PW" | docker exec -i -w /picsur/backend picsur node /picsur/backend/<临时脚本>.cjs
+
+# 4) 把新值写回 .env，然后**清掉 shell 里的旧变量**再重建容器
+env -u PICSUR_ADMIN_PASSWORD -u PICSUR_JWT_SECRET docker compose up -d --force-recreate picsur
+
+# 5) 验证：新凭据 201，旧凭据失败，旧 token 失效（401/403）
+```
+
+**验证口径**：`sha256` 比对「`.env` 的值」与「容器 `printenv` 的值」必须一致
+（注意 `printenv` 会带尾换行，比较前 `tr -d '\n'`）——本次第一次「成功」的轮换就是因为没做这步，
+实际上是旧值生效、`.env` 已漂移。
+
+**轮换后必跑**：`support/regression-image-api.sh`（34 项）——确认凭据变化没有连带影响取图与鉴权。
+

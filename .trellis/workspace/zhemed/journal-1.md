@@ -97,3 +97,24 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 5: 轮换开发实例凭据（admin 口令 + JWT secret）
+<!-- trellis-session: v=2 fp=d459947d00fea257 -->
+
+**Date**: 2026-10-13
+**Task**: 轮换开发实例凭据（admin 口令 + JWT secret）
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+按用户选择就地轮换：新随机口令（32 字符）与新 JWT secret（64 hex）。踩到三个坑并全部写进 spec §11：① ensureUserExists 只创建不更新（改 .env 不改已有 admin 口令）；② jwt_secret 运行期读数据库首选项，.env 只在首选项缺失时生效；③ docker compose 优先用 shell 环境变量而非 .env——第一次轮换因此'假成功'（库改了值、容器还是旧的），用 sha256 比对 .env/容器/数据库三处才发现。兜底路径：用应用自带 bcrypt-ts 直接写 hashed_password（口令走 stdin，脚本放 backend 目录解析 node_modules，用完删）。验证：新口令 201、错口令被拒、旧 token 失效、34 项回归全过、中文界面正常、图片行数不变。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
