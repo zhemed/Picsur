@@ -40,6 +40,8 @@ RUN mkdir -p /trimmed \
 # ============================================================
 # 阶段 2：编译 libvips（HEIF / JPEG-XL / JPEG2000 等编解码在这一层）
 # ============================================================
+# 版本不能低于 8.18.7：sharp 0.35.x 的 package.json config.libvips 要求 >=8.18.7，
+# 低于它 sharp 的 install 脚本会拒绝用全局 libvips（SHARP_FORCE_GLOBAL_LIBVIPS 下仍会失败）。
 FROM node:20-alpine AS vips_builder
 
 RUN apk add --no-cache build-base meson cmake pkgconfig glib-dev \
@@ -49,7 +51,7 @@ RUN apk add --no-cache build-base meson cmake pkgconfig glib-dev \
     lcms2-dev fftw-dev libimagequant-dev
 
 WORKDIR /vips
-RUN wget -q https://github.com/libvips/libvips/releases/download/v8.16.0/vips-8.16.0.tar.xz -O vips.tar.xz \
+RUN wget -q https://github.com/libvips/libvips/releases/download/v8.18.7/vips-8.18.7.tar.xz -O vips.tar.xz \
  && tar -xf vips.tar.xz && rm vips.tar.xz
 RUN cd vips-*/ \
  && meson setup build -Dexamples=false \
@@ -68,11 +70,13 @@ RUN apk add --no-cache pkgconfig glib expat libexif jpeg libjxl openjpeg libpng 
     libspng lcms2 fftw libimagequant
 
 # ============================================================
-# 阶段 4：生产依赖（sharp 针对全局 libvips 从源码编译）
+# 阶段 4：生产依赖（sharp 必须从源码编译，链接到我们自编译的 libvips）
 # ============================================================
 FROM vips_builder AS prod_deps
 
-RUN npm install -g pnpm@9.6.0 node-gyp
+# node-addon-api / node-gyp 供 sharp 的源码构建使用（sharp 自己的 node_modules 是空的，
+# 所以用 NODE_PATH 指到全局安装位置给它解析）
+RUN npm install -g pnpm@9.6.0 node-gyp node-addon-api
 # sharp 从源码编译需要 python3 + 编译工具链
 RUN apk add --no-cache python3 build-base
 
@@ -81,6 +85,13 @@ COPY --from=js_builder /trimmed ./
 
 ENV SHARP_FORCE_GLOBAL_LIBVIPS=1
 RUN pnpm install --frozen-lockfile --prod
+
+# ⚠️ 关键：sharp >= 0.33 的安装流程**不会**自动从源码构建 —— 它只装预编译的
+# `@img/sharp-*`（自带一份精简 libvips，**不含 JPEG-XL / JPEG2000 编解码**，
+# SHARP_FORCE_GLOBAL_LIBVIPS 也不再被安装流程读取）。要拿到我们自编译 libvips 的
+# 全量编解码（HEIF / JXL / JP2 / PDF / Magick），必须显式跑一次 sharp 的源码构建。
+RUN cd /picsur/backend/node_modules/sharp \
+ && SHARP_FORCE_GLOBAL_LIBVIPS=1 NODE_PATH=/usr/local/lib/node_modules node install/build.js
 
 # ============================================================
 # 阶段 5：最终镜像

@@ -15,24 +15,16 @@ export class ApiKeyStrategy extends PassportStrategy(
   private readonly logger = new Logger(ApiKeyStrategy.name);
 
   constructor(private readonly apikeyDB: ApiKeyDbService) {
+    // @nestjs/passport >= 11 wraps the strategy and appends its own verify
+    // callback itself (it calls `super(...args, callback)` and drives
+    // `this.validate(...)`). Passing a third argument here is therefore both
+    // rejected by the mixin's types and wrong at runtime.
     super(
       {
         header: 'Authorization',
         prefix: 'Api-Key ',
       },
       false,
-      (
-        apikey: string,
-        verified: (err: Error | null, user?: object, info?: object) => void,
-      ) => {
-        this.validate(apikey)
-          .then((user) => {
-            verified(null, user === false ? undefined : user);
-          })
-          .catch((err) => {
-            verified(err, undefined);
-          });
-      },
     );
   }
 

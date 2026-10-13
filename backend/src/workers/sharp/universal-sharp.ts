@@ -5,12 +5,12 @@ import {
   ImageFileType
 } from 'picsur-shared/dist/dto/mimes.dto';
 import { QOIdecode, QOIencode } from 'qoi-img';
-import sharp, { Sharp, SharpOptions } from 'sharp';
+import sharp, { OutputInfo, Sharp, SharpOptions } from 'sharp';
 import { SharpWorkerFinishOptions } from './sharp.message.js';
 
 export interface SharpResult {
   data: Buffer;
-  info: sharp.OutputInfo;
+  info: OutputInfo;
 }
 
 export function UniversalSharpIn(

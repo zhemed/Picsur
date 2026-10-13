@@ -33,6 +33,16 @@ export class ServeStaticConfigService
     return [
       {
         rootPath: this.getStaticDirectory(),
+        serveStaticOptions: {
+          // @nestjs/serve-static >= 11 no longer serves index.html on unknown
+          // routes unless `fallthrough` is set: its Fastify loader returns a
+          // JSON 404 when the flag is falsy. Without this the single-page-app
+          // deep links (e.g. /images, /settings) break, because the SPA
+          // fallback stops working. Setting it restores the pre-upgrade
+          // behaviour exactly (`/` and every unmatched non-API path render the
+          // frontend index.html).
+          fallthrough: true,
+        },
       },
     ];
   }

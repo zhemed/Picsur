@@ -42,8 +42,8 @@ docker compose restart picsur           # 验证重启恢复
 |---|---|
 | JS 构建 stage 基础镜像 | `node:20`（**不能 `-slim`**：`qoi-img`/`bmp-img`/`posix.js` 需 node-gyp 编译，slim 无 python3/gcc） |
 | pnpm | 固定 `9.6.0`（与根 `package.json` 的 `packageManager` 一致） |
-| libvips | 源码编译 8.16（HEIF/JXL/JP2 编解码只有这层有） |
-| 生产依赖 stage | `SHARP_FORCE_GLOBAL_LIBVIPS=1` + `python3/build-base`，在目标平台重新编译 sharp |
+| libvips | 源码编译 **8.18.7**（sharp 0.35 的硬要求；HEIF/JXL/JP2 编解码只有这层有） |
+| 生产依赖 stage | `SHARP_FORCE_GLOBAL_LIBVIPS=1` + `python3/build-base`，**并且必须显式跑一次 sharp 源码构建**（见 §8.3 第 5 条） |
 | **禁止** | `FROM ghcr.io/caramelfur/picsur-alpha-stage1:*`（上游私有中间镜像，随时可能消失） |
 | 构建产物 | 只拷贝 `{frontend,backend,shared}/{dist,package.json}` + 锁文件 + `branding` |
 | 运行时 | `PICSUR_PRODUCTION=true`（TypeORM 不 synchronize，只跑 migrations） |
@@ -121,7 +121,8 @@ curl -X POST localhost:8080/api/pref/sys/enable_telemetry \
 | 迁移 | `docker exec picsur_postgres psql -U picsur -d picsur -tAc "select count(*) from migrations;"` | `7`（v0.5.7 基线），且 `e_user_backend` 里有 `admin`/`guest` |
 | 上传 | `POST /api/image/upload`（multipart 字段 `file`） | `201`，返回 `data.id`（UUID） |
 | 取回 | `GET /i/<id>.png` | `200` + `image/png`；与原始图片**像素一致**（字节不保证一致） |
-| 转码 | `GET /i/<id>.{qoi,webp,avif,jxl,jp2,heif}` | 全部 `200`（证明镜像里的自编译 libvips 生效） |
+| 转码 | `GET /i/<id>.{qoi,webp,avif,jxl,jp2,heif}` | 全部 `200`（证明镜像里的自编译 libvips **并且** sharp 是源码构建的） |
+| SPA 深链 | `curl -o /dev/null -w '%{http_code} %{content_type}' localhost:8080/some/spa/route` | `200 text/html` —— `@nestjs/serve-static` ≥11 的 `fallthrough` 回归只有这条能抓到 |
 | 删除 | `POST /api/image/delete` `{"ids":[...]}` | `201`，且三张表 `e_image_backend`/`e_image_derivative_backend`/`e_image_file_backend` 计数归零 |
 | 持久化 | `docker compose restart picsur` 后再取原图 | `200` 且内容一致 |
 | 密钥 | `git grep` 扫跟踪范围 | 无真实口令/secret；`.env`、`.run/` 不在 `git status` 视野 |
@@ -163,3 +164,77 @@ pkill -x node          # 或先 pgrep 拿 PID 再 kill <pid>
 # Correct —— 三处同步：.env.example（占位值）、docker-compose.yml（默认值/守卫）、
 #           本 spec 的第 3.1 节（契约表）
 ```
+
+---
+
+## 8. 依赖版本契约（2026-10-13 安全升级后）
+
+### 8.1 版本底线（低于这些会重新引入已知漏洞，或直接跑不起来）
+
+| 包 | 契约版本 | 为什么不能低 |
+|---|---|---|
+| Node | **20 用于装依赖/构建**；运行期不强制 | 安装：≥22.16 时 `qoi-img`/`bmp-img`/`posix.js` 编译失败。运行：N-API 产物在 v22 可正常加载（见 §7.1） |
+| pnpm | **9.6.0**（corepack 固定） | 与 lockfileVersion 9 对齐 |
+| `@nestjs/*` | **^12** | Nest 11 内嵌 `@fastify/middie@9.0.3`，**修不掉那条 critical**（需 ≥9.3.2；Nest 12 = 9.3.5） |
+| `fastify` | **^5** | Fastify 4 线上没有 `@fastify/reply-from`/`static` 的修复版 |
+| `@fastify/static` | **≥10.1.2** | 低于它有路由守卫绕过/路径穿越 |
+| `typeorm` | **^0.3.31** | <0.3.26 有 SQL 注入；不上 1.x（跨大版本） |
+| `sharp` | **^0.35.5** | 继承的 libvips CVE |
+| **libvips（镜像内自编译）** | **≥8.18.7** | sharp 0.35 的 `config.libvips` 硬要求；低于它镜像构建会在 `pnpm install --prod` 阶段失败 |
+| `file-type`（**我们自己的直接依赖**） | **^21.3.4，不能用 22** | `file-type@22` 的 `engines` 是 `node >= 22`。⚠️ 注意：`@nestjs/common@12.1.3` 自己依赖 `file-type@22.1.1`（Nest 的 `FileTypeValidator` 用 `import()` 懒加载，**本项目未启用该功能**）——它确实在生产树里，但不会被加载 |
+| `zod` | ^3（暂不动） | v4 是破坏性升级，属 T6 |
+
+### 8.2 `pnpm.overrides` 策略（根 `package.json`）
+
+- **只允许同一大版本内的补丁线**，禁止跨大版本顶（如把 `path-to-regexp@0.x` 顶到 8.x）。
+- **优先用「版本区间限定」** `"pkg@<受影响区间>": "<修复版本>"`，避免误伤 devDeps 里的旧大版本
+  （裸 `minimatch: ^9` 会把 eslint 的 minimatch@3 顶掉，直接搞坏构建链）。
+- 每个 override 落地前必须：`pnpm install` + 三包构建 + 冒烟；不过就撤掉并记入残留说明。
+- 当前清单与逐条理由见任务 `10-13-dep-security-upgrade` 的 `research/audit-after.md`。
+- **已批准的跨大版本例外（就一条）**：`node-gyp: ^11`（10→11）。它一次带走 `tar` / `glob` / `minimatch` /
+  `brace-expansion` / `ip-address` / `http-cache-semantics` 一大片**编译链**告警；三个原生模块
+  （`qoi-img` / `bmp-img` / `posix.js`）在容器里实测可编译、可加载。
+  **不要**改成「只顶 `tar`」——那会造出「node-gyp@10 + tar 7.x」的混搭，风险更高。
+  这是有意为之的例外，不是规则被破坏。
+
+### 8.3 升级时最容易踩的五个坑（都是实测踩过的）
+
+1. **`@nestjs/serve-static` ≥11 的 SPA fallback**：不设 `serveStaticOptions.fallthrough: true` 时，
+   未匹配路由返回 **JSON 404** 而不是 `index.html` —— `/api/*` 全绿也发现不了，只有前端深链会炸。
+   冒烟必须包含 `curl -o /dev/null -w '%{http_code} %{content_type}' localhost:8080/some/spa/route`，期望 `200 text/html`。
+2. **`@nestjs/passport` ≥11 的 verify 回调**：mixin 自己 `super(...args, callback)` 并驱动 `this.validate()`，
+   Strategy 构造函数里**不要再传第三个回调**（运行期重复）。
+3. **`@fastify/multipart` ≥10 → `@fastify/busboy@3.2.3` 的类型增补有缺陷**：它从 `'node:stream'` 引入 `Readable`
+   却 `declare module 'stream'`（裸名），NodeNext 下把裸 `stream` 的 `Readable` 压成只有 `'limit'` 一个重载。
+   需要时用 `as NodeJS.ReadableStream` 拓宽（纯类型补丁，运行时无变化）。
+4. **宿主环境不支持 JXL/JP2 编码**：sharp 的**预编译** libvips 没有这两个编码器，`/i/<id>.jxl|.jp2` 在宿主
+   会 500（`jxlsave_buffer not found` / `JP2 output requires OpenJPEG`）。**只有自编译 libvips 才有**，
+   所以格式验证必须在**容器里**做，不能在宿主做。
+
+5. ⚠️ **sharp ≥0.33 默认不会用你的自编译 libvips**（2026-10-13 实际踩到，镜像里 JXL/JP2 全 500）：
+   - sharp 的 `install` 只装预编译 `@img/sharp-*`（自带一份精简 libvips，**不含 JXL/JP2**）；
+   - **`SHARP_FORCE_GLOBAL_LIBVIPS=1 pnpm install` 已经不起作用** —— 0.35 的 `install/check` 不再读这个变量；
+   - 必须**显式跑一次源码构建**：
+     ```dockerfile
+     RUN cd /picsur/backend/node_modules/sharp \
+      && SHARP_FORCE_GLOBAL_LIBVIPS=1 NODE_PATH=/usr/local/lib/node_modules node install/build.js
+     ```
+     （`node-addon-api` / `node-gyp` 要在 NODE_PATH 里能解析，sharp 自己的 node_modules 是空的）
+   - **验证方法**（别只看镜像能起来）：
+     ```bash
+     docker exec -w /picsur/backend picsur node -e \
+       "const s=require('sharp');console.log(!!s.format.jp2?.output?.buffer, !!s.format.jxl?.output?.buffer)"
+     # 期望 true true；false false 说明用的是预编译 libvips
+     ```
+   - 症状特征：容器里 `vips -l | grep jxlsave` **有**（CLI 用的是自编译 libvips），但 sharp 进程里没有
+     —— 两个进程用的是不同的 libvips。
+
+### 8.4 残留风险（本任务明确未覆盖，别当成已解决）
+
+- **前端 Angular 18 的浏览器端告警**：Angular 的运行时包（`@angular/core|common|router` 等）被放在
+  `frontend` 的 `devDependencies` 里，因此 `pnpm audit --prod` **看不见**它们，但它们**确实会打进浏览器产物**。
+  这部分（XSS / XSRF 类）**未修**，归属 **T6（Angular 大版本升级）**。
+- **全量口径**（含 devDeps）升级后仍有 critical 6 / high 92 / moderate 81 / low 16，几乎全在前端构建链
+  （Angular CLI / webpack / eslint / pacote 等）。
+- `zod` 仍是 v3；升 v4 属破坏性变更，需全量回归，暂不动。
+- `pnpm audit` 只反映「已知 advisory 的命中情况」，**不等于**「没有漏洞」。

@@ -56,10 +56,18 @@ export class SharpWrapper {
       stdio: 'overlapped',
     });
 
-    this.worker.stdout?.on('data', (data) => {
+    // NOTE: we cannot call `.on(...)` on the fork() stdio streams directly.
+    // `@fastify/busboy` (pulled in by `@fastify/multipart` >= 10) ships a broken
+    // module augmentation of the bare `'stream'` module, which collapses the
+    // `Readable` interface down to a single `'limit'` overload. Widening to
+    // `NodeJS.ReadableStream` restores the normal event signatures.
+    const stdout = this.worker.stdout as NodeJS.ReadableStream | null;
+    const stderr = this.worker.stderr as NodeJS.ReadableStream | null;
+
+    stdout?.on('data', (data: Buffer) => {
       this.logger.verbose(`Worker log: ${data}`);
     });
-    this.worker.stderr?.on('data', (data) => {
+    stderr?.on('data', (data: Buffer) => {
       this.logger.warn(`Worker error: ${data}`);
     });
 
