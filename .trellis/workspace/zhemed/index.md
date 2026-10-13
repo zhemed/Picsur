@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 16
+- **Total Sessions**: 17
 - **Last Active**: 2026-10-13
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~371 | Active |
+| `journal-1.md` | ~394 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 17 | 2026-10-13 | 排查 189y.de「升级未启用」→ 连带修出两个真 bug（0.7.7 / 0.7.8） | `632f477` | `master` |
 | 16 | 2026-10-13 | 修复版本检测显示旧版本：补 git tag + 发布脚本自动打 tag | `f7bbe1b` | `master` |
 | 15 | 2026-10-13 | 还原页脚（0.7.6）——revert 时踩到两个坑 | `98710bf` | `master` |
 | 14 | 2026-10-13 | 去掉页脚 + 发布 0.7.5 | `8ee0d99` | `master` |
