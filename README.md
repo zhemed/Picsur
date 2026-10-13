@@ -13,6 +13,8 @@ docker run -d --name picsur --restart always \
 
 面板 `http://<主机>:8080`（登录名固定 `admin`，首次启动的管理员口令打印在 `docker logs picsur`）。
 数据全在 `./data`。**升级**：`docker rm -f picsur` 后用新 tag 再跑同一条命令，迁移自动执行。
+面板 → 设置 →「关于」可**检查新版本**；想在里面一键升级，需要挂 `/var/run/docker.sock` 并设
+`PICSUR_ALLOW_SELF_UPDATE=true`（等于把 docker 权限交给面板，默认关闭）。
 
 想要独立 Postgres（多容器、生产口径）：
 

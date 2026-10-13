@@ -112,6 +112,25 @@ docker compose start picsur
   旧版本对新增列/表通常无感（本仓库的 `AddImageSourceFiletype` 就是加可空列），但涉及删列/改语义时
   必须先用备份恢复。回滚前**先做一次备份**。
 
+## 5.1 面板内升级（0.7.0 起）
+
+- **默认**：设置 →「关于」显示当前/最新版本，可点「检查更新」（只读 GitHub tags，缓存 1 小时，可用
+  `PICSUR_UPDATE_CHECK=false` 关闭）；「立即升级」禁用，但会给出**可复制的升级命令**。
+- **开启一键自升级**（可选）：给容器挂 docker socket 并显式开启：
+
+  ```bash
+  docker run -d --name picsur --restart always -p 8080:8080 -v ./data:/data \
+    -v /var/run/docker.sock:/var/run/docker.sock -e PICSUR_ALLOW_SELF_UPDATE=true \
+    ghcr.io/zhemed/picsur:allinone
+  ```
+
+  ⚠️ **安全前提**：挂 `docker.sock` 等于把宿主 docker 的 root 权限交给面板，任何管理员都能借此起特权容器。
+  只应给完全信任管理员的单机自部署。关闭 = 去掉挂载与该变量（检测功能仍可用）。
+
+- **它怎么升级**：拉取新镜像 → 用原配置建替换容器 → 旧容器改名并停止 → 新容器用回原名启动 →
+  在新容器内探测 `/api/info` → 成功后删除旧容器；**探测失败会回滚**（删新容器、原名重启旧容器），
+  并把失败原因写进「关于」页。并发升级会被拒绝（409）。
+
 ## 6. 凭据轮换
 
 `PICSUR_ADMIN_PASSWORD` 与 `PICSUR_JWT_SECRET` 的轮换有**三个反直觉的坑**（改环境变量不等于改数据库里的值；

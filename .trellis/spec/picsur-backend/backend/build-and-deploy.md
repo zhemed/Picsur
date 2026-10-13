@@ -66,6 +66,8 @@ docker compose restart picsur # 验证重启恢复
 | `PICSUR_PRODUCTION`                              | ✅(生产)  | `false`                           | **不设 = TypeORM `synchronize:true`，会直改 schema**                                                                     |
 | `PICSUR_MAX_FILE_SIZE`                           |     —     | `128000000`                       | 上传字节上限                                                                                                             |
 | `PICSUR_MAX_IMAGE_PIXELS`                        |     —     | `268402689`                       | 图像**像素**上限（`w*h`，sharp 默认 `0x3FFF^2`）；超限上传返回 400 并回显该值，`0` = 不限制。2026-10-13 起（issue #107） |
+| `PICSUR_UPDATE_CHECK` | ✅ 默认开 | `true` | 面板「关于」页的版本检测：只读 `api.github.com/repos/zhemed/picsur/tags`，缓存 1 小时、失败降级、不发任何实例数据；`false` 关闭时接口返回 `checkEnabled:false`（不是报错）。0.7.0 起 |
+| `PICSUR_ALLOW_SELF_UPDATE` | ⚠️ **默认关** | `false` | 开启面板内一键自升级，**必须同时挂 `/var/run/docker.sock`** —— 等于把宿主 docker 的 root 权限交给面板，仅适合完全信任管理员的单机部署。关闭时按钮退化为显示可复制的升级命令。可选：`PICSUR_UPDATE_{REPO,API_URL,IMAGE,TAG,TIMEOUT,COMMAND}`、`PICSUR_DOCKER_SOCKET` |
 | `PICSUR_VERBOSE`                                 | ❌ 不要开 | `false`                           | **开了会把 JWT secret 与 DB 口令明文写进日志**                                                                           |
 | `PICSUR_TELEMETRY`                               |     —     | `true`                            | **纯装饰**：只影响启动日志里的一行提示，不控制是否出网                                                                   |
 
