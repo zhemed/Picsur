@@ -346,3 +346,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 16: 修复版本检测显示旧版本：补 git tag + 发布脚本自动打 tag
+<!-- trellis-session: v=2 fp=b0deb12129b6ca91 -->
+
+**Date**: 2026-10-13
+**Task**: 修复版本检测显示旧版本：补 git tag + 发布脚本自动打 tag
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+现象：面板显示当前 0.7.6、最新 0.7.2、却写『当前已是最新版本』。根因：版本检测读 GitHub git tag，而改成本地发布后脚本只推容器标签、从未推 git tag（最后一个 tag 停在 v0.7.2）；0.7.6>0.7.2 → updateAvailable=false，判定逻辑没错、数据源滞后。修复：① 补录并推送 v0.7.3~v0.7.6（指向各自提交），远端 tags 现为 v0.7.0~v0.7.6；② support/release-local.sh 成功后自动创建并推送 v<版本> git tag（已存在则跳过）。③ 重启容器清掉 1 小时检测缓存后复验：current=0.7.6 latest=0.7.6 updateAvailable=False ✓。无需发新版本。经验：把发布从 CI 改成本地时，容易漏掉 CI 时代『顺带产生』的产物——git tag 就是第一个。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f7bbe1b` | build: tag releases in git as well |
+
+### Status
+
+[OK] **Completed**
