@@ -1,5 +1,20 @@
 <h1>Api Keys</h1>
 
+<div class="manual-copy" *ngIf="manualCopyKey !== null">
+  <p>
+    Automatic copying was blocked by your browser. Select the key below and
+    copy it manually (Ctrl/Cmd + C):
+  </p>
+  <input
+    class="manual-copy-key"
+    type="text"
+    readonly
+    [value]="manualCopyKey"
+    (focus)="selectAll($event)"
+    (click)="selectAll($event)"
+  />
+</div>
+
 <mat-table [dataSource]="dataSubject" class="mat-elevation-z2">
   <ng-container matColumnDef="name">
     <mat-header-cell *matHeaderCellDef>Name</mat-header-cell>

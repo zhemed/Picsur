@@ -3,7 +3,6 @@ import {
   MatFormFieldAppearance,
   SubscriptSizing,
 } from '@angular/material/form-field';
-import { FT, Fail } from 'picsur-shared/dist/types/failable';
 import { Logger } from '../../services/logger/logger.service';
 import { ClipboardService } from '../../util/clipboard.service';
 import { ErrorService } from '../../util/error-manager/error.service';
@@ -36,14 +35,22 @@ export class CopyFieldComponent {
   ) {}
 
   public async copy() {
-    if (await this.clipboard.copy(this.value)) {
+    const result = await this.clipboard.copy(this.value);
+
+    if (result.success) {
       this.errorService.info(`Copied ${this.label}!`);
       this.onCopy.emit(this.value);
       return;
     }
 
-    return this.errorService.showFailure(
-      Fail(FT.Internal, 'Copying to clipboard failed'),
+    // Make sure the value is readable so it can be selected by hand
+    if (this.hidden) {
+      this.hidden = false;
+      this.onHide.emit(false);
+    }
+
+    this.errorService.error(
+      `Could not copy ${this.label} automatically. Select the text and copy it manually.`,
       this.logger,
     );
   }

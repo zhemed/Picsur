@@ -68,14 +68,20 @@ GET    /api/pref/sys  /  /api/pref/sys/:key
 
 ### 3.4 `GET /i/:id` 与 `/i/:id.:ext`
 
+> 2026-10-13（任务 `10-13-fix-known-bugs`）起，**不存在的图片一律 404 + `Cache-Control: no-store`**，
+> 正文仍是品牌占位图。**存在的图片缓存行为未变**（`max-age=2592000`），细节见 §3.7。
+
 | 请求 | 实测结果 |
 |---|---|
-| `/i/<存在 id>.png` | 200 `image/png`，**像素与原图一致**（字节不保证：经过 QOI 中转后重新编码） |
+| `/i/<存在 id>.png` | 200 `image/png` + `Cache-Control: max-age=2592000`，**像素与原图一致**（字节不保证：经过 QOI 中转后重新编码） |
 | `/i/<存在 id>.qoi` | 200 `image/x-qoi` |
 | `/i/<存在 id>.webp/.avif/.jxl/.jp2/.heif` | 200，对应类型（依赖镜像内自编译 libvips） |
 | `/i/<存在 id>`（无扩展名） | 200，但返回**品牌占位图** `notfound.png`（512×361），不是原图、也不是 index.html |
-| `/i/<不存在 id>`（无扩展名） | 400 JSON 错误 |
-| 已删除的 `/i/<id>.<ext>` | 200 + 占位图 + `Cache-Control: max-age=2592000` |
+| `/i/<不存在 id>`（无扩展名） | **404** + 占位图 + `no-store` |
+| 已删除的 `/i/<id>.<ext>` | **404** + 占位图 + `no-store`（修复前是 200 + 30 天缓存） |
+| 已删除的 `HEAD /i/<id>.<ext>` | **404** + `no-store`（修复前恒为 200，会让 HEAD 探测器误判） |
+| `/i/meta/<不存在 id>` | **404** + `no-store` |
+| `/i/meta/<存在 id>` | 200 + `no-store`（见 §3.7） |
 
 ### 3.5 `POST /api/image/delete`
 
@@ -95,6 +101,20 @@ GET    /api/pref/sys  /  /api/pref/sys/:key
 
 **所有 `POST` 成功返回 `201`**（NestJS `@Post` 默认），不是 200 —— 客户端判断要用 `2xx`。
 
+### 3.7 缓存契约（别一刀切）
+
+`AppModule` 的 `imageCacheSet` 中间件给**所有** `/i/*` 响应无条件加
+`Cache-Control: max-age=2592000`，这是**性能特性**（图片 id 不可变，共享缓存可以长期持有）。
+需要覆盖它的只有「图片不存在」这一种情况：
+
+| 路径 | 缓存头 | 为什么 |
+|---|---|---|
+| `GET/HEAD /i/<存在 id>.*` | `max-age=2592000`（保留） | 图片字节不可变，长缓存是设计 |
+| `GET/HEAD /i/<不存在 id>.*` | `no-store` | 删除/过期后必须立刻失效，否则占位图会被当成本体缓存一个月 |
+| `GET /i/meta/:id`（存在或不存在的 id） | `no-store` | 前端靠它判断图片是否存在；缓存 30 天会导致刷新 `/view/<id>` 仍渲染出「图片还在」的完整页面（含分享链接） |
+
+改这块时注意：占位图正文 + 长缓存 = 「删了等于没删」，所以状态码、缓存头、正文三者要一起看。
+
 ---
 
 ## 4. Validation & Error Matrix
@@ -102,12 +122,14 @@ GET    /api/pref/sys  /  /api/pref/sys/:key
 | 输入 | 结果 |
 |---|---|
 | 无扩展名的 `/i/<有效 id>` | 200 + 占位图（**静默降级，最容易误判成"图片还在"**） |
-| 无扩展名的 `/i/<无效 id>` | 400 |
+| 无扩展名的 `/i/<无效 id>` | 404 + 占位图 + `no-store` |
 | 扩展名不在支持列表 | 400（`ImageFullIdPipe` 校验；具体列表见 `shared/src/util/common-regex.ts` / mime 枚举） |
 | 无 token 上传 | 201（匿名，落到 guest 用户），前提是 guest 角色有上传权限 |
 | 密码错误登录 | `success:false` + 4xx（实测未取具体码，未验证） |
 | 超过 `PICSUR_MAX_FILE_SIZE` | 4xx（未验证具体码） |
-| 超像素上限的图片 | 失败（对应上游 issue #107，未修） |
+| 超过像素上限的图片 | **400** `{"type":"usrvalidation","data":{"message":"Image is too large to process: <w>x<h> (<n> pixels) exceeds the maximum of <limit> pixels. Set PICSUR_MAX_IMAGE_PIXELS to raise the limit (0 disables it)."}}`（修复前是 500 `Worker closed`） |
+| 图片头读不出（损坏，或当前 libvips 无该格式解码器） | 400 `"Failed to read image metadata: <底层原因>"`；宿主的预编译 sharp 缺 JXL/JP2 解码器，同一文件在自编译 libvips 的镜像里上传正常 |
+| `PICSUR_MAX_IMAGE_PIXELS` | 未设 = 268402689（sharp 默认 `0x3FFF^2`）；`0` = 不限制 |
 
 ---
 
@@ -128,6 +150,28 @@ GET    /api/pref/sys  /  /api/pref/sys/:key
 | 取回像素一致性 | 解码 `/i/<id>.png` 与原图 raw 像素逐一相等（**不要断言字节相等**） |
 | 删除后 DB 计数 | 三张表归零 |
 | 所有 POST 的状态码 | 断言落在 `200–299`，不要写死 200 |
+| 删除语义 | `GET/HEAD /i/<已删除 id>.<ext>` → **404** 且 `Cache-Control: no-store`；`GET /i/<未删除 id>.<ext>` → 200 且 `max-age=2592000`（两个方向都要断言，防止一刀切砍掉性能特性） |
+| 超像素上传 | → 400，且消息里同时出现实际像素数与上限值；之后 `/api/info` 仍 200（服务未崩） |
+| 7 种格式转码 | `qoi/webp/avif/jxl/jp2/heif/png` 全部 200；**JXL/JP2 必须在容器/自编译 libvips 环境跑**，宿主预编译 sharp 没有这两个解码器（见 `build-and-deploy.md` §8.3.4） |
+
+### 6.1 可复现的回归脚本
+
+仓库内 `support/regression-image-api.sh`（任务 `10-13-fix-known-bugs` 交付）自带登录与断言：
+
+```bash
+# 备料：夹具用容器里的 sharp 生成（宿主缺 JXL/JP2 编码器）
+mkdir -p /tmp/bugs-fx
+docker run --rm -v /tmp/bugs-fx:/out -v "$PWD/support/make-image-fixtures.cjs:/picsur/backend/mk.cjs:ro" \
+  -w /picsur/backend --entrypoint node zhemed/picsur:local /picsur/backend/mk.cjs
+
+# 运行（base-url 指向已启动实例）
+. /root/picsur/.env
+./support/regression-image-api.sh http://localhost:8095 "$PICSUR_ADMIN_PASSWORD"
+# 期望 RESULT: 34 passed, 0 failed
+```
+
+宿主（预编译 sharp）跑同一脚本会失败 4 项：`.jxl/.jp2` 的输出转码与源格式上传
+—— 这是 `build-and-deploy.md` §8.3.4 记录的已知环境差异，不是回归。
 
 ---
 

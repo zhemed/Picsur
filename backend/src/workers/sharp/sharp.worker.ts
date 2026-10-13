@@ -1,4 +1,10 @@
 import { FileType } from 'picsur-shared/dist/dto/mimes.dto';
+import {
+  DecodeFailureReason,
+  IsPixelLimitError,
+  EncodePixelLimitFailure,
+  ReadMaxImagePixels,
+} from 'picsur-shared/dist/util/image-pixel-limit';
 import { setrlimit } from 'posix.js';
 import { Sharp } from 'sharp';
 import {
@@ -10,9 +16,16 @@ import {
 } from './sharp.message.js';
 import { UniversalSharpIn, UniversalSharpOut } from './universal-sharp.js';
 
+function DescribeError(error: any): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return String(error);
+}
+
 export class SharpWorker {
   private startTime = 0;
   private sharpi: Sharp | null = null;
+  private maxImagePixels = 0;
 
   constructor() {
     this.setup();
@@ -28,6 +41,10 @@ export class SharpWorker {
     if (isNaN(memoryLimit) || memoryLimit <= 0) {
       return this.purge('MEMORY_LIMIT_MB environment variable is not set');
     }
+
+    // The main process normally rejects oversized images before spawning this
+    // worker; this is the last line of defence (issue #107).
+    this.maxImagePixels = ReadMaxImagePixels(process.env['MAX_IMAGE_PIXELS']);
 
     try {
       setrlimit('data', {
@@ -63,11 +80,17 @@ export class SharpWorker {
     }
 
     this.startTime = Date.now();
-    this.sharpi = UniversalSharpIn(
-      message.image,
-      message.filetype,
-      message.options,
-    );
+
+    try {
+      this.sharpi = UniversalSharpIn(
+        message.image,
+        message.filetype,
+        message.options,
+      );
+    } catch (e) {
+      // Unreadable input is a user error, not a server crash (issue #107).
+      return this.fail(DecodeFailureReason(DescribeError(e)));
+    }
   }
 
   private operation(message: SharpWorkerOperationMessage): void {
@@ -102,7 +125,12 @@ export class SharpWorker {
         result,
       });
     } catch (e) {
-      return this.purge(e);
+      const message = DescribeError(e);
+      const reason = IsPixelLimitError(message)
+        ? EncodePixelLimitFailure(this.maxImagePixels)
+        : DecodeFailureReason(message);
+
+      return this.fail(reason);
     }
   }
 
@@ -112,6 +140,16 @@ export class SharpWorker {
     }
 
     process.send(message);
+  }
+
+  /** Report a user facing failure back to the main process instead of dying. */
+  private fail(reason: string): void {
+    this.sendMessage({
+      type: 'result',
+      processingTime: Date.now() - this.startTime,
+      failure: reason,
+    });
+    process.exit(0);
   }
 
   private purge(reason: any): void {
