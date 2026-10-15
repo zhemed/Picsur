@@ -524,18 +524,35 @@ else
 fi
 
 write_managed_override() {
-  local target="$1" tmp="$DIR/.override.tmp.$$"
-  cat >"$tmp" <<'YAML'
-# 由 picsur install.sh 生成/管理：只覆盖对外端口与容器名，其余沿用 docker-compose.yml
+  local target="$1" tmp="$DIR/.override.tmp.$$" socket_gid=""
+  # 常规镜像以 node(uid 1000) 运行，而宿主 docker.sock 属于 root:docker —— 不把 docker 组
+  # 加进容器，面板里的一键升级就用不了 socket（只会退化成显示升级命令）。这里探测 GID 写进
+  # 受管 override。socket 不存在（或不是 docker 安装）时就不加这一段。
+  if [ -S /var/run/docker.sock ]; then
+    socket_gid="$(stat -c '%g' /var/run/docker.sock 2>/dev/null || true)"
+  fi
+  {
+    cat <<'YAML'
+# 由 picsur install.sh 生成/管理：只覆盖对外端口、容器名与 docker.sock 组，其余沿用 docker-compose.yml
 # （上游 compose 把 8080:8080 与 container_name 写死了，这里用 !override 替换而不是追加）
 services:
   picsur:
     container_name: ${PICSUR_PROJECT_NAME:-picsur}
     ports: !override
       - "${PICSUR_PORT:-8080}:8080"
+YAML
+    if [ -n "$socket_gid" ]; then
+      cat <<YAML
+    # 让容器内的 node 用户能访问挂进来的 /var/run/docker.sock（宿主 docker 组的 GID）
+    group_add:
+      - "${socket_gid}"
+YAML
+    fi
+    cat <<'YAML'
   picsur_postgres:
     container_name: ${PICSUR_PROJECT_NAME:-picsur}_postgres
 YAML
+  } >"$tmp"
   mv -f -- "$tmp" "$target" || die "写入覆盖文件失败：$target"
 }
 

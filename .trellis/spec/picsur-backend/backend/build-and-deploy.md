@@ -49,6 +49,9 @@ docker compose restart picsur # 验证重启恢复
 | **禁止**               | `FROM ghcr.io/caramelfur/picsur-alpha-stage1:*`（上游私有中间镜像，随时可能消失）                               |
 | 构建产物               | 只拷贝 `{frontend,backend,shared}/{dist,package.json}` + 锁文件 + `branding`                                    |
 | 运行时                 | `PICSUR_PRODUCTION=true` + `PICSUR_SYNC_SCHEMA` 默认关（TypeORM 只跑 migrations）                                |
+| 运行用户               | 常规镜像 `USER node`（uid 1000，非 root）；应用只写数据库与 /tmp，`/picsur` 用 `--chown=node:node` 保证可读。**例外**：all-in-one 保持 root（initdb/chown /data + 自升级要访问宿主 docker.sock，理由写在 `Dockerfile.allinone` 注释里） |
+| 可复现性（2026-10-15） | 基础镜像锁 digest、apk 锁 `=版本`、libvips 源码包 `sha256sum -c`、全局 node-gyp/node-addon-api 锁版本；Alpine 发新 `-rN` 后构建会明确失败，用 `bash support/apk-versions.sh` 重新解析并同步 |
+| 面板自升级 + 非 root   | 常规镜像不是 root，光挂 `/var/run/docker.sock` 还不够：还要把宿主 docker 组的 GID 加进容器（compose `group_add` / `PICSUR_DOCKER_GID`），否则 socket 打不开、面板退化成显示升级命令 |
 
 ---
 

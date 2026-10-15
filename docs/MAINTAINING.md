@@ -28,6 +28,11 @@ docker build -t zhemed/picsur:local . # 想另起名字也行，用 PICSUR_IMAGE
 ```
 
 > 镜像里自编译 libvips（HEIF / JXL / JP2 才有），整链约 2 分钟。宿主预编译的 `sharp` > **没有** JXL/JP2 解码器，所以格式相关验证必须在容器里做。
+>
+> **可复现性（2026-10-15 起）**：基础镜像锁 digest、apk 包锁版本、libvips 源码包校验 sha256、
+> 全局 `node-gyp`/`node-addon-api` 锁版本；CI 的 action 也锁了 commit SHA，Dependabot 每周提更新。
+> Alpine 一旦发新的 `-rN` 修订，`docker build` 会因为锁的版本消失而**明确失败** —— 这时跑
+> `bash support/apk-versions.sh` 重新解析，把打印出的版本同步进 `Dockerfile` / `Dockerfile.allinone` 即可。
 
 ## 2. 发版
 
@@ -64,10 +69,14 @@ docker compose pull && docker compose up -d
 
 - 应用监听 `0.0.0.0:8080`（有意发布给同网段，便于图片直链被外部引用；要收窄就改 compose 里的
   `ports` 为 `127.0.0.1:8080:8080` 并交给反代）。
-- **数据全在 Postgres 里**（图片行、用户、首选项），命名卷 `picsur-data`。
+- **应用以非 root 运行**（常规镜像 `USER node`，uid 1000；all-in-one 例外，见 §3.1 与 `Dockerfile.allinone` 注释）。
+  数据全在 Postgres 里（图片行、用户、首选项），命名卷 `picsur-data`。
   应用容器**额外挂载了宿主 `/var/run/docker.sock`**（`docker-compose.yml` 默认挂，用于面板内一键升级）——
   等于把宿主 docker 的控制权交给面板，只应在完全信任管理员的机器上开；不要就删掉那个挂载并设
   `PICSUR_ALLOW_SELF_UPDATE=false`（面板退化为只显示可复制的升级命令）。
+  因为进程不是 root，**还要把宿主 docker 组的 GID 加进容器**，socket 才真的可用：
+  `PICSUR_DOCKER_GID=$(stat -c %g /var/run/docker.sock)`（install.sh 会自动探测并写进受管 override；
+  手工部署就把它写进 `.env`，或直接在 compose 的 picsur 服务下加 `group_add: ['<那个 GID>']`）。
 - 升级：`git pull && docker compose pull && docker compose up -d`。数据库迁移随容器启动自动执行，
   只前进不回退。
 
