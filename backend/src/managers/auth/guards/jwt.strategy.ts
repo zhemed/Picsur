@@ -6,6 +6,7 @@ import { EUser } from 'picsur-shared/dist/entities/user.entity';
 import { ThrowIfFailed } from 'picsur-shared/dist/types/failable';
 import { UserDbService } from '../../../collections/user-db/user-db.service.js';
 import { EUserBackend2EUser } from '../../../models/transformers/user.transformer.js';
+import { SanitizeLogValue } from '../../../util/redact.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(JwtPassportStrategy, 'jwt') {
@@ -26,7 +27,12 @@ export class JwtStrategy extends PassportStrategy(JwtPassportStrategy, 'jwt') {
   async validate(payload: any): Promise<EUser | false> {
     const result = JwtDataSchema.safeParse(payload);
     if (!result.success) {
-      this.logger.error('JWT could not be parsed: ' + result.error);
+      // The zod message can echo parts of the (client supplied) payload and has
+      // no length limit, so it is flattened before it reaches the log
+      // (audit A-15).
+      this.logger.error(
+        'JWT could not be parsed: ' + SanitizeLogValue(String(result.error), 300),
+      );
       return false;
     }
 

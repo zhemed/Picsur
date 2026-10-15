@@ -9,6 +9,7 @@ import { SystemStateDbService } from '../../collections/system-state-db/system-s
 import { UserDbService } from '../../collections/user-db/user-db.service.js';
 import { HostConfigService } from '../../config/early/host.config.service.js';
 import { UsageConfigService } from '../../config/late/usage.config.service.js';
+import { SanitizeLogValue } from '../../util/redact.js';
 
 interface UsageData {
   id?: string;
@@ -72,10 +73,11 @@ export class UsageService {
     const id = result?.data?.id;
     if (typeof id !== 'string')
       return this.logger.warn(
-        'Invalid response when sending initial data: ' + JSON.stringify(result),
+        'Invalid response when sending initial data: ' +
+          SanitizeLogValue(JSON.stringify(result), 200),
       );
     if (!UUIDRegex.test(id))
-      return this.logger.warn('Invalid system ID: ' + id);
+      return this.logger.warn('Invalid system ID: ' + SanitizeLogValue(id, 64));
 
     await this.setSystemID(id);
   }

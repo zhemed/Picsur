@@ -176,6 +176,14 @@ export class ImageManagerService {
     const targetFileType = ParseFileType(fileType);
     if (HasFailed(targetFileType)) return targetFileType;
 
+    const allow_editing = await this.sysPref.getBooleanPreference(
+      SysPreference.AllowEditing,
+    );
+    if (HasFailed(allow_editing)) return allow_editing;
+
+    const editOptions = allow_editing ? options : {};
+    const wantsEdits = Object.keys(editOptions).length > 0;
+
     // SVG can only be served from an SVG master: it is a vector format, and
     // rasterizing into SVG is not a thing. Requesting it for a raster image is
     // a bad request rather than an internal conversion error.
@@ -190,14 +198,21 @@ export class ImageManagerService {
           'Cannot convert a raster image to SVG',
         );
       }
+
+      if (wantsEdits) {
+        // An SVG is served verbatim and there is no pipeline that could apply
+        // width/quality/... to a vector target. Say so instead of letting the
+        // converter fail and reporting "the image appears to be corrupt"
+        // (audit A-11): the upload is fine, only the request is impossible.
+        return Fail(
+          FT.UsrValidation,
+          'Unsupported conversion',
+          'SVG images cannot be transformed, request the image without edit parameters',
+        );
+      }
     }
 
     const converted_key = this.getConvertHash({ mime: fileType, ...options });
-
-    const allow_editing = await this.sysPref.getBooleanPreference(
-      SysPreference.AllowEditing,
-    );
-    if (HasFailed(allow_editing)) return allow_editing;
 
     return MutexFallBack(
       // The mutex key must include the image: with only the conversion hash,
@@ -219,7 +234,7 @@ export class ImageManagerService {
           masterImage.data,
           sourceFileType,
           targetFileType,
-          allow_editing ? options : {},
+          editOptions,
         );
         if (HasFailed(convertResult)) return convertResult;
 
@@ -228,6 +243,18 @@ export class ImageManagerService {
             targetFileType.identifier
           } in ${Date.now() - startTime}ms`,
         );
+
+        // The converter hands the master buffer back untouched when the
+        // requested format *is* the master format and no edits were asked for.
+        // Storing that would write a byte identical copy of the whole file into
+        // the derivative table (audit A-12), so serve it directly instead.
+        if (convertResult.image === masterImage.data) {
+          return {
+            key: converted_key,
+            filetype: convertResult.filetype,
+            data: convertResult.image,
+          } as EImageDerivativeBackend;
+        }
 
         const maxDerivatives = this.imageConfig.getMaxDerivativesPerImage();
         if (maxDerivatives > 0) {

@@ -190,6 +190,6 @@ export class ImageManageController {
 
     res.header('Location', '/error/delete-success');
     res.code(302);
-    return 'Successsfully deleted image';
+    return 'Successfully deleted image';
   }
 }
