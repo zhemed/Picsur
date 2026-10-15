@@ -117,7 +117,7 @@ export class ImageService {
   public async ListAllMyImagesUnpaged(): AsyncFailable<ImageListAllResponse> {
     const userID = await this.userService.snapshot?.id;
     if (userID === undefined) {
-      return Fail(FT.Authentication, 'User not logged in');
+      return Fail(FT.Authentication, 'auth.notLoggedIn');
     }
 
     return await this.ListAllImagesUnpaged(userID);
@@ -183,13 +183,28 @@ export class ImageService {
     const fallbackName = this.i18n.instant('images.defaultAlt');
     const alt = name ?? fallbackName;
 
+    // The file name is user input, so it must not be able to break out of the
+    // snippets that are offered for copy & paste.
     return {
       source: imageURL,
-      markdown: `![${alt}](${imageURL})`,
-      html: `<img src="${imageURL}" alt="${alt}">`,
+      markdown: `![${this.escapeMarkdown(alt)}](${imageURL})`,
+      html: `<img src="${imageURL}" alt="${this.escapeHTML(alt)}">`,
       rst: `.. image:: ${imageURL}`,
       bbcode: `[img]${imageURL}[/img]`,
     };
+  }
+
+  private escapeHTML(text: string): string {
+    return text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  private escapeMarkdown(text: string): string {
+    return text.replaceAll('[', '').replaceAll(']', '');
   }
 
   public GetImageURLCustomized(

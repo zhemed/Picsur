@@ -2,8 +2,6 @@
   "app": {
     "logoTextAlt": "Picsur Text Logo",
     "logoIconAlt": "Picsur Icon Logo",
-    "loading": "Loading",
-    "noScript": "Sorry, but you need javascript",
     "unknownVersion": "Unknown Version",
     "footer": {
       "madeWith": "Made with",
@@ -22,7 +20,6 @@
   },
   "common": {
     "actions": {
-      "add": "ADD",
       "cancel": "Cancel",
       "close": "CLOSE",
       "delete": "Delete",
@@ -30,7 +27,6 @@
       "login": "LOGIN",
       "register": "REGISTER",
       "save": "SAVE",
-      "update": "UPDATE",
       "view": "VIEW"
     },
     "loading": "LOADING...",
@@ -181,6 +177,16 @@
     "networkError": "Network Error",
     "somethingWentWrong": "Something went wrong",
     "nonOkResponse": "Recieved a non-ok response"
+  },
+  "errors": {
+    "401": {
+      "title": "401 - Permission Denied",
+      "description": "You do not have access to this page"
+    },
+    "404": {
+      "title": "404 - Page not found",
+      "description": "The page you are looking for does not exist."
+    }
   },
   "compatibility": {
     "title": "Server is not compatible",

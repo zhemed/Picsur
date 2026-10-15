@@ -36,6 +36,7 @@ export class ViewComponent implements OnInit, OnDestroy {
   private readonly logger = new Logger(ViewComponent.name);
 
   private expires_timeout: Subscription | null = null;
+  private language_subscription: Subscription | null = null;
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -117,6 +118,13 @@ export class ViewComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit() {
+    // The format dropdown stores display strings, one of which ("original") is
+    // translated, so it has to be rebuilt when the language changes.
+    this.language_subscription = this.i18n.languageChange.subscribe(() => {
+      this.updateFormatOptions();
+      this.changeDetector.markForCheck();
+    });
+
     // Extract and verify params
     {
       const params = this.route.snapshot.paramMap;
@@ -185,6 +193,8 @@ export class ViewComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     if (this.expires_timeout !== null) this.expires_timeout.unsubscribe();
+    if (this.language_subscription !== null)
+      this.language_subscription.unsubscribe();
   }
 
   goBackHome() {

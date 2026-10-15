@@ -18,11 +18,19 @@ export class UtilService {
     filename: string,
     filetype = 'application/octet-stream',
   ) {
+    const objectURL = URL.createObjectURL(
+      new Blob([buffer], { type: filetype }),
+    );
+
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([buffer], { type: filetype }));
+    a.href = objectURL;
     a.download = filename;
     a.target = '_self';
     a.click();
+
+    // The browser keeps its own reference once the download started, so the
+    // blob URL can go away - just not in the same task as the click.
+    setTimeout(() => URL.revokeObjectURL(objectURL), 0);
   }
 
   public getBaseFormatOptions() {

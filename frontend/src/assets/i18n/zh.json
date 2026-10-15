@@ -2,8 +2,6 @@
   "app": {
     "logoTextAlt": "Picsur 文字标志",
     "logoIconAlt": "Picsur 图标标志",
-    "loading": "加载中",
-    "noScript": "抱歉，您需要启用 JavaScript",
     "unknownVersion": "未知版本",
     "footer": {
       "madeWith": "由",
@@ -22,7 +20,6 @@
   },
   "common": {
     "actions": {
-      "add": "添加",
       "cancel": "取消",
       "close": "关闭",
       "delete": "删除",
@@ -30,7 +27,6 @@
       "login": "登录",
       "register": "注册",
       "save": "保存",
-      "update": "更新",
       "view": "查看"
     },
     "loading": "加载中...",
@@ -181,6 +177,16 @@
     "networkError": "网络错误",
     "somethingWentWrong": "出现了一些问题",
     "nonOkResponse": "收到非正常响应"
+  },
+  "errors": {
+    "401": {
+      "title": "401 - 无权限",
+      "description": "您没有访问此页面的权限"
+    },
+    "404": {
+      "title": "404 - 页面不存在",
+      "description": "您访问的页面不存在。"
+    }
   },
   "compatibility": {
     "title": "服务器不兼容",
