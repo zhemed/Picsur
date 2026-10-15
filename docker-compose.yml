@@ -43,6 +43,17 @@ services:
       PICSUR_STATIC_FRONTEND_ROOT: /picsur/frontend/dist
       PICSUR_MAX_FILE_SIZE: ${PICSUR_MAX_FILE_SIZE:-128000000}
 
+      # 下面三个只做「透传」：默认值 = 代码里的默认值，写出来是为了让 .env 里的设置
+      # 也能进容器（compose 只会把显式列出的变量传进去）。
+      # ⚠️ PICSUR_MAX_IMAGE_PIXELS 不能给空值：空字符串会被 ParseInt 解析成 0，
+      #    而 0 在代码里表示「不限制像素」（shared/src/util/image-pixel-limit.ts），
+      #    所以这里写死成代码默认值 0x3fff*0x3fff = 268402689。
+      PICSUR_MAX_IMAGE_PIXELS: ${PICSUR_MAX_IMAGE_PIXELS:-268402689}
+      # 每图派生图缓存上限；0 = 不限（超限只是不落库，图片仍正常返回）
+      PICSUR_MAX_DERIVATIVES_PER_IMAGE: ${PICSUR_MAX_DERIVATIVES_PER_IMAGE:-100}
+      # TypeORM 按实体自动同步表结构（**默认 false**：只跑 migration）
+      PICSUR_SYNC_SCHEMA: ${PICSUR_SYNC_SCHEMA:-false}
+
       # 注意：这个 env 只影响启动日志里的一行提示，**真正的遥测开关是数据库系统首选项**
       # enable_telemetry。本仓库已在代码层把上报端点置空（backend/src/config/config.static.ts），
       # 因此即使该首选项为 true 也不会出网。
