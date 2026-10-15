@@ -16,6 +16,7 @@ import {
   FT,
   IsFailure,
 } from 'picsur-shared/dist/types/failable';
+import { SanitizeLogValue } from '../../util/redact.js';
 
 // This will catch any exception that is made in any request
 // (As long as its within nest, the earlier fastify stages are not handled here)
@@ -30,7 +31,13 @@ export class MainExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<FastifyReply>();
     const request = ctx.getRequest<FastifyRequest>();
 
-    const traceString = `(${request.ip} -> ${request.method} ${request.url})`;
+    // The URL is whatever the client sent and lands in every error line, so it
+    // is the easiest way to flood the log or smuggle terminal escapes into it
+    // (audit A-15). Truncate it and drop control characters.
+    const traceString = `(${request.ip} -> ${request.method} ${SanitizeLogValue(
+      request.url,
+      200,
+    )})`;
 
     if (!IsFailure(exception)) {
       exception = this.transformKnownExceptions(exception);
@@ -52,6 +59,12 @@ export class MainExceptionFilter implements ExceptionFilter {
         message: exception.getReason(),
       },
     };
+
+    // Errors are never cacheable. The `/i/*` middleware already set a month
+    // long `Cache-Control` before the handler ran, so without this a bad
+    // extension (`/i/<id>.badext`) or an invalid transform parameter would be
+    // cached for 30 days by every proxy and browser (audit D-7).
+    response.header('Cache-Control', 'no-store');
 
     response.status(status).send(toSend);
   }
