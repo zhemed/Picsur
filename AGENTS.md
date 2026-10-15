@@ -40,9 +40,11 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
    （已同时进 `.gitignore` 与 `.dockerignore`）。
 6. **依赖安全复测**：跑审计必须显式指定官方 registry —— 本机默认源是 npmmirror，**没有 audit 端点**：
    ```bash
-   pnpm audit --prod --registry https://registry.npmjs.org/
+   bash support/audit-prod.sh        # 后端/共享口径必须 0；浏览器侧已知存量只提示
    ```
-   生产口径必须保持 **0**（新增后端运行时依赖后要重跑，见 spec §10）。
+   口径分两层：**后端/共享（服务器上真正跑的代码）必须保持 0**；浏览器侧（前端运行时库，
+   随 Angular 大版本升级解决）在 `--prod` 里可见但不算阻断。原始命令是
+   `pnpm audit --prod --registry https://registry.npmjs.org/`（新增后端运行时依赖后要重跑，见 spec §8.4/§10）。
 7. **用户可见文案走 i18n**：模板 `| translate`、TS `i18n.instant()`，en/zh 两份词典同步
    （细节见 `.trellis/spec/picsur-frontend/frontend/index.md` 的 Pre-Development Checklist）。
 8. **并行开发用 worktree**：多人/多线并行时各自 `git worktree add .worktrees/<stream> -b <branch>`，
