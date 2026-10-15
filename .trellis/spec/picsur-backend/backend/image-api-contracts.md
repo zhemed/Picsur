@@ -44,7 +44,7 @@ GET    /api/pref/sys  /  /api/pref/sys/:key
 ```
 
 > `version` 取自 `npm_package_version`：**裸跑 `node dist/main.js` 会退化成 `"0.0.0"`**，
-> 走 `pnpm start:prod`/容器入口（pnpm 注入）才是真实版本（当前 `0.7.8`，以根 `package.json` 为准）。
+> 走 `pnpm start:prod`/容器入口（pnpm 注入）才是真实版本（版本号以根 `package.json` 为准，发版时四处同步）。
 
 ### 3.2 `POST /api/user/login`
 

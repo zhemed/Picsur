@@ -5,7 +5,7 @@
 > [`.trellis/spec/picsur-backend/backend/build-and-deploy.md`](../.trellis/spec/picsur-backend/backend/build-and-deploy.md)。
 
 - 仓库：<https://github.com/zhemed/picsur>（非 fork；上游 [Picsur](https://github.com/CaramelFur/Picsur) 已于 2024 年停止维护）
-- 版本线：`0.7.x`（当前 `0.7.8`）；许可 AGPL-3.0
+- 版本线：`0.7.x`（具体版本见根 `package.json`，发版时四处同步）；许可 AGPL-3.0
 - 组成：`shared`（DTO/实体）→ `backend`（NestJS 12 + Fastify 5 + TypeORM + Postgres）→ `frontend`（Angular 18，产物由后端托管）
 
 ## 1. 构建
@@ -36,7 +36,7 @@ docker build -t zhemed/picsur:local . # 想另起名字也行，用 PICSUR_IMAGE
    `npm_package_version`；裸跑 `node dist/main.js` 会显示 `0.0.0`，这是已知行为）。
 2. **提交 + 打 tag**：版本号提交后推 `v<版本>` tag（下面第 3 步的脚本会自动打并推，不用手打）：
    ```bash
-   git commit -am "chore(release): 0.6.1 [task:<任务名>]"
+   git commit -am "chore(release): <新版本> [task:<任务名>]"
    ```
 3. **发布镜像（默认走本地）**：`bash support/release-local.sh` —— 构建并推送
    `ghcr.io/zhemed/picsur:<版本>`、`:v<版本>`、`:<主.次>`、`:latest`、`:allinone`，
@@ -49,7 +49,7 @@ docker build -t zhemed/picsur:local . # 想另起名字也行，用 PICSUR_IMAGE
 4. **验证发布的镜像**（别只信 CI 绿）：一条脚本搞定——拉发布镜像、用**隔离的** compose 项目/端口
    （默认 8099）/独立卷起一套、查版本与迁移条数、跑 34 项回归、再拆干净，全程不碰常驻栈：
    ```bash
-   bash support/verify-published-image.sh latest # 或传版本号：... v0.6.1 / 0.6.1
+   bash support/verify-published-image.sh latest # 或传版本号：... v0.7.8 / 0.7.8
    ```
    脚本跑完会打印"常驻栈未受影响"的探活结果；期望 `通过 8 / 失败 0`（迁移条数从仓库里的
    migration 文件数推出，不再写死）。
