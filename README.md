@@ -1,6 +1,6 @@
 # Picsur
 
-自用图床：NestJS 后端 + 内嵌 Angular 面板，图片与元数据都存在 Postgres 里。版本线 `0.6.x`（当前 0.6.0）。
+自用图床：NestJS 后端 + 内嵌 Angular 面板，图片与元数据都存在 Postgres 里。版本线 `0.7.x`（具体版本以根 `package.json` 为准）。
 
 ## 部署
 

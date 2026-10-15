@@ -12,6 +12,7 @@
 #   --port <端口>            对外访问端口（默认：8080）
 #   --version <tag>          镜像 tag，例：0.6.0 / latest（默认用 compose 里的 latest）
 #   --admin-password <口令>  指定管理员初始口令（**仅在数据库为空时生效**）
+#   --accept-new-privileges  重跑升级时接受新版 compose 新增的特权面（默认中止）
 #   -h, --help               显示本帮助
 #
 # 高级环境变量（一般不用设）：
@@ -86,6 +87,8 @@ Picsur 一键安装脚本（多容器正式部署路径：应用 + Postgres）
   --port <端口>            对外访问端口（默认：8080）
   --version <tag>          镜像 tag，例：0.6.0 / latest（默认用 compose 里的 latest）
   --admin-password <口令>  指定管理员初始口令（仅在数据库为空时生效）
+  --accept-new-privileges  允许「重跑升级」时接受新版 compose 新增的特权面
+                           （默认会中止：升级不该悄悄多挂宿主 docker.sock 之类的东西）
   -h, --help               显示本帮助
 
 高级环境变量（一般不用设）：
@@ -110,20 +113,24 @@ DIR=""
 PORT=""
 TAG=""
 ADMIN_PASSWORD_ARG=""
+ACCEPT_NEW_PRIVILEGES=0
+COMPOSE_REPLACED=0
 
 while [ $# -gt 0 ]; do
   arg="$1"; shift
   val=""
   case "$arg" in
     -h|--help) usage; exit 0 ;;
+    --accept-new-privileges) ACCEPT_NEW_PRIVILEGES=1; continue ;;
     --dir|--port|--version|--admin-password)
       [ $# -gt 0 ] || die_arg "选项 $arg 缺少参数值"
-      val="$1"; shift ;;
+      val="$1"; shift
+      [ -n "$val" ] || die_arg "选项 $arg 缺少参数值（空值不被接受）" ;;
     --dir=*|--port=*|--version=*|--admin-password=*)
       val="${arg#*=}"
       [ -n "$val" ] || die_arg "选项 ${arg%%=*} 缺少参数值" ;;
     -*) die_arg "未知选项：$arg" ;;
-    *)  die_arg "未知参数：$arg（本脚本只接受 --dir/--port/--version/--admin-password）" ;;
+    *)  die_arg "未知参数：$arg（只接受 --dir/--port/--version/--admin-password/--accept-new-privileges）" ;;
   esac
   case "${arg%%=*}" in
     --dir) DIR="$val" ;;
@@ -302,6 +309,15 @@ if [ -f "$ENV_FILE" ]; then
     warn "--admin-password 已忽略：.env 已存在，本脚本不会覆盖它；且管理员口令只在数据库首次初始化时生效。"
     warn "如需改口令，请登录后在设置里修改。"
   fi
+  # 既有 .env 的权限：里面有管理员口令 / JWT secret / DB 口令，组或其他人可读就该提醒
+  env_mode="$(stat -c '%a' "$ENV_FILE" 2>/dev/null || echo '')"
+  if [ -n "$env_mode" ]; then
+    case "${env_mode: -2}" in
+      00) : ;;
+      *)  warn "现有 .env 权限过宽（$env_mode）：文件里有管理员口令与 JWT secret，建议收窄到 600"
+          warn "   修法：chmod 600 '$ENV_FILE'" ;;
+    esac
+  fi
 else
   ADMIN_PASSWORD="${ADMIN_PASSWORD_ARG:-$(gen_random 40)}"
   [ -n "$ADMIN_PASSWORD" ] || die "管理员口令为空。"
@@ -352,6 +368,7 @@ download_compose() {
   grep -q 'picsur' "$tmp" || { rm -f -- "$tmp"; return 1; }
   if [ -f "$COMPOSE_FILE" ] && ! cmp -s "$tmp" "$COMPOSE_FILE"; then
     cp -f -- "$COMPOSE_FILE" "$COMPOSE_FILE.bak" 2>/dev/null || true
+    COMPOSE_REPLACED=1
     info "已用新版覆盖 docker-compose.yml，原文件备份为 docker-compose.yml.bak"
   fi
   mv -f -- "$tmp" "$COMPOSE_FILE" || { rm -f -- "$tmp"; return 1; }
@@ -363,6 +380,7 @@ write_bundled_compose() {
   local target="$1" tmp="$DIR/.docker-compose.bundled.tmp.$$"
   if [ -f "$target" ]; then
     cp -f -- "$target" "$target.bak" 2>/dev/null || true
+    COMPOSE_REPLACED=1
   fi
   cat >"$tmp" <<'YAML'
 # Picsur 常驻部署（由 install.sh 内置的兜底副本生成）
@@ -528,6 +546,58 @@ if [ "$(effective_port)" != "$PORT" ]; then
 else
   ok "compose 覆盖生效：对外端口 $PORT → 容器 8080，容器名 ${effective_app_container:-$APP_CONTAINER}"
 fi
+
+# ---------------------------------------------------------------------------
+# 5.1 特权面差异检查：升级不该悄悄多挂宿主 docker.sock 之类的东西
+# ---------------------------------------------------------------------------
+# 把 compose 里的「特权面」抽成规范化 token；只做粗粒度识别，够用来在升级时拦住意外提权
+privileged_tokens() {
+  local f="$1"
+  [ -f "$f" ] || return 0
+  if grep -qE "^[[:space:]]*-[[:space:]]*['\"]?(/var)?/run/docker\.sock" "$f"; then echo 'mount:/var/run/docker.sock'; fi
+  if grep -qE '^[[:space:]]*privileged:[[:space:]]*true' "$f"; then echo 'privileged:true'; fi
+  if grep -qE '^[[:space:]]*cap_add:' "$f"; then echo 'cap_add:额外内核能力'; fi
+  if grep -qE "^[[:space:]]*network_mode:[[:space:]]*['\"]?host" "$f"; then echo 'network_mode:host'; fi
+  if grep -qE "^[[:space:]]*pid:[[:space:]]*['\"]?host" "$f"; then echo 'pid:host'; fi
+  local binds
+  binds="$(grep -oE "^[[:space:]]*-[[:space:]]*['\"]?([.~]/[^:'\"]*|/[^:'\"]*):" "$f" \
+    | grep -v 'docker\.sock' \
+    | sed -E "s/^[[:space:]]*-[[:space:]]*['\"]?//; s/:$//" | sort -u || true)"
+  if [ -n "$binds" ]; then printf '%s\n' "$binds" | sed 's/^/bind:/'; fi
+  return 0
+}
+
+# 规整 token 列表（去空行 + 排序），供 comm 比对
+normalize_tokens() {
+  printf '%s\n' "$1" | grep -v '^$' | sort -u || true
+}
+
+check_compose_privileges() {
+  local new_tokens old_tokens added
+  new_tokens="$(privileged_tokens "$COMPOSE_FILE" | sort -u)"
+  if [ ! -f "$COMPOSE_FILE.bak" ]; then
+    if [ -n "$new_tokens" ]; then
+      info "提示：本次 compose 里含以下特权面（面板内一键升级需要；不想要就删掉挂载并设 PICSUR_ALLOW_SELF_UPDATE=false）："
+      while IFS= read -r line; do printf '      - %s\n' "$line"; done <<<"$new_tokens"
+    fi
+    return 0
+  fi
+  [ "$COMPOSE_REPLACED" = "1" ] || return 0
+  old_tokens="$(privileged_tokens "$COMPOSE_FILE.bak" | sort -u)"
+  added="$(comm -13 <(normalize_tokens "$old_tokens") <(normalize_tokens "$new_tokens") || true)"
+  if [ -z "$added" ]; then
+    return 0
+  fi
+  warn "新版 docker-compose.yml 给容器新增了特权面（升级不该悄悄提权）："
+  while IFS= read -r line; do printf '      + %s\n' "$line"; done <<<"$added"
+  if [ "${ACCEPT_NEW_PRIVILEGES:-0}" != "1" ]; then
+    die "已中止，未启动任何容器（旧文件留在 docker-compose.yml.bak）。" \
+        "确认接受就用 --accept-new-privileges 重跑；想退回旧配置就 cp docker-compose.yml.bak docker-compose.yml"
+  fi
+  warn "已按 --accept-new-privileges 继续（自行承担多出来的权限）。"
+}
+
+check_compose_privileges
 
 # ---------------------------------------------------------------------------
 # 6. 拉取镜像并启动

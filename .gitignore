@@ -22,5 +22,11 @@ temp
 # all-in-one 镜像的默认数据目录（./data:/data）：里面有整个 Postgres 与明文密钥，绝不入库
 /data/
 
+# 数据库备份（MAINTAINING §4 的 pg_dump 产物）：整库 dump 含全部图片行/用户/口令哈希，绝不入库。
+# 备份请写到仓库外（如 ~/picsur-backups/）；这几条是保险，防止手滑。
+*.sqlc
+*.dump
+picsur-*.sqlc
+
 # Team worktrees (each stream gets its own checkout)
 .worktrees/

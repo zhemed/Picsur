@@ -72,8 +72,10 @@ RUNNING=$(docker inspect picsur-verify --format '{{.Config.Image}}' 2> /dev/null
 [ "$RUNNING" = "$IMAGE" ] && ok "容器确实跑的是 $RUNNING" || bad "容器镜像=$RUNNING（期望 $IMAGE）"
 
 echo "=== 5. 迁移（新库首次启动）==="
+# 期望条数从仓库里的 migration 文件数推出（不再写死，避免下次加迁移就假失败）
+EXPECT_M=$(ls backend/src/database/migrations/*.ts 2> /dev/null | grep -vc 'index\.ts$')
 M=$(docker exec picsur-verify-pg psql -U picsur -d picsur -tAc "select count(*) from migrations" 2> /dev/null | tr -d ' ')
-[ "$M" = "8" ] && ok "migrations=8" || bad "migrations=$M（期望 8）"
+[ "$M" = "$EXPECT_M" ] && ok "migrations=$M（= 仓库 migration 文件数）" || bad "migrations=$M（期望 $EXPECT_M = 仓库 migration 文件数）"
 
 echo "=== 6. 34 项回归 ==="
 if bash support/regression-image-api.sh "$BASE" "$PICSUR_ADMIN_PASSWORD" /tmp/bugs-fx > /tmp/verify-regress.log 2>&1; then
