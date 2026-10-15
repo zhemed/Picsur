@@ -17,6 +17,7 @@ import { UtilService } from '../../../util/util.service';
 import { BuildShareX } from './sharex-builder';
 
 @Component({
+  standalone: false,
   templateUrl: './settings-sharex.component.html',
   styleUrls: ['./settings-sharex.component.scss'],
 })

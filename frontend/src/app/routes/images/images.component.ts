@@ -23,6 +23,7 @@ import { DialogService } from '../../util/dialog-manager/dialog.service';
 import { ErrorService } from '../../util/error-manager/error.service';
 
 @Component({
+  standalone: false,
   templateUrl: './images.component.html',
   styleUrls: ['./images.component.scss'],
 })

@@ -15,6 +15,7 @@ import { UsageService } from './services/usage/usage.service';
 import { BootstrapService } from './util/bootstrap.service';
 
 @Component({
+  standalone: false,
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],

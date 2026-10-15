@@ -28,6 +28,7 @@ import { ErrorService } from '../../util/error-manager/error.service';
 import { UtilService } from '../../util/util.service';
 
 @Component({
+  standalone: false,
   templateUrl: './view.component.html',
   styleUrls: ['./view.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,

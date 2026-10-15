@@ -9,6 +9,7 @@ import { I18nService } from '../../i18n/i18n.service';
 import { InfoService } from '../../services/api/info.service';
 
 @Component({
+  standalone: false,
   selector: 'app-footer',
   templateUrl: './footer.component.html',
   styleUrls: ['./footer.component.scss'],

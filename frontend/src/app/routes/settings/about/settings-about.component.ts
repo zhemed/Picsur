@@ -1,8 +1,8 @@
 import { Component, Inject } from '@angular/core';
 import { WINDOW } from '@ng-web-apis/common';
 import {
-    UpdateCheckResponse,
-    UpdateState,
+  UpdateCheckResponse,
+  UpdateState,
 } from 'picsur-shared/dist/dto/api/update.dto';
 import { HasFailed } from 'picsur-shared/dist/types/failable';
 import { I18nService } from '../../../i18n/i18n.service';
@@ -12,6 +12,7 @@ import { Logger } from '../../../services/logger/logger.service';
 import { ErrorService } from '../../../util/error-manager/error.service';
 
 @Component({
+  standalone: false,
   templateUrl: './settings-about.component.html',
   styleUrls: ['./settings-about.component.scss'],
 })
@@ -80,8 +81,7 @@ export class SettingsAboutComponent {
         return 'settings.about.stateSuccess';
       case 'failed':
         return (
-          this.checkResult?.lastUpdate?.message ??
-          'settings.about.stateFailed'
+          this.checkResult?.lastUpdate?.message ?? 'settings.about.stateFailed'
         );
       default:
         return null;

@@ -8,6 +8,7 @@ export interface DownloadDialogData {
 }
 
 @Component({
+  standalone: false,
   selector: 'download-dialog',
   templateUrl: './download-dialog.component.html',
 })

@@ -9,6 +9,7 @@ import { ClipboardService } from '../../util/clipboard.service';
 import { ErrorService } from '../../util/error-manager/error.service';
 
 @Component({
+  standalone: false,
   selector: 'copy-field',
   templateUrl: './copy-field.component.html',
   styleUrls: ['./copy-field.component.scss'],

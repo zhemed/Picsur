@@ -12,6 +12,7 @@ import { Logger } from '../../services/logger/logger.service';
 import { ErrorService } from '../../util/error-manager/error.service';
 
 @Component({
+  standalone: false,
   templateUrl: './upload.component.html',
   styleUrls: ['./upload.component.scss'],
 })

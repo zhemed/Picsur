@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
-import { DropzoneCdkModule } from '@ngx-dropzone/cdk';
+import { DropzoneComponent, FileInputDirective } from '@ngx-dropzone/cdk';
 import { I18nModule } from '../../i18n/i18n.module';
 import { ErrorManagerModule } from '../../util/error-manager/error-manager.module';
 import { CustomDropzone } from './dropzone/dropzone.component';
@@ -16,7 +16,9 @@ import { UploadRoutingModule } from './upload.routing.module';
     I18nModule,
     UploadRoutingModule,
     ReactiveFormsModule,
-    DropzoneCdkModule,
+    // v19 dropped DropzoneCdkModule: the pieces are standalone now.
+    DropzoneComponent,
+    FileInputDirective,
   ],
 })
 export default class UploadRouteModule {}

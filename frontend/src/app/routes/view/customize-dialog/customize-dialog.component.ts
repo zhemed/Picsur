@@ -14,6 +14,7 @@ export interface CustomizeDialogData {
 }
 
 @Component({
+  standalone: false,
   selector: 'customize-dialog',
   templateUrl: './customize-dialog.component.html',
   styleUrls: ['./customize-dialog.component.scss'],

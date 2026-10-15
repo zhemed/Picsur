@@ -5,6 +5,7 @@ import { I18nService } from '../../../../i18n/i18n.service';
 import { Logger } from '../../../../services/logger/logger.service';
 
 @Component({
+  standalone: false,
   selector: 'app-settings-apikey-editor',
   templateUrl: './apikey-editor.component.html',
   styleUrls: ['./apikey-editor.component.scss'],

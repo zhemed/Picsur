@@ -19,6 +19,7 @@ enum EditMode {
 }
 
 @Component({
+  standalone: false,
   selector: 'app-settings-users-edit',
   templateUrl: './settings-users-edit.component.html',
   styleUrls: ['./settings-users-edit.component.scss'],

@@ -9,6 +9,7 @@ import { I18nService } from './i18n.service';
  *        `{{ 'view.uploadedBy' | translate: { date: date, user: name } }}`
  */
 @Pipe({
+  standalone: false,
   name: 'translate',
   pure: false,
 })

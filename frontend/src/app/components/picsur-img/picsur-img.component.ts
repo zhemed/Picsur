@@ -25,6 +25,7 @@ enum PicsurImgState {
 }
 
 @Component({
+  standalone: false,
   selector: 'picsur-img',
   templateUrl: './picsur-img.component.html',
   styleUrls: ['./picsur-img.component.scss'],
@@ -131,7 +132,9 @@ export class PicsurImgComponent implements OnChanges, OnDestroy {
       return response;
     }
 
-    const mimeHeader = response['content-type'] ?? '';
+    // axios 1.20 types header values as string | number | boolean | string[]
+    // | AxiosHeaders, so normalise before splitting off the parameters.
+    const mimeHeader = String(response['content-type'] ?? '');
     const mime = mimeHeader.split(';')[0];
 
     return ParseMime2FileType(mime);

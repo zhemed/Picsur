@@ -8,6 +8,7 @@ import {
 import { UsrPrefService } from '../../../services/api/usr-pref.service';
 
 @Component({
+  standalone: false,
   templateUrl: './settings-general.component.html',
 })
 export class SettingsGeneralComponent {
