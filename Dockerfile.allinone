@@ -21,6 +21,10 @@
 ARG PICSUR_BASE_IMAGE=ghcr.io/zhemed/picsur:latest
 FROM ${PICSUR_BASE_IMAGE}
 
+# 基镜像是常规镜像（已改为 USER node 运行）；这里要 root 做 apk/initdb/chown，
+# 之后再用 su-exec 把应用降到 postgres/picsur 用户跑（见下方 entrypoint）。
+USER root
+
 LABEL org.opencontainers.image.title="picsur-all-in-one" \
       org.opencontainers.image.description="Picsur 图床 + 内嵌 PostgreSQL 17，数据落在 /data" \
       org.opencontainers.image.source="https://github.com/zhemed/picsur"
