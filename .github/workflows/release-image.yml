@@ -5,7 +5,7 @@ name: release-image
 # 触发：
 #   - 推送 v* tag（正式发版）：产出 :<版本>、:<主.次>、:v<版本>、:latest 与 :allinone
 #   - 手动 workflow_dispatch：
-#       * 选 tag 触发 → 与上一条一致（会发布）
+#       * 选 tag 触发 → 与上一条一致（会发布）（已改为手动：发布归本地 release-local.sh，避免两条路径各推一遍同名 tags）
 #       * 选分支触发 → **只构建、不推送**（用来验证 Dockerfile 还能编过；避免把任意分支推成 :latest）
 #
 # 注意：日常发版默认走本地 `bash support/release-local.sh`（热缓存约 2 分钟；GitHub runner 要 7+ 分钟），
@@ -15,8 +15,6 @@ name: release-image
 # 镜像内容与本地 `docker compose up -d --build` 完全一致（同一个 Dockerfile）。
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
 
 permissions:
