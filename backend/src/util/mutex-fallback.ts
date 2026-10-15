@@ -29,14 +29,24 @@ export async function MutexFallBack<
     return MutexFallBack(key, mainFunc, fallBackFunc);
   }
 
+  // Re-check right before starting: between the lookup above and here another
+  // request may have finished and removed its entry, and starting a second
+  // fallback for the same key is what hit the unique constraint (audit A-16).
+  const rechecked = await mainFunc();
+  if (rechecked !== undefined && rechecked !== null) return rechecked;
+
   // No fallback is running, start one
   const fallBackPromise = fallBackFunc();
 
-  // Save the running fallback, and make sure it is cleared when it is done
+  // Save the running fallback, and make sure it is cleared when it is done.
+  // `.then(clear, clear)` instead of `.finally(...)`: the promise returned by
+  // `finally` was never handled, so a rejecting fallback produced an unhandled
+  // rejection (audit A-13).
   fallBackMap[key] = fallBackPromise;
-  fallBackMap[key].finally(() => {
+  const clear = () => {
     delete fallBackMap[key];
-  });
+  };
+  fallBackPromise.then(clear, clear);
 
   return fallBackPromise;
 }

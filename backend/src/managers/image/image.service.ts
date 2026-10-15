@@ -25,6 +25,7 @@ import { ImageDBService } from '../../collections/image-db/image-db.service.js';
 import { ImageFileDBService } from '../../collections/image-db/image-file-db.service.js';
 import { SysPreferenceDbService } from '../../collections/preference-db/sys-preference-db.service.js';
 import { UsrPreferenceDbService } from '../../collections/preference-db/usr-preference-db.service.js';
+import { ImageConfigService } from '../../config/early/image.config.service.js';
 import { EImageDerivativeBackend } from '../../database/entities/images/image-derivative.entity.js';
 import { EImageFileBackend } from '../../database/entities/images/image-file.entity.js';
 import { EImageBackend } from '../../database/entities/images/image.entity.js';
@@ -46,6 +47,7 @@ export class ImageManagerService {
     private readonly svgSecurity: SvgSecurityService,
     private readonly userPref: UsrPreferenceDbService,
     private readonly sysPref: SysPreferenceDbService,
+    private readonly imageConfig: ImageConfigService,
   ) {}
 
   public async findOne(id: string): AsyncFailable<EImageBackend> {
@@ -62,8 +64,10 @@ export class ImageManagerService {
 
   public async findAll(
     userid: string | undefined,
+    count?: number,
+    page?: number,
   ): AsyncFailable<{ results: EImageBackend[]; total: number }> {
-    return await this.imagesService.findAll(userid);
+    return await this.imagesService.findAll(userid, count, page);
   }
 
   public async update(
@@ -196,7 +200,10 @@ export class ImageManagerService {
     if (HasFailed(allow_editing)) return allow_editing;
 
     return MutexFallBack(
-      converted_key,
+      // The mutex key must include the image: with only the conversion hash,
+      // a request for image B with the same options waited for image A's
+      // conversion (audit A-13). The derivative cache key itself stays shared.
+      `${imageId}:${converted_key}`,
       () => {
         return this.imageFilesService.getDerivative(imageId, converted_key);
       },
@@ -221,6 +228,25 @@ export class ImageManagerService {
             targetFileType.identifier
           } in ${Date.now() - startTime}ms`,
         );
+
+        const maxDerivatives = this.imageConfig.getMaxDerivativesPerImage();
+        if (maxDerivatives > 0) {
+          const stored = await this.imageFilesService.countDerivatives(imageId);
+          if (HasFailed(stored)) return stored;
+
+          if (stored >= maxDerivatives) {
+            // Still serve the conversion, just do not cache it: the cap exists
+            // to bound database growth, not to break rendering (audit A-8).
+            this.logger.warn(
+              `Image ${imageId} already has ${stored} derivatives (limit ${maxDerivatives}), not storing another one`,
+            );
+            return {
+              key: converted_key,
+              filetype: convertResult.filetype,
+              data: convertResult.image,
+            } as EImageDerivativeBackend;
+          }
+        }
 
         return await this.imageFilesService.addDerivative(
           imageId,
@@ -322,7 +348,15 @@ export class ImageManagerService {
       }
     }
 
-    if (mime === undefined) mime = 'other/unknown';
+    if (mime === undefined) {
+      // Not an image we can identify (random bytes, truncated file, empty
+      // file): that is a bad upload, not a server error (audit A-6). Falling
+      // through to Mime2FileType('other/unknown') produced a 500.
+      return Fail(
+        FT.UsrValidation,
+        'Unsupported or unrecognized image format',
+      );
+    }
 
     let filetype: string | undefined;
     if (mime === 'image/webp') {

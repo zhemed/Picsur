@@ -52,7 +52,10 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
     const varOptions = this.getTypeOrmServerOptions();
     return {
       type: 'postgres' as const,
-      synchronize: !this.hostService.isProduction(),
+      // Explicit switch, never derived from production mode: `synchronize`
+      // drops columns/tables it does not know about, so it must be opt in
+      // (audit A-2). Migrations create the schema instead.
+      synchronize: this.hostService.isSchemaSync(),
 
       migrationsRun: true,
 

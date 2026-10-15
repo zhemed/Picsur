@@ -78,10 +78,14 @@ export class ImageDeleteWithKeyResponse extends createZodDto(
   ImageDeleteWithKeyResponseSchema,
 ) {}
 
-// Image list all (unpaged)
+// Image list all (bounded, optionally paged)
 
 export const ImageListAllRequestSchema = z.object({
   user_id: z.string().uuid().optional(),
+  // Optional pagination: without it the server applies its own page size, so
+  // one call can never pull an unbounded number of rows (audit A-9).
+  count: IsPosInt().optional(),
+  page: IsPosInt().optional(),
 });
 export class ImageListAllRequest extends createZodDto(
   ImageListAllRequestSchema,

@@ -1,5 +1,4 @@
 import { Controller, Get, Head, Logger, Query, Res } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
 import type { FastifyReply } from 'fastify';
 import {
     ImageMetaResponse,
@@ -13,6 +12,7 @@ import {
     ThrowIfFailed,
 } from 'picsur-shared/dist/types/failable';
 import { UserDbService } from '../../collections/user-db/user-db.service.js';
+import { EasyThrottle } from '../../decorators/easy-throttle.decorator.js';
 import { ImageFullIdParam } from '../../decorators/image-id/image-full-id.decorator.js';
 import { ImageIdParam } from '../../decorators/image-id/image-id.decorator.js';
 import { RequiredPermissions } from '../../decorators/permissions.decorator.js';
@@ -39,10 +39,17 @@ const SvgContentSecurityPolicy = [
   "script-src 'none'",
 ].join('; ');
 
+// Request budget for the public image routes. They used to be `@SkipThrottle()`
+// (= unlimited) while every request can spawn a sharp worker and store a new
+// derivative, so one anonymous caller could drive unbounded CPU and database
+// growth (audit A-8). The limit is deliberately loose: a gallery page pulls
+// dozens of thumbnails at once, and clients behind one NAT share a bucket.
+const ImageRequestsPerMinute = 600;
+
 // This is the only controller with CORS enabled
 @Controller('i')
 @RequiredPermissions(Permission.ImageView)
-@SkipThrottle()
+@EasyThrottle(ImageRequestsPerMinute, 60)
 export class ImageController {
   private readonly logger = new Logger(ImageController.name);
 

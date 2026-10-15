@@ -6,6 +6,11 @@ import { generateRandomString } from 'picsur-shared/dist/util/random';
 import { In, LessThan, Repository } from 'typeorm';
 import { EImageBackend } from '../../database/entities/images/image.entity.js';
 
+/** Page size used when `/api/image/list/all` is called without one. */
+export const ImageListAllPageSize = 100;
+/** Hard upper bound for a single `/api/image/list/all` response. */
+export const ImageListAllMaxPageSize = 1000;
+
 @Injectable()
 export class ImageDBService {
   constructor(
@@ -85,15 +90,32 @@ export class ImageDBService {
     }
   }
 
+  /**
+   * Every image of a user, capped.
+   *
+   * The endpoint this backs had no pagination and no bound at all: one call
+   * pulled the full history of the account (audit A-9). `total` always reports
+   * the real number, so a caller can tell that the list was cut short.
+   */
   public async findAll(
     userid: string | undefined,
+    count?: number,
+    page?: number,
   ): AsyncFailable<{ results: EImageBackend[]; total: number }> {
     try {
+      const take = Math.min(
+        count ?? ImageListAllPageSize,
+        ImageListAllMaxPageSize,
+      );
+      const skip = count === undefined ? 0 : Math.max(page ?? 0, 0) * take;
+
       const [found, amount] = await this.imageRepo.findAndCount({
         order: { created: 'DESC' },
         where: {
           user_id: userid,
         },
+        take,
+        skip,
       });
 
       if (found === undefined) return Fail(FT.NotFound, 'Images not found');

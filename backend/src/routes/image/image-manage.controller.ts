@@ -37,17 +37,26 @@ import {
 } from '../../decorators/permissions.decorator.js';
 import { ReqUserID } from '../../decorators/request-user.decorator.js';
 import { Returns } from '../../decorators/returns.decorator.js';
+import { MultipartConfigService } from '../../config/early/multipart.config.service.js';
 import { ImageManagerService } from '../../managers/image/image.service.js';
 import { GetNextAsync } from '../../util/iterator.js';
+import { MapUploadError } from '../../util/upload-error.js';
 
+// Permissions are declared per handler on purpose: the guard requires the
+// *union* of class and handler permissions, so a class level `ImageUpload`
+// silently became a requirement for list/update/delete too — revoking upload
+// rights also broke "manage my own images" (audit A-4).
 @Controller('api/image')
-@RequiredPermissions(Permission.ImageUpload)
 export class ImageManageController {
   private readonly logger = new Logger(ImageManageController.name);
 
-  constructor(private readonly imagesService: ImageManagerService) {}
+  constructor(
+    private readonly imagesService: ImageManagerService,
+    private readonly multipartConfig: MultipartConfigService,
+  ) {}
 
   @Post('upload')
+  @RequiredPermissions(Permission.ImageUpload)
   @Returns(ImageUploadResponse)
   @EasyThrottle(20)
   async uploadImage(
@@ -61,7 +70,11 @@ export class ImageManageController {
     try {
       buffer = await file.toBuffer();
     } catch (e) {
-      throw Fail(FT.Internal, e);
+      throw MapUploadError(e, this.multipartConfig.getMaxFileSize());
+    }
+
+    if (buffer.length === 0) {
+      throw Fail(FT.UsrValidation, 'The uploaded file is empty');
     }
 
     const image = ThrowIfFailed(
@@ -107,7 +120,9 @@ export class ImageManageController {
       body.user_id = userid;
     }
 
-    const found = ThrowIfFailed(await this.imagesService.findAll(body.user_id));
+    const found = ThrowIfFailed(
+      await this.imagesService.findAll(body.user_id, body.count, body.page),
+    );
 
     return found;
   }

@@ -6,12 +6,20 @@ import {
     Fail,
     FT,
     HasFailed,
+    IsFailure,
 } from 'picsur-shared/dist/types/failable';
 import { LessThan, Repository } from 'typeorm';
 import { EImageDerivativeBackend } from '../../database/entities/images/image-derivative.entity.js';
 import { EImageFileBackend } from '../../database/entities/images/image-file.entity.js';
 
 const A_DAY_IN_SECONDS = 24 * 60 * 60;
+
+/** Postgres unique violation (SQLSTATE 23505), as TypeORM surfaces it. */
+function IsUniqueViolation(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const code = (error as { code?: unknown }).code;
+  return code === '23505';
+}
 
 @Injectable()
 export class ImageFileDBService {
@@ -135,6 +143,15 @@ export class ImageFileDBService {
     try {
       return await this.imageDerivativeRepo.save(imageDerivative);
     } catch (e) {
+      // Two requests can miss the same cached conversion at the same time (the
+      // "look up, then lock" sequence in `MutexFallBack` is not atomic). The
+      // loser used to answer 500 on the unique constraint; the conversion it
+      // wanted is already there, so return that instead.
+      if (IsUniqueViolation(e)) {
+        const existing = await this.getDerivative(imageId, key);
+        if (!IsFailure(existing) && existing !== null) return existing;
+      }
+
       return Fail(FT.Database, e);
     }
   }
@@ -150,14 +167,27 @@ export class ImageFileDBService {
       });
       if (!derivative) return null;
 
-      // Ensure read time updated to within 1 day precision
+      // Touch `last_read` at most once a day: writing on *every* read put a
+      // database write on the image hot path, while a derivative that had not
+      // been read for a day was never refreshed at all and got deleted by the
+      // cleanup cron while still in use (audit A-7).
       const yesterday = new Date(Date.now() - A_DAY_IN_SECONDS * 1000);
-      if (derivative.last_read > yesterday) {
+      if (derivative.last_read < yesterday) {
         derivative.last_read = new Date();
         return await this.imageDerivativeRepo.save(derivative);
       }
 
       return derivative;
+    } catch (e) {
+      return Fail(FT.Database, e);
+    }
+  }
+
+  public async countDerivatives(imageId: string): AsyncFailable<number> {
+    try {
+      return await this.imageDerivativeRepo.count({
+        where: { image_id: imageId },
+      });
     } catch (e) {
       return Fail(FT.Database, e);
     }
