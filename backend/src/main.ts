@@ -17,7 +17,8 @@ import { MainAuthGuard } from './managers/auth/guards/main.guard.js';
 import { HelmetOptions } from './security.js';
 
 async function bootstrap() {
-  const isProduction = process.env['PICSUR_PRODUCTION'] !== undefined;
+  // Same rule as HostConfigService.isProduction(); see the comment there.
+  const isProduction = HostConfigService.readProductionFromEnv();
 
   // Create fasify
   const fastifyAdapter = new FastifyAdapter({
