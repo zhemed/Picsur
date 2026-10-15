@@ -384,6 +384,8 @@ env -u PICSUR_ADMIN_PASSWORD -u PICSUR_JWT_SECRET docker compose up -d --force-r
 3. 绕过 `pnpm run` 直接 `node backend/dist/main.js` 时，要自己注入 `npm_package_version`，
    否则 `/api/info` 的版本号会退化成 `0.0.0`。
 
+**为什么必须挂 socket（与 Komari 的对比，2026-10-15 定）**：Komari 免 socket 升级是因为它是**单文件二进制**（`/app/komari`）——下载新文件 → 校验 → 自检 → `os.Rename` 覆盖自己 → 原地重执行（它自己的 `container-replace` 模式）；代价是容器一旦被重建就退回镜像里的版本。Picsur 是 Node + 一整棵树（`dist` + 含原生模块的 `node_modules` + 自编译 libvips），容器内自替换要每次下载数百 MB 覆盖自身，且会让「跑的内容 ≠ 镜像」，故不采用。我们的实现与 Komari 的 `docker-recreate` 模式一致：**应用持有 socket → 拉镜像 → helper 重建自身**。**决定：保持现状**（默认挂 socket、默认开启），不引入侧车更新器。
+
 **`install.sh` 的契约**：幂等（重跑=升级，不覆盖 `.env`/不重建卷）、`--dir/--port/--version/--admin-password`、
 缺 docker 或端口占用时**非零退出**、下载 compose 失败时回退脚本内置副本；端口与容器名通过安装目录内
 受管的 `docker-compose.override.yml`（`!override`，需 compose ≥ 2.24）覆盖，仓库里的 compose 不被改动。

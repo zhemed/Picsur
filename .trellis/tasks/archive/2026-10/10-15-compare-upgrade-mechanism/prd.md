@@ -40,3 +40,9 @@ Picsur 不是一个文件，而是一整棵树：`backend/dist` + `node_modules`
 - [x] 读到 Komari 的模式定义与部署形态判定（代码 + 其 spec）
 - [x] 解释清楚"它为什么不需要 socket"与"我们为什么需要"
 - [x] 给出可选项与代价；由用户决定是否切换方案
+
+## 决定（用户 2026-10-15 选定）
+
+**保持现状**：应用容器挂 `/var/run/docker.sock` 且默认开启 `PICSUR_ALLOW_SELF_UPDATE`（等价 Komari 的 `docker-recreate` 模式）。
+理由：一行命令即可用、已在两台实例上端到端验证；接受「面板因此具备宿主 docker 权限」这一代价。
+不做侧车更新器，也不做容器内自替换。
