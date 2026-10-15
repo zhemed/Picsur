@@ -28,5 +28,12 @@ temp
 *.dump
 picsur-*.sqlc
 
+# 审计/构建的原始 dump（`pnpm audit --json` 整份输出动辄几百 KB ~ 几 MB）不入库：
+# 结论写 `research/*.md`，证据摘要（几十行那种）可以留；原始 dump 请命名 `raw-*.json`
+# 或丢进 `.run/`（本来就忽略）。重新生成：
+#   pnpm audit --json --registry https://registry.npmjs.org/ > /tmp/audit.json
+**/research/raw-*.json
+**/raw-audit-*.json
+
 # Team worktrees (each stream gets its own checkout)
 .worktrees/
