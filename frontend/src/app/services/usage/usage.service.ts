@@ -35,6 +35,10 @@ export class UsageService {
   @AutoUnsubscribe()
   private subscribeInfo() {
     return this.hostInfo.live.subscribe((info) => {
+      // Null means "not loaded yet": do not stop or start tracking based on a
+      // placeholder, wait for the server to actually tell us.
+      if (info === null) return;
+
       if (
         info.tracking.state === TrackingState.Disabled ||
         info.tracking.id === undefined
