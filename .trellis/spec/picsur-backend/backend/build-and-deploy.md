@@ -397,3 +397,58 @@ env -u PICSUR_ADMIN_PASSWORD -u PICSUR_JWT_SECRET docker compose up -d --force-r
 **`install.sh` 的契约**：幂等（重跑=升级，不覆盖 `.env`/不重建卷）、`--dir/--port/--version/--admin-password`、
 缺 docker 或端口占用时**非零退出**、下载 compose 失败时回退脚本内置副本；端口与容器名通过安装目录内
 受管的 `docker-compose.override.yml`（`!override`，需 compose ≥ 2.24）覆盖，仓库里的 compose 不被改动。
+
+---
+
+## 13. 自升级的升级窗口与恢复（2026-10-15，审计 D 线修复后）
+
+一次自升级只在一小段时间里「没有任何容器在跑正名」，这段窗口里的每一步都必须可重入：
+
+| 角色 | 容器名 | 作用 / 生命周期 |
+| --- | --- | --- |
+| 正名容器 | `<名字>` | 用户的实例；被停掉、被重建 |
+| 替换容器 | `<名字>-new-<ts>` | 新镜像的容器；先创建，等旧的停掉后改名成 `<名字>` 再启动 |
+| 旧容器 | `<名字>-prev-<ts>` | 原容器改名后的样子；升级成功后删除，失败则由 helper 改回原名重启 |
+| helper（primary） | `<名字>-update-<ts>` | 真正执行「停旧 → 起新 → 探活 → 删旧/回滚」 |
+| helper（rescue） | `<名字>-rescue-<ts>` | 备用：primary 意外消失时接管（见下） |
+
+**三条兜底（缺一条就会出现「升级窗口内没有兜底」）**
+
+1. **helper 自身可重启**：helper 带 `restart: on-failure`（最多 5 次），脚本每一步都写成**可重入**
+   （已改名的就跳过改名，已停的就跳过停，已启动的就跳过启动，HTTP 304 视为「已经是目标状态」）。
+   进程崩溃 / OOM / daemon 重启后，Docker 会把它拉起来接着做完。
+2. **rescue helper**：`restart: on-failure` 对 `docker kill`（人为停止）**无效**，所以另起一个 rescue 容器
+   跑同一份脚本。它只做一件事：等 primary 不再运行（或等 8s 以上且对方已死），检查正名容器是否在跑 ——
+   在跑就说明这一轮已经有结论（成功或回滚），直接退出；没在跑就自己把交换做完。
+   一次升级最多多花十几秒，但把「helper 一死就全站停机」的窗口封掉了。
+3. **启动自愈**（`SelfUpdateService.selfHealOnStartup`，模块初始化后 2s 执行、失败只告警）：
+   - 自己是 `<名字>-prev-<ts>`（运维手工 `docker start` 了旧容器）：删掉遗留的 `<名字>-new-*`，
+     正名空闲时把自己**改名回正名**，面板记一条 `failed` 说明「上一次升级被打断，已恢复」。
+   - 自己是正名：删掉同源（同名前缀）的 `-prev-*` / `-new-*` 残留，面板记一条 `success` 说明「helper 没清理干净，启动时已清理」。
+   - 只清理**名字属于自己这一支**的容器；正在运行的残留一律不动，只告警。
+
+**结果怎么读**：helper 结束时会把自己的容器名改成 `-ok` / `-rolledback` / `-idle`（无后缀=中途死掉），
+面板的 `lastUpdate` 只统计 **owner label = 自己这一支** 的 helper（同宿主跑多个实例不会串台）。
+
+**手工恢复（极端情况，比如宿主重启时 helper 已耗尽重启次数）**
+
+```bash
+docker ps -a | grep -E '<名字>-(prev|new|update|rescue)-'   # 看清现场
+docker rm -f <名字>-new-<ts>          # 没起来的替换容器
+docker rename <名字>-prev-<ts> <名字>  # 旧容器改回正名
+docker start <名字>                    # 起回来（起来后应用会自己做剩下的自愈）
+```
+
+**必测（改这块时必须复现）**
+
+```bash
+# 1) 正常升级：helper 应该 -ok，面板 success
+curl -X POST localhost:8091/api/system/update/apply -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d '{}'
+
+# 2) 杀 primary 必须自愈（rescue 接管）
+( while :; do st=$(docker inspect <名字> --format '{{.State.Status}}' 2>/dev/null); \
+    [ "$st" != running ] && docker kill $(docker ps --format '{{.Names}}'|grep '^<名字>-update'|head -1) && break; sleep 0.03; done ) &
+curl -X POST localhost:8091/api/system/update/apply -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d '{}'
+
+# 3) 坏镜像必须回滚且**只回滚一次**：helper 名 -rolledback、RestartCount 必须为 0、面板 failed
+```

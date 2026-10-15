@@ -15,8 +15,18 @@ import { UpdateHelperScript } from './update-helper.script.js';
 
 const HelperLabel = 'picsur.update';
 const HelperLabelValue = 'helper';
-const TempLabel = 'picsur.update.temp';
 const SelfLabel = 'picsur.update.self';
+// The helper carries the id of the update "lineage" it belongs to. The id is
+// created on the first self update of an instance and copied onto every
+// replacement container, so it survives container recreation. It is what makes
+// "show me *my* last update" possible on a host that runs several instances.
+const OwnerLabel = 'picsur.update.owner';
+const InstanceLabel = 'picsur.update.instance';
+
+// Containers we park during a swap: <name>-prev-<ts> (the old one, renamed
+// aside) and <name>-new-<ts> (the replacement before it takes over the name).
+const PrevSuffix = /-prev-\d+$/;
+const NewSuffix = /-new-\d+$/;
 
 export interface UpdateStatusInfo {
   state: UpdateState;
@@ -26,7 +36,10 @@ export interface UpdateStatusInfo {
 export interface UpdatePlan {
   self: DockerContainerInspect;
   containerName: string;
+  baseName: string;
+  lineageId: string;
   helperName: string;
+  rescueName: string;
   tempName: string;
   repository: string;
   tag: string;
@@ -60,6 +73,10 @@ function envToMap(env: string[] | null | undefined): Record<string, string> {
 
 function containerNameFromInspect(name: string): string {
   return name.startsWith('/') ? name.slice(1) : name;
+}
+
+function baseNameOf(name: string): string {
+  return name.replace(PrevSuffix, '').replace(NewSuffix, '');
 }
 
 /**
@@ -97,15 +114,53 @@ export class SelfUpdateService {
 
     // After a handoff the process that started the update is gone, so the only
     // way to know how it went is looking at the helper container it left behind.
+    // Only helpers that belong to *this* container lineage are considered: on a
+    // host with several instances the others' helpers are none of our business.
     try {
+      const self = await this.findSelfContainer();
+      const lineage = this.lineageIdOf(self);
+
       const helpers = await this.docker.listContainers({
-        label: [`${HelperLabel}=${HelperLabelValue}`],
+        label: [
+          `${HelperLabel}=${HelperLabelValue}`,
+          `${OwnerLabel}=${lineage}`,
+        ],
       });
       if (helpers.length === 0) return { state: 'idle', message: null };
 
-      helpers.sort((a, b) => b.Created - a.Created);
-      const latest = helpers[0];
-      const inspect = await this.docker.inspectContainer(latest.Id);
+      const described = helpers.map((helper) => ({
+        helper,
+        name: containerNameFromInspect(helper.Names?.[0] ?? helper.Id),
+      }));
+
+      // How a swap ended is written into the helper's own name (see
+      // update-helper.script.ts): -ok / -rolledback / -idle. A conclusive
+      // outcome wins over a helper that is merely still running (the rescue
+      // helper talks to the same job).
+      const running = described.find((entry) => entry.helper.State === 'running');
+      const concluded = described
+        .filter(
+          (entry) =>
+            entry.name.endsWith('-ok') || entry.name.endsWith('-rolledback'),
+        )
+        .sort((a, b) => b.helper.Created - a.helper.Created)[0];
+
+      if (concluded !== undefined) {
+        if (concluded.name.endsWith('-rolledback')) {
+          return {
+            state: 'failed',
+            message: `The last update failed and the previous version was restored. Details: docker logs ${concluded.name}`,
+          };
+        }
+        return { state: 'success', message: null };
+      }
+
+      if (running !== undefined) return { state: 'running', message: null };
+
+      const latest = described.sort(
+        (a, b) => b.helper.Created - a.helper.Created,
+      )[0];
+      const inspect = await this.docker.inspectContainer(latest.helper.Id);
 
       if (inspect.State.Running) return { state: 'running', message: null };
       if (inspect.State.ExitCode === 0) {
@@ -113,7 +168,7 @@ export class SelfUpdateService {
       }
       return {
         state: 'failed',
-        message: `The last update failed (exit code ${inspect.State.ExitCode}). Details: docker logs ${containerNameFromInspect(latest.Names?.[0] ?? latest.Id)}`,
+        message: `The last update failed (exit code ${inspect.State.ExitCode}). Details: docker logs ${latest.name}`,
       };
     } catch {
       // No docker socket / no permission: no update state to report.
@@ -153,23 +208,62 @@ export class SelfUpdateService {
     const env = envToMap(self.Config.Env);
     const image = this.updateConfig.getImageOverride() ?? self.Config.Image;
 
-    // All-in-one image: everything it needs is its name, port and /data volume.
+    // All-in-one image: it carries everything it needs, so the command can be
+    // rebuilt from the real container config (name, ports, volumes, restart).
     if (env['PICSUR_DATA_DIR']) {
-      const dataDir = env['PICSUR_DATA_DIR'];
-      const mount = (self.Mounts ?? []).find((m) => m.Destination === dataDir);
-      const hostPath = mount?.Source ?? dataDir;
-      const port = env['PICSUR_PORT'] ?? '8080';
-      const restartPolicy = self.HostConfig.RestartPolicy?.Name;
-      const restart =
-        restartPolicy && restartPolicy !== 'no' ? restartPolicy : 'always';
       return (
         `docker pull ${image} && docker rm -f ${name} && ` +
-        `docker run -d --name ${name} --restart ${restart} ` +
-        `-p ${port}:${port} -v ${hostPath}:${dataDir} ${image}`
+        `docker run -d ${this.buildRunArguments(self, image).join(' ')}`
       );
     }
 
     return `docker pull ${image}`;
+  }
+
+  /**
+   * Rebuild the `docker run` flags of a container from its own configuration,
+   * so the copy-paste command really recreates what is running (the earlier
+   * version hardcoded 8080:8080 and --restart always).
+   */
+  private buildRunArguments(
+    self: DockerContainerInspect,
+    image: string,
+  ): string[] {
+    const args = ['--name', containerNameFromInspect(self.Name)];
+
+    const restart = self.HostConfig.RestartPolicy;
+    if (restart?.Name && restart.Name !== 'no') {
+      const retries =
+        restart.Name === 'on-failure' && restart.MaximumRetryCount > 0
+          ? `:${restart.MaximumRetryCount}`
+          : '';
+      args.push('--restart', `${restart.Name}${retries}`);
+    }
+
+    for (const [containerPort, bindings] of Object.entries(
+      self.HostConfig.PortBindings ?? {},
+    )) {
+      // Port keys look like "8080/tcp"; /tcp is the default protocol.
+      const port = containerPort.replace(/\/tcp$/, '');
+      for (const binding of bindings ?? []) {
+        const hostIp = binding.HostIp ? `${binding.HostIp}:` : '';
+        args.push('-p', `${hostIp}${binding.HostPort ?? ''}:${port}`);
+      }
+    }
+
+    const seen = new Set<string>();
+    for (const mount of self.Mounts ?? []) {
+      if (!mount.Source || !mount.Destination) continue;
+      const volume = `${mount.Source}:${mount.Destination}${
+        mount.RW ? '' : ':ro'
+      }`;
+      if (seen.has(volume)) continue;
+      seen.add(volume);
+      args.push('-v', volume);
+    }
+
+    args.push(image);
+    return args;
   }
 
   /**
@@ -210,10 +304,11 @@ export class SelfUpdateService {
       );
     }
 
-    await this.cleanupLeftovers();
-
     const self = await this.findSelfContainer();
     const name = containerNameFromInspect(self.Name);
+    const baseName = baseNameOf(name);
+
+    await this.cleanupLeftovers(baseName);
 
     if (self.HostConfig.AutoRemove === true) {
       throw Fail(
@@ -256,7 +351,10 @@ export class SelfUpdateService {
     return {
       self,
       containerName: name,
+      baseName,
+      lineageId: this.lineageIdOf(self),
       helperName: `${name}-update-${stamp}`,
+      rescueName: `${name}-rescue-${stamp}`,
       tempName: `${name}-new-${stamp}`,
       repository,
       tag,
@@ -280,20 +378,26 @@ export class SelfUpdateService {
     );
 
     let newContainerId: string | null = null;
+    let helperId: string | null = null;
     try {
       await this.docker.pullImage(plan.repository, plan.tag);
 
       newContainerId = await this.docker.createContainer(
         plan.tempName,
-        this.buildCreateConfig(plan, plan.imageRef, true),
+        this.buildCreateConfig(plan, plan.imageRef),
       );
       this.logger.log(`Created replacement container ${newContainerId}`);
 
-      const helperId = await this.docker.createContainer(
+      helperId = await this.docker.createContainer(
         plan.helperName,
-        this.buildHelperConfig(plan, newContainerId),
+        this.buildHelperConfig(plan, newContainerId, 'primary'),
+      );
+      const rescueId = await this.docker.createContainer(
+        plan.rescueName,
+        this.buildHelperConfig(plan, newContainerId, 'rescue'),
       );
       await this.docker.startContainer(helperId);
+      await this.docker.startContainer(rescueId);
       await this.waitForHelper(plan, helperId);
 
       this.logger.log(
@@ -305,18 +409,17 @@ export class SelfUpdateService {
       const message = IsFailure(error) ? error.getReason() : String(error);
       this.logger.error(`Self update could not be started: ${message}`);
 
+      // The helper runs with `restart: on-failure`: it may simply be between
+      // two runs. Never touch the containers while it can still be working.
+      if (helperId !== null && (await this.isHelperAlive(helperId))) {
+        this.logger.warn(
+          `The update helper is still working (${plan.helperName}), leaving the swap to it`,
+        );
+        return;
+      }
+
       if (newContainerId !== null) {
-        await this.docker
-          .removeContainer(newContainerId, true)
-          .catch((cleanupError) =>
-            this.logger.warn(
-              `Could not clean up the temporary container: ${
-                IsFailure(cleanupError)
-                  ? cleanupError.getReason()
-                  : String(cleanupError)
-              }`,
-            ),
-          );
+        await this.removeUntouchedReplacement(plan, newContainerId);
       }
 
       this.lastUpdate = { state: 'failed', message };
@@ -324,36 +427,87 @@ export class SelfUpdateService {
     }
   }
 
+  private async isHelperAlive(helperId: string): Promise<boolean> {
+    try {
+      const inspect = await this.docker.inspectContainer(helperId);
+      return inspect.State.Running === true || inspect.State.Restarting === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Only remove the replacement while it is still untouched (not started, still
+   * carrying its temporary name). Once the helper renamed/started it, it is the
+   * live container and removing it would take the service down.
+   */
+  private async removeUntouchedReplacement(
+    plan: UpdatePlan,
+    newContainerId: string,
+  ): Promise<void> {
+    try {
+      const inspect = await this.docker.inspectContainer(newContainerId);
+      const name = containerNameFromInspect(inspect.Name);
+      if (inspect.State.Running || name !== plan.tempName) {
+        this.logger.warn(
+          `Not removing ${name}: it is already in use, the update helper owns it now`,
+        );
+        return;
+      }
+      await this.docker.removeContainer(newContainerId, true);
+      this.logger.log(`Removed the unused replacement container ${name}`);
+    } catch (cleanupError) {
+      this.logger.warn(
+        `Could not clean up the temporary container: ${
+          IsFailure(cleanupError)
+            ? cleanupError.getReason()
+            : String(cleanupError)
+        }`,
+      );
+    }
+  }
+
   private async waitForHelper(
     plan: UpdatePlan,
     helperId: string,
   ): Promise<void> {
-    const deadline = Date.now() + 15000;
+    const deadline = Date.now() + 30000;
+    let lastExitCode: number | null = null;
+
     while (Date.now() < deadline) {
       const inspect = await this.docker.inspectContainer(helperId);
       if (inspect.State.Running) return;
-      if (inspect.State.ExitCode !== 0) {
-        throw Fail(
-          FT.Internal,
-          `The update helper exited immediately (exit code ${inspect.State.ExitCode}), nothing was changed. Logs: docker logs ${plan.helperName}`,
-        );
+      if (inspect.State.Restarting) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        continue;
       }
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      lastExitCode = inspect.State.ExitCode;
+      // `restart: on-failure` brings it back, give docker a moment to do so.
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
+
     throw Fail(
       FT.Internal,
-      `The update helper did not start in time. Logs: docker logs ${plan.helperName}`,
+      `The update helper did not come up (last exit code ${lastExitCode}). Logs: docker logs ${plan.helperName}`,
     );
   }
 
-  /** Remove leftovers from earlier runs (temp containers, old helpers). */
-  private async cleanupLeftovers(): Promise<void> {
+  /** Remove leftovers of *this* container lineage (old swaps, old helpers). */
+  private async cleanupLeftovers(baseName: string): Promise<void> {
     try {
-      const temps = await this.docker.listContainers({ label: [TempLabel] });
-      for (const container of temps) {
-        if (container.State === 'running') continue;
+      for (const container of await this.listLineageContainers(baseName)) {
+        const leftoverName = containerNameFromInspect(
+          container.Names?.[0] ?? container.Id,
+        );
+        if (leftoverName === baseName) continue;
+        if (container.State === 'running') {
+          this.logger.warn(
+            `Not touching the running leftover container ${leftoverName}`,
+          );
+          continue;
+        }
         await this.docker.removeContainer(container.Id, true);
-        this.logger.log(`Removed leftover container ${container.Id}`);
+        this.logger.log(`Removed leftover container ${leftoverName}`);
       }
     } catch (error) {
       this.logger.warn(
@@ -364,8 +518,14 @@ export class SelfUpdateService {
     }
 
     try {
+      const lineage = await this.findSelfContainer().then((self) =>
+        this.lineageIdOf(self),
+      );
       const helpers = await this.docker.listContainers({
-        label: [`${HelperLabel}=${HelperLabelValue}`],
+        label: [
+          `${HelperLabel}=${HelperLabelValue}`,
+          `${OwnerLabel}=${lineage}`,
+        ],
       });
       const cutoff = Math.floor(Date.now() / 1000) - 6 * 60 * 60;
       for (const container of helpers) {
@@ -381,6 +541,124 @@ export class SelfUpdateService {
         }`,
       );
     }
+  }
+
+  /**
+   * Best effort repair of a swap that was interrupted (helper killed, daemon
+   * restarted, host rebooted). Two shapes are handled:
+   *
+   *  - this process runs as <name>-prev-<ts>: the previous container was
+   *    started again by hand. Delete the abandoned replacement, take the
+   *    canonical name back and report it.
+   *  - this process runs as <name>: the replacement came up but the helper died
+   *    before it removed the old container. Delete the stopped leftovers.
+   */
+  public async selfHealOnStartup(): Promise<void> {
+    if (!this.updateConfig.isSelfUpdateEnabled()) return;
+
+    try {
+      await this.docker.getVersion(5000);
+    } catch {
+      // No usable docker socket: nothing to heal (and nothing was swapped).
+      return;
+    }
+
+    try {
+      const self = await this.findSelfContainer();
+      await this.recoverInterruptedUpdate(self);
+    } catch (error) {
+      this.logger.warn(
+        `Update self healing failed: ${
+          IsFailure(error) ? error.getReason() : String(error)
+        }`,
+      );
+    }
+  }
+
+  private async recoverInterruptedUpdate(
+    self: DockerContainerInspect,
+  ): Promise<void> {
+    const myName = containerNameFromInspect(self.Name);
+    const baseName = baseNameOf(myName);
+    const containers = await this.listLineageContainers(baseName);
+
+    const removed: string[] = [];
+    for (const container of containers) {
+      if (container.Id === self.Id) continue;
+      const leftoverName = containerNameFromInspect(
+        container.Names?.[0] ?? container.Id,
+      );
+      if (container.State === 'running') {
+        this.logger.warn(
+          `Found a running container ${leftoverName} that belongs to an interrupted update, leaving it alone`,
+        );
+        continue;
+      }
+      await this.docker.removeContainer(container.Id, true);
+      removed.push(leftoverName);
+      this.logger.warn(
+        `Removed leftover container ${leftoverName} (interrupted update)`,
+      );
+    }
+
+    if (myName !== baseName) {
+      // We are the old container that was started again: give the deployment
+      // its name back, otherwise nothing (compose, monitoring, the next update)
+      // can find it any more.
+      const nameTaken = containers.some(
+        (container) =>
+          container.Id !== self.Id &&
+          container.Names?.some((n) => n === `/${baseName}`),
+      );
+      if (nameTaken) {
+        this.logger.warn(
+          `Cannot rename ${myName} back to ${baseName}: the name is still in use`,
+        );
+      } else {
+        await this.docker.renameContainer(self.Id, baseName);
+        this.logger.warn(
+          `Recovered from an interrupted update: renamed ${myName} back to ${baseName}`,
+        );
+      }
+      this.lastUpdate = {
+        state: 'failed',
+        message:
+          `The previous update was interrupted, this instance was restored from ${myName}.` +
+          (removed.length > 0
+            ? ` Removed leftovers: ${removed.join(', ')}.`
+            : ''),
+      };
+      return;
+    }
+
+    if (removed.length > 0) {
+      this.lastUpdate = {
+        state: 'success',
+        message:
+          `The last update finished, the update helper did not clean up: removed ${removed.join(', ')} on startup.`,
+      };
+    }
+  }
+
+  /** Containers that can only come from this instance: <base> and its swaps. */
+  private async listLineageContainers(baseName: string) {
+    const all = await this.docker.listContainers({});
+    const prefixPrev = `/${baseName}-prev-`;
+    const prefixNew = `/${baseName}-new-`;
+    return all.filter(
+      (container) =>
+        container.Names?.some(
+          (n) =>
+            n === `/${baseName}` ||
+            n.startsWith(prefixPrev) ||
+            n.startsWith(prefixNew),
+        ) ?? false,
+    );
+  }
+
+  /** Stable id across container recreation, used to tell our helpers apart. */
+  private lineageIdOf(self: DockerContainerInspect): string {
+    return self.Config.Labels?.[InstanceLabel] ?? self.Id;
   }
 
   private async resolveTarget(
@@ -403,7 +681,9 @@ export class SelfUpdateService {
     if (override === undefined && isVariableTag(own.tag)) {
       if (explicit !== undefined && explicit !== '' && explicit !== own.tag) {
         this.logger.warn(
-          `Ignoring requested tag "${explicit}": this deployment runs the "${own.tag}" variant, which is published under that very tag`,
+          `PICSUR_UPDATE_TAG="${explicit}" is ignored on purpose: this deployment runs the "${own.tag}" variant tag of ${own.repository}, ` +
+            `which is the image this deployment has to keep (the plain version tags are a different image and cannot start here). ` +
+            `Use PICSUR_UPDATE_IMAGE=<repo>:<tag> to override the image completely.`,
         );
       }
       return { repository: own.repository, tag: own.tag };
@@ -488,11 +768,7 @@ export class SelfUpdateService {
     );
   }
 
-  private buildCreateConfig(
-    plan: UpdatePlan,
-    image: string,
-    isReplacement: boolean,
-  ): unknown {
+  private buildCreateConfig(plan: UpdatePlan, image: string): unknown {
     const self = plan.self;
     const hostConfigKeys = [
       'Binds',
@@ -569,8 +845,10 @@ export class SelfUpdateService {
     const labels: Record<string, string> = {
       ...(self.Config.Labels ?? {}),
       [SelfLabel]: 'true',
+      // Kept across recreations: it is how the replacement recognises the
+      // helpers that belong to this instance instead of to a neighbour.
+      [InstanceLabel]: plan.lineageId,
     };
-    if (isReplacement) labels[TempLabel] = 'true';
 
     const networks = self.NetworkSettings?.Networks ?? {};
     const endpoints: Record<string, unknown> = {};
@@ -607,6 +885,7 @@ export class SelfUpdateService {
   private buildHelperConfig(
     plan: UpdatePlan,
     newContainerId: string,
+    role: 'primary' | 'rescue',
   ): unknown {
     const expectedVersion = /^\d+\.\d+\.\d+$/.test(plan.tag) ? plan.tag : null;
 
@@ -629,6 +908,10 @@ export class SelfUpdateService {
 
     const job = {
       socketPath: this.docker.getSocketPath(),
+      role,
+      peerName: role === 'primary' ? plan.rescueName : plan.helperName,
+      takeoverDelayMs: 8000,
+      rescueWaitMs: 240000,
       oldId: plan.self.Id,
       oldName: plan.containerName,
       oldNameAside: `${plan.containerName}-prev-${Date.now()}`,
@@ -651,12 +934,18 @@ export class SelfUpdateService {
       WorkingDir: '/',
       Labels: {
         [HelperLabel]: HelperLabelValue,
+        [OwnerLabel]: plan.lineageId,
+        'picsur.update.role': role,
         'picsur.update.image': plan.imageRef,
       },
       HostConfig: {
         Binds: [plan.socketBind],
         AutoRemove: false,
-        RestartPolicy: { Name: 'no', MaximumRetryCount: 0 },
+        // The helper is the only actor during the swap window. If it dies
+        // (kill / OOM / docker daemon restart) docker has to bring it back,
+        // otherwise the instance can stay down with the old container stopped.
+        // The script is written to be re-runnable for exactly this reason.
+        RestartPolicy: { Name: 'on-failure', MaximumRetryCount: 5 },
         LogConfig: { Type: 'json-file', Config: {} },
       },
     };

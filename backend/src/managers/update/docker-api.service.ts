@@ -83,6 +83,7 @@ export interface DockerContainerInspect {
   State: {
     Status: string;
     Running: boolean;
+    Restarting?: boolean;
     ExitCode: number;
     Health?: { Status: string };
   };
