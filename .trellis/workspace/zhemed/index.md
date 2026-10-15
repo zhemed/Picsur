@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 18
-- **Last Active**: 2026-10-13
+- **Total Sessions**: 19
+- **Last Active**: 2026-10-15
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~417 | Active |
+| `journal-1.md` | ~438 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 19 | 2026-10-15 | 调查 Komari 免 socket 升级机制；决定保持应用持 socket | - | `master` |
 | 18 | 2026-10-13 | 修正部署文档：手动升级必须先 pull | `5bf0b0f` | `master` |
 | 17 | 2026-10-13 | 排查 某台测试服务器（主机名已脱敏）「升级未启用」→ 连带修出两个真 bug（0.7.7 / 0.7.8） | `632f477` | `master` |
 | 16 | 2026-10-13 | 修复版本检测显示旧版本：补 git tag + 发布脚本自动打 tag | `f7bbe1b` | `master` |

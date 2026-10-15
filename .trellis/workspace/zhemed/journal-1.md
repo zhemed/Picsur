@@ -415,3 +415,24 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 19: 调查 Komari 免 socket 升级机制；决定保持应用持 socket
+<!-- trellis-session: v=2 fp=9a8c52b454701e59 -->
+
+**Date**: 2026-10-15
+**Task**: 调查 Komari 免 socket 升级机制；决定保持应用持 socket
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户问 -v /var/run/docker.sock 是否必须、为何 Komari 没有也能面板升级。查 Komari 源码与它自己的 spec：它有四条升级路径——binary（systemd+可写目录，换二进制+systemd拉起）、docker-recreate（容器+有socket，拉镜像+helper重建自身=与我们相同）、container-replace（容器+无socket但目录可写，容器内换二进制+原地重执行，README '零配置'指这条）、manual（容器+只读 rootfs，只给命令）。它能免 socket 是因为镜像是 alpine + COPY 单个二进制到 /app/komari + CMD，整个应用就是一个可写文件；代价是容器被重建后升级丢失。我们不适合照抄：Picsur 是一整棵树（dist + 原生模块 node_modules + 自编译 libvips），容器内自替换要每次下载数百 MB 且破坏'镜像即真相'。用户选定：保持现状（应用挂 socket，等价 docker-recreate），不引入侧车更新器。决定已写进任务记录与 spec §12。
+
+### Git Commits
+
+(No commits - planning session)
+
+### Status
+
+[OK] **Completed**
