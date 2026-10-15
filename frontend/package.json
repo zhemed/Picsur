@@ -52,7 +52,7 @@
     "@angular-devkit/build-angular": "^21.2.27",
     "@angular/cli": "^21.2.27",
     "@angular/compiler-cli": "^21.2.25",
-    "@ng-web-apis/resize-observer": "^4.11.1",
+    "@ng-web-apis/resize-observer": "^5.4.0",
     "@popperjs/core": "^2.11.8",
     "@types/ackee-tracker": "^5.0.4",
     "@types/node": "^22.20.5",
