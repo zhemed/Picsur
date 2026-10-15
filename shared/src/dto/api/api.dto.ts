@@ -14,7 +14,7 @@ const ApiSuccessResponse = <T extends z.AnyZodObject>(data: T) =>
     }),
   );
 
-const ApiErrorResponse = ApiResponseBase.merge(
+const ApiErrorResponseSchema = ApiResponseBase.merge(
   z.object({
     success: z.literal(false),
     data: z.object({
@@ -25,15 +25,17 @@ const ApiErrorResponse = ApiResponseBase.merge(
 );
 
 export const ApiResponseSchema = <T extends z.AnyZodObject>(data: T) =>
-  ApiErrorResponse.or(ApiSuccessResponse(data));
+  ApiErrorResponseSchema.or(ApiSuccessResponse(data));
 
-export type ApiErrorResponse = z.infer<typeof ApiErrorResponse>;
+export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>;
 
-const ApiAnySuccessResponseSchema = ApiSuccessResponse(z.object({}))
+const _ApiAnySuccessResponseSchema = ApiSuccessResponse(z.object({}))
   .omit({ data: true })
   .merge(
     z.object({
       data: z.any(),
     }),
   );
-export type ApiAnySuccessResponse = z.infer<typeof ApiAnySuccessResponseSchema>;
+export type ApiAnySuccessResponse = z.infer<
+  typeof _ApiAnySuccessResponseSchema
+>;

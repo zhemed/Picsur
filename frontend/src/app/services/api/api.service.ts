@@ -56,7 +56,6 @@ function CreateFailedRunningRequest<R>(failure: Failure) {
     uploadProgress: subject.asObservable(),
     downloadProgress: subject.asObservable(),
     result: Promise.resolve(failure),
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
     cancel: () => {},
   } as RunningRequest<R>;
 }

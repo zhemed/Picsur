@@ -21,7 +21,6 @@ export class ApiErrorService {
     this.subscribeErrors();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   nothing(): void {}
 
   @AutoUnsubscribe()
