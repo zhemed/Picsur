@@ -24,7 +24,7 @@
 # 注意：必须是 node:20（完整镜像，自带 python3/gcc/g++/make），不能用 -slim ——
 # 依赖里有 qoi-img / bmp-img / posix.js 是走 node-gyp 源码编译的。
 # Node 版本必须是 20：Node ≥22.16 的 N-API 签名变更会让这些包编译失败（实测）。
-FROM node:20@sha256:8f693eaa7e0a8e71560c9a82b55fd54c2ae920a2ba5d2cde28bac7d1c01c9ba5 AS js_builder
+FROM node:25@sha256:78839ac448c23517f8eab2e8f7943d9b4f73979eb7f8bed2c73dbf72ff869e7b AS js_builder
 
 RUN npm install -g pnpm@9.6.0
 
@@ -50,7 +50,7 @@ RUN mkdir -p /trimmed \
 # ============================================================
 # 版本不能低于 8.18.7：sharp 0.35.x 的 package.json config.libvips 要求 >=8.18.7，
 # 低于它 sharp 的 install 脚本会拒绝用全局 libvips（SHARP_FORCE_GLOBAL_LIBVIPS 下仍会失败）。
-FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS vips_builder
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS vips_builder
 
 RUN apk add --no-cache \
     build-base=0.5-r3 meson=1.9.1-r0 cmake=4.1.3-r0 pkgconf=2.5.1-r0 \
@@ -75,7 +75,7 @@ RUN cd vips-*/ \
 # ============================================================
 # 阶段 3：vips 运行时（只带运行期依赖）
 # ============================================================
-FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS vips_runtime
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS vips_runtime
 
 COPY --from=vips_builder /usr/local /usr/local
 RUN apk add --no-cache \
