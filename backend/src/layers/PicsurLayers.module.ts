@@ -11,7 +11,10 @@ import { ZodValidationPipe } from './validate/zod-validator.pipe.js';
       throttlers: [
         {
           limit: 60,
-          ttl: 60,
+          // @nestjs/throttler v5+ takes the window in MILLISECONDS. This was
+          // `ttl: 60` (= 60 ms), which made the global limit unenforceable for
+          // any realistic request rate (audit A-1).
+          ttl: 60_000,
         },
       ],
     }),
