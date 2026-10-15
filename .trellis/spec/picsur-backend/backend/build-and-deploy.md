@@ -48,7 +48,7 @@ docker compose restart picsur # 验证重启恢复
 | 生产依赖 stage         | `SHARP_FORCE_GLOBAL_LIBVIPS=1` + `python3/build-base`，**并且必须显式跑一次 sharp 源码构建**（见 §8.3 第 5 条） |
 | **禁止**               | `FROM ghcr.io/caramelfur/picsur-alpha-stage1:*`（上游私有中间镜像，随时可能消失）                               |
 | 构建产物               | 只拷贝 `{frontend,backend,shared}/{dist,package.json}` + 锁文件 + `branding`                                    |
-| 运行时                 | `PICSUR_PRODUCTION=true`（TypeORM 不 synchronize，只跑 migrations）                                             |
+| 运行时                 | `PICSUR_PRODUCTION=true` + `PICSUR_SYNC_SCHEMA` 默认关（TypeORM 只跑 migrations）                                |
 
 ---
 
@@ -63,9 +63,11 @@ docker compose restart picsur # 验证重启恢复
 | `PICSUR_ADMIN_PASSWORD`                          |    ✅     | —                                 | 账号名固定 `admin`，这是初始口令                                                                                         |
 | `PICSUR_JWT_SECRET`                              | ✅(生产)  | 随机                              | 不固定会导致每次重启登录态失效                                                                                           |
 | `PICSUR_STATIC_FRONTEND_ROOT`                    |  镜像内   | `/picsur/frontend/dist`           | 前端产物目录                                                                                                             |
-| `PICSUR_PRODUCTION`                              | ✅(生产)  | `false`                           | **不设 = TypeORM `synchronize:true`，会直改 schema**                                                                     |
+| `PICSUR_PRODUCTION`                              | ✅(生产)  | `false`                           | 生产模式：影响日志级别/格式、`/api/info` 的 `production` 字段、角色初始化。取值按 `ParseBool`：`true/1/yes` 真、`false/0/no` 假、缺省假。**不再控制 schema 同步**（A-2 起拆成下面的独立开关；旧版 `main.ts` 用 `!== undefined`、配置服务用 `ParseBool`，`PICSUR_PRODUCTION=false` 会一半当真一半当假） |
+| `PICSUR_SYNC_SCHEMA`                             |     —     | `false`                           | **默认关**：是否让 TypeORM 按实体自动同步表结构。开启 = 启动时 ALTER 表结构以匹配实体（**可能删掉它认为多余的列/表**），只能用于本地开发或空库，跑在有数据的库上等于赌博；开启时启动日志会打 WARN。审计 A-2 起是显式开关（此前由 `!production` 推导） |
 | `PICSUR_MAX_FILE_SIZE`                           |     —     | `128000000`                       | 上传字节上限                                                                                                             |
 | `PICSUR_MAX_IMAGE_PIXELS`                        |     —     | `268402689`                       | 图像**像素**上限（`w*h`，sharp 默认 `0x3FFF^2`）；超限上传返回 400 并回显该值，`0` = 不限制。2026-10-13 起（issue #107） |
+| `PICSUR_MAX_DERIVATIVES_PER_IMAGE`               |     —     | `100`                             | 每图最多缓存多少张派生图（转码结果）。**超限只影响落库**：图片仍照常返回给用户，只是不再写库（WARN 日志），用于限制数据库体积；`0`（或负数） = 不限制。审计 A-8 新增 |
 | `PICSUR_UPDATE_CHECK` | ✅ 默认开 | `true` | 面板「关于」页的版本检测：只读 `api.github.com/repos/zhemed/picsur/tags`，缓存 1 小时、失败降级、不发任何实例数据；`false` 关闭时接口返回 `checkEnabled:false`（不是报错）。0.7.0 起 |
 | `PICSUR_ALLOW_SELF_UPDATE` | ⚠️ **默认开** | `true` | 面板内一键自升级。**真正的门槛是挂载**：`/var/run/docker.sock` 一旦挂进容器就等于把宿主 docker 的 root 权限交给面板（任意管理员都能起特权容器），只适合完全信任管理员的单机部署。`docker-compose.yml` 默认已挂 socket（要关：删挂载 + 设 `false`，此时按钮退化为显示可复制的升级命令）。可选：`PICSUR_UPDATE_{REPO,API_URL,IMAGE,TAG,TIMEOUT,COMMAND}`、`PICSUR_DOCKER_SOCKET`。**`PICSUR_UPDATE_TAG` 在 all-in-one 部署（tag 形如 `allinone`）会被忽略**：换版本 tag 会拉到入口不同的常规镜像，故只重拉当前 tag（`self-update.service.ts: resolveTarget`） |
 | `PICSUR_VERBOSE`                                 | ❌ 不要开 | `false`                           | **开了会把 JWT secret 与 DB 口令明文写进日志**                                                                           |
@@ -98,7 +100,7 @@ if (!(await this.usageConfig.getMetricsUrl())) return; // ② 端点为空 → �
 | Node ≥ 22.16 跑 `pnpm install`                       | ❌ 失败：`qoi-img` 等 C++ 编译报 `node_api_basic_finalize` 签名错。必须 Node 20                                            |
 | 用全局 pnpm 12 装依赖                                | ❌ 锁文件 v9 与工具链不匹配；用 corepack 固定 9.6.0                                                                        |
 | `frontend/custom-webpack.config.js` 保持 `.js` + ESM | ❌ Node ≥20.19 下 `require(esm)` 成功返回命名空间 → webpack `unknown property 'default'`。必须是 `.cjs` + `module.exports` |
-| `PICSUR_PRODUCTION` 未设就跑生产                     | ❌ TypeORM `synchronize:true` 直改 schema                                                                                  |
+| `PICSUR_SYNC_SCHEMA=true` 跑在有数据的库上            | ❌ TypeORM 启动即按实体 ALTER（可能删列）；生产只跑 migration，这个开关默认关                                              |
 | `PICSUR_VERBOSE=true`                                | ⚠️ JWT secret / DB 口令明文入日志                                                                                          |
 | compose 缺 `PICSUR_ADMIN_PASSWORD`                   | ❌ compose 启动前直接报错（by design）                                                                                     |
 | `.env` 未进 `.dockerignore`                          | ❌ 密钥进入镜像层（`docker history` 可捞）                                                                                 |
