@@ -10,6 +10,7 @@ export enum FT {
   SysValidation = 'sysvalidation',
   UsrValidation = 'usrvalidation',
   BadRequest = 'badrequest',
+  PayloadTooLarge = 'payloadtoolarge',
   Permission = 'permission',
   RateLimit = 'ratelimit',
   NotFound = 'notfound',
@@ -71,6 +72,11 @@ const FTProps: {
     code: 400,
     message: 'Bad request',
   },
+  [FT.PayloadTooLarge]: {
+    important: false,
+    code: 413,
+    message: 'Payload too large',
+  },
   [FT.Permission]: {
     important: false,
     code: 403,
@@ -98,7 +104,10 @@ const FTProps: {
   },
   [FT.Authentication]: {
     important: false,
-    code: 200,
+    // 401, not 200: a failed login has to be visible to clients, proxies and
+    // any brute force protection that keys off the status code (audit A-10).
+    // The body still carries `success: false` + the message.
+    code: 401,
     message: 'Authentication failed',
   },
   [FT.Impossible]: {

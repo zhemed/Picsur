@@ -6,6 +6,7 @@ import { HasFailed } from 'picsur-shared/dist/types/failable';
 import { IsApiKey } from 'picsur-shared/dist/validators/api-key.validator';
 import { ApiKeyDbService } from '../../../collections/apikey-db/apikey-db.service.js';
 import { EUserBackend2EUser } from '../../../models/transformers/user.transformer.js';
+import { RedactSecret, SanitizeLogValue } from '../../../util/redact.js';
 
 @Injectable()
 export class ApiKeyStrategy extends PassportStrategy(
@@ -31,13 +32,15 @@ export class ApiKeyStrategy extends PassportStrategy(
   async validate(apikey: string): Promise<EUser | false> {
     const apiValidation = await IsApiKey().safeParseAsync(apikey);
     if (!apiValidation.success) {
-      this.logger.warn('Invalid apikey format: ' + apikey);
+      // Never log the value itself: it is a credential, and this line also
+      // runs for keys that are merely unknown to this instance (audit A-5).
+      this.logger.warn('Invalid apikey format: ' + RedactSecret(apikey));
       return false;
     }
 
     const apikeyResult = await this.apikeyDB.resolve(apikey);
     if (HasFailed(apikeyResult)) {
-      this.logger.warn('Invalid apikey: ' + apikey);
+      this.logger.warn('Invalid apikey: ' + RedactSecret(apikey));
       return false;
     }
 
@@ -45,7 +48,9 @@ export class ApiKeyStrategy extends PassportStrategy(
 
     const userValidation = await EUserSchema.safeParseAsync(user);
     if (!userValidation.success) {
-      this.logger.error('Invalid user: ' + JSON.stringify(user));
+      this.logger.error(
+        'Invalid user: ' + SanitizeLogValue(JSON.stringify(user), 200),
+      );
       return false;
     }
 
