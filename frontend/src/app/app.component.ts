@@ -41,6 +41,10 @@ export class AppComponent implements OnInit {
     private readonly bootstrapService: BootstrapService,
     usageService: UsageService,
   ) {
+    // Deferred (task 10-15-backlog-clear): this keeps `UsageService` alive (it
+    // subscribes to InfoService in its constructor), but the bare reference is
+    // a no-op. Either drop the parameter or make it a real field.
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     usageService;
   }
 

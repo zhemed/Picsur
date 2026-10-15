@@ -120,6 +120,7 @@ export class DownloadService {
       await navigator.share(shareObject);
     } catch (e) {
       if (e instanceof DOMException && e.message === 'Share canceled') {
+        // The user closed the share sheet, that is not an error worth a toast.
       } else {
         this.errorService.showFailure(
           Fail(FT.Internal, this.i18n.instant('download.shareFailed'), e),

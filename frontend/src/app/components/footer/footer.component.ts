@@ -51,8 +51,12 @@ export class FooterComponent implements OnInit {
   @AutoUnsubscribe()
   subscribeInfo() {
     return this.infoService.live.subscribe((info) => {
-      this.isDemo = info.demo;
-      this.loadedVersion = info.version;
+      // Null until `/api/info` answered: keep showing "Unknown Version".
+      if (info !== null) {
+        this.isDemo = info.demo;
+        this.loadedVersion = info.version;
+      }
+
       this.changeDetector.markForCheck();
     });
   }

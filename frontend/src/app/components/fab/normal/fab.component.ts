@@ -10,6 +10,5 @@ export class FabComponent {
   @Input() icon = 'add';
   @Input() color = 'primary';
   @Input('tooltip') tooltip: string;
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   @Input() onClick: () => void = () => {};
 }

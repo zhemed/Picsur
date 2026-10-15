@@ -64,6 +64,9 @@ export class StaticInfoService {
   @AutoUnsubscribe()
   private subscribeVersion() {
     return this.info.live.subscribe((info) => {
+      // `info` is null until the server answered, so there is no version yet.
+      if (info === null) return;
+
       this.cache.setVersion(info.version);
     });
   }

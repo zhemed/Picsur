@@ -99,6 +99,9 @@ export class SharpWorker {
     }
 
     const operation = message.operation;
+    // Deferred (task 10-15-backlog-clear): leftover from upstream, this
+    // expression has no effect. Kept as-is instead of guessing the intent.
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     message.operation.parameters;
 
     this.sharpi = (this.sharpi[operation.name] as any)(...operation.parameters);
