@@ -12,6 +12,7 @@ import { SysPreferenceUI } from '../../../i18n/sys-pref.i18n';
 import { SysPrefService } from '../../../services/api/sys-pref.service';
 
 @Component({
+  standalone: false,
   templateUrl: './settings-sys-pref.component.html',
   styleUrls: ['./settings-sys-pref.component.scss'],
 })

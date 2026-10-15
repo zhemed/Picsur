@@ -2,6 +2,7 @@ import { Directive, TemplateRef, ViewRef } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 
 @Directive({
+  standalone: false,
   selector: 'ng-template[masonry-item]',
 })
 export class MasonryItemDirective {

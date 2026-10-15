@@ -8,6 +8,7 @@ import { Logger } from '../../services/logger/logger.service';
 import { ErrorService } from '../../util/error-manager/error.service';
 
 @Component({
+  standalone: false,
   templateUrl: './processing.component.html',
 })
 export class ProcessingComponent implements OnInit {

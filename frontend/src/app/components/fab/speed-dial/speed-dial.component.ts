@@ -4,6 +4,7 @@ import { OpenManager } from './open-manager';
 import { SpeedDialAnimation } from './speed-dial.animation';
 
 @Component({
+  standalone: false,
   selector: 'speed-dial',
   templateUrl: './speed-dial.component.html',
   animations: [SpeedDialAnimation],

@@ -16,6 +16,7 @@ import { DialogService } from '../../../util/dialog-manager/dialog.service';
 import { ErrorService } from '../../../util/error-manager/error.service';
 
 @Component({
+  standalone: false,
   templateUrl: './settings-roles.component.html',
   styleUrls: ['./settings-roles.component.scss'],
 })

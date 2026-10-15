@@ -16,6 +16,7 @@ import { debounceTime, takeUntil, tap } from 'rxjs/operators';
 const SELECT_ITEM_HEIGHT_EM = 3;
 
 @Directive({
+  standalone: false,
   selector: '[msInfiniteScroll]',
 })
 export class MatSelectInfiniteScrollDirective

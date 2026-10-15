@@ -16,6 +16,7 @@ import { ErrorService } from '../../util/error-manager/error.service';
 import { Throttle } from '../../util/throttle';
 
 @Component({
+  standalone: false,
   selector: 'pref-option',
   templateUrl: './pref-option.component.html',
   styleUrls: ['./pref-option.component.scss'],

@@ -16,6 +16,7 @@ import { ErrorService } from '../../../util/error-manager/error.service';
 import { Throttle } from '../../../util/throttle';
 
 @Component({
+  standalone: false,
   templateUrl: './settings-users.component.html',
   styleUrls: ['./settings-users.component.scss'],
 })

@@ -27,6 +27,7 @@ import {
 } from '../edit-dialog/edit-dialog.component';
 
 @Component({
+  standalone: false,
   selector: 'view-speeddial',
   templateUrl: './view-speeddial.component.html',
   styleUrls: ['./view-speeddial.component.scss'],

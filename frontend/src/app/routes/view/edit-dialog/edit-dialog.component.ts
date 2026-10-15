@@ -13,6 +13,7 @@ export interface EditDialogData {
 }
 
 @Component({
+  standalone: false,
   selector: 'edit-dialog',
   templateUrl: './edit-dialog.component.html',
   styleUrls: ['./edit-dialog.component.scss'],

@@ -16,6 +16,7 @@ enum EditMode {
   add = 'add',
 }
 @Component({
+  standalone: false,
   selector: 'app-settings-roles-edit',
   templateUrl: './settings-roles-edit.component.html',
   styleUrls: ['./settings-roles-edit.component.scss'],

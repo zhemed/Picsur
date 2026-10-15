@@ -8,7 +8,7 @@ import {
   OnDestroy,
   QueryList,
   ViewChildren,
-  ViewContainerRef
+  ViewContainerRef,
 } from '@angular/core';
 import { AutoUnsubscribe } from 'ngx-auto-unsubscribe-decorator';
 import { combineLatest, Subscription } from 'rxjs';
@@ -16,6 +16,7 @@ import { Throttle } from '../../util/throttle';
 import { MasonryItemDirective } from './masonry-item.directive';
 
 @Component({
+  standalone: false,
   selector: 'masonry',
   templateUrl: './masonry.component.html',
   styleUrls: ['./masonry.component.scss'],
@@ -101,9 +102,8 @@ export class MasonryComponent implements AfterViewInit, OnDestroy {
         }
       }
 
-      columnsArray[smallestColumn].insert(item.getViewRef())
-      columnSizes[smallestColumn] +=
-        item.getCurrentSize()?.height ?? 0;
+      columnsArray[smallestColumn].insert(item.getViewRef());
+      columnSizes[smallestColumn] += item.getCurrentSize()?.height ?? 0;
     }
   }
 

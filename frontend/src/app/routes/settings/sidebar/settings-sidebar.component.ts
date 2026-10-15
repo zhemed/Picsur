@@ -5,6 +5,7 @@ import { PRoutes } from '../../../models/dto/picsur-routes.dto';
 import { PermissionService } from '../../../services/api/permission.service';
 
 @Component({
+  standalone: false,
   templateUrl: './settings-sidebar.component.html',
   styleUrls: ['./settings-sidebar.component.scss'],
 })

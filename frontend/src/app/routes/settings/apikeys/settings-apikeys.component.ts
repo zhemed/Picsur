@@ -16,6 +16,7 @@ import { ErrorService } from '../../../util/error-manager/error.service';
 import { Throttle } from '../../../util/throttle';
 
 @Component({
+  standalone: false,
   templateUrl: './settings-apikeys.component.html',
   styleUrls: ['./settings-apikeys.component.scss'],
 })
