@@ -61,7 +61,7 @@ services:
 
       # 在线升级（面板里的「关于与升级」区块）
       # 版本检测默认开启：只读 api.github.com 上的公共 tags，一小时最多一次，不出网任何实例数据。
-      # 面板内「一键升级」——默认开启（配套下面的 docker.sock 挂载）。
+      # 面板内「一键升级」——默认开启（配套下面的 docker.sock 挂载 + group_add）。
       # 关掉它：设 PICSUR_ALLOW_SELF_UPDATE=false 并删掉 socket 挂载；此时页面只显示升级命令。
       # 注意：挂了 socket 等于把宿主 docker 的控制权交给面板，只应在信任所有管理员的机器上开启。
       PICSUR_UPDATE_CHECK: ${PICSUR_UPDATE_CHECK:-true}
@@ -69,6 +69,12 @@ services:
 
       # 不要开：会把 JWT secret / DB 口令明文写进日志
       PICSUR_VERBOSE: 'false'
+    # 常规镜像以 node(uid 1000) 运行（见 Dockerfile 的 USER node），而宿主 docker.sock 属于
+    # root:docker —— 不把 docker 组加进来，面板里的一键升级就用不了 socket（会退化成显示升级命令）。
+    # PICSUR_DOCKER_GID = 宿主 docker.sock 的组 ID：`stat -c %g /var/run/docker.sock`
+    # 默认值 1000 就是容器里 node 自己的组（等于没加，也不会放大权限）；install.sh 会自动探测并写进 override。
+    group_add:
+      - '${PICSUR_DOCKER_GID:-1000}'
     # 面板内一键升级（默认开启）需要它；不想要这个能力就删掉这个挂载并设 PICSUR_ALLOW_SELF_UPDATE=false
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

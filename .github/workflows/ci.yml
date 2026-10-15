@@ -1,0 +1,69 @@
+name: ci
+
+# push / PR 的构建与依赖审计门禁 —— **不构建也不发布镜像**。
+# 镜像发布走 `release-image.yml`（只有 v* tag 或手动选 tag 才推），两者互不干扰。
+#
+# 门禁内容（与本地口径一致，见 AGENTS.md §3/§6）：
+#   1. pnpm install --frozen-lockfile（锁文件必须与 package.json 一致）
+#   2. pnpm build：shared → backend → frontend（Node 20 + pnpm 9.6.0）
+#   3. bash support/audit-prod.sh：后端/共享生产依赖必须 0 告警
+#   4. Lint：等 ② 线的 ESLint 9 flat config 落地后自动变成硬门禁（见最后一步）
+#
+# action 全部锁定 commit SHA（由 Dependabot 每周提 PR 更新）。
+
+on:
+  push:
+    branches: ['**'] # 只跑分支；tag 交给 release-image.yml
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # pnpm 固定 9.6.0（与 packageManager / Dockerfile 一致）
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 9.6.0
+
+      # Node 版本必须 20（`qoi-img`/`bmp-img`/`posix.js` 在 ≥22.16 编不过）；
+      # cache: pnpm 复用 pnpm store，键跟着锁文件走。
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: 工具链版本（写进日志，便于对账）
+        run: |
+          node -v
+          pnpm -v
+
+      - name: 装依赖（锁文件必须是权威）
+        run: pnpm install --frozen-lockfile
+
+      - name: 三包构建（shared → backend → frontend）
+        run: pnpm build
+
+      - name: 依赖审计（后端/共享口径必须 0）
+        run: |
+          python3 -m pip install --user --quiet pyyaml
+          bash support/audit-prod.sh
+
+      # ② 线（backlog/frontend-debt）把 ESLint 9 flat config 落地后，这一步自动生效；
+      # 在那之前跑 `pnpm lint` 只会因为 .eslintrc.cjs 与 ESLint 9 不兼容而报错，所以先跳过。
+      - name: Lint（flat config 落地后才强制）
+        run: |
+          if compgen -G "eslint.config.*" > /dev/null; then
+            pnpm lint
+          else
+            echo "::notice::还没有 ESLint 9 flat config（只有 .eslintrc.cjs），跳过 pnpm lint"
+          fi

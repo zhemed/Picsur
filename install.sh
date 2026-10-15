@@ -234,6 +234,55 @@ COMPOSE_FILE="$DIR/docker-compose.yml"
 USER_OVERRIDE="$DIR/docker-compose.override.yml"
 MANAGED_OVERRIDE="$DIR/docker-compose.override.yml"
 
+# ---- 实例归属检查 --------------------------------------------------------
+# 容器名与卷名都是从 compose 项目名派生的（默认 `picsur` / `picsur_postgres` /
+# `picsur_picsur-data`）。如果这个名字已经被**另一个安装目录**用着，继续跑会：
+#   1) 让 `docker compose up -d` 接管/重建那套容器（项目名与服务标签都匹配）；
+#   2) 复用同一个数据卷 —— 而新生成的 .env 里是**另一个随机 DB 口令**，
+#      卷里已经初始化过口令，结果就是应用连不上库（表现为就绪超时）。
+# 所以开跑前先比对 compose 标签里的 working_dir：不是本目录就直接拦下。
+container_owner_dir() { # $1 = 容器名 → 打印它的 compose working_dir（无则空）
+  docker inspect "$1" --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' 2>/dev/null || true
+}
+
+container_compose_project() { # $1 = 容器名 → compose 项目名（无则空）
+  docker inspect "$1" --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null || true
+}
+
+check_instance_ownership() {
+  local name owner project
+  for name in "$APP_CONTAINER" "$PG_CONTAINER"; do
+    docker inspect "$name" >/dev/null 2>&1 || continue
+    owner="$(container_owner_dir "$name")"
+    project="$(container_compose_project "$name")"
+    if [ -z "$owner" ] && [ -z "$project" ]; then
+      die "同名容器 $name 已存在，但它不是 compose 创建的（没有 compose 标签），本脚本无法确认归属。" \
+          "先处理它：docker rm -f $name；或换实例名：PICSUR_PROJECT_NAME=<别的名字> bash install.sh --port <别的端口>"
+    fi
+    if [ -n "$owner" ] && [ "$owner" != "$DIR" ]; then
+      die "实例名冲突：容器 $name 属于另一个安装目录（$owner），不是当前目录（$DIR）。" \
+          "继续跑会接管那套容器并共用数据卷，所以这里直接停下。换实例名重跑：PICSUR_PROJECT_NAME=<别的名字> bash install.sh --dir $DIR --port <别的端口>"
+    fi
+    if [ -n "$owner" ]; then
+      info "检测到本目录已有的实例容器 $name（$owner），按升级流程继续。"
+    fi
+  done
+
+  # 卷只能看到 compose 项目名（compose 不给卷写 working_dir）：
+  # 单独存在一个同名卷时，多半是别的目录 down 过但没 -v —— 新 .env 的随机 DB 口令和卷里的对不上。
+  local vol="${PROJECT}_picsur-data" vol_project
+  if docker volume inspect "$vol" >/dev/null 2>&1; then
+    vol_project="$(docker volume inspect "$vol" --format '{{index .Labels "com.docker.compose.project"}}' 2>/dev/null || true)"
+    if [ ! -f "$ENV_FILE" ] && [ -n "$vol_project" ] && [ "$vol_project" = "$PROJECT" ]; then
+      warn "发现已存在的数据卷 $vol（compose 项目 $vol_project），但本目录没有 .env："
+      warn "  它是别处留下的卷的话，本次新生成的随机 DB 口令与卷里已初始化的口令不一致，应用会连不上库。"
+      warn "  确认要复用它：先恢复原来的 .env 或手动对齐 PICSUR_DB_PASSWORD；不想要：docker volume rm $vol"
+    fi
+  fi
+}
+
+check_instance_ownership
+
 gen_random() {
   local n="${1:-32}" s=""
   if command -v openssl >/dev/null 2>&1; then
@@ -475,18 +524,35 @@ else
 fi
 
 write_managed_override() {
-  local target="$1" tmp="$DIR/.override.tmp.$$"
-  cat >"$tmp" <<'YAML'
-# 由 picsur install.sh 生成/管理：只覆盖对外端口与容器名，其余沿用 docker-compose.yml
+  local target="$1" tmp="$DIR/.override.tmp.$$" socket_gid=""
+  # 常规镜像以 node(uid 1000) 运行，而宿主 docker.sock 属于 root:docker —— 不把 docker 组
+  # 加进容器，面板里的一键升级就用不了 socket（只会退化成显示升级命令）。这里探测 GID 写进
+  # 受管 override。socket 不存在（或不是 docker 安装）时就不加这一段。
+  if [ -S /var/run/docker.sock ]; then
+    socket_gid="$(stat -c '%g' /var/run/docker.sock 2>/dev/null || true)"
+  fi
+  {
+    cat <<'YAML'
+# 由 picsur install.sh 生成/管理：只覆盖对外端口、容器名与 docker.sock 组，其余沿用 docker-compose.yml
 # （上游 compose 把 8080:8080 与 container_name 写死了，这里用 !override 替换而不是追加）
 services:
   picsur:
     container_name: ${PICSUR_PROJECT_NAME:-picsur}
     ports: !override
       - "${PICSUR_PORT:-8080}:8080"
+YAML
+    if [ -n "$socket_gid" ]; then
+      cat <<YAML
+    # 让容器内的 node 用户能访问挂进来的 /var/run/docker.sock（宿主 docker 组的 GID）
+    group_add:
+      - "${socket_gid}"
+YAML
+    fi
+    cat <<'YAML'
   picsur_postgres:
     container_name: ${PICSUR_PROJECT_NAME:-picsur}_postgres
 YAML
+  } >"$tmp"
   mv -f -- "$tmp" "$target" || die "写入覆盖文件失败：$target"
 }
 

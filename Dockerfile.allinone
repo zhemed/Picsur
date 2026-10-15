@@ -29,7 +29,16 @@ LABEL org.opencontainers.image.title="picsur-all-in-one" \
 #   * contrib 不是可选项：主键 uuid 需要 `CREATE EXTENSION "uuid-ossp"`（typeorm 启动时自动建），
 #     官方 postgres:17-alpine 自带 contrib，我们也必须带上，否则首次迁移直接失败。
 #   * tini = PID 1（收尸 + 转发信号）；su-exec = 以 postgres 用户启动数据库。
-RUN apk add --no-cache postgresql17 postgresql17-client postgresql17-contrib tini su-exec \
+#   * 版本锁死（审计 C-M5）：Alpine 一发新的 -rN，这里要跟着 bump，否则构建会失败；
+#     更新方式：`bash support/apk-versions.sh`（会打印各阶段应锁的版本）。
+#
+# 为什么这个镜像**保持 root**（常规镜像已改成 USER node，见 Dockerfile）：
+#   1. initdb / chown /data 必须以 root 做（数据库进程本身用 `su-exec postgres` 降权，见入口脚本）；
+#   2. 面板内「一键升级」要访问宿主 docker.sock（宿主属 root:docker、GID 因机器而异），
+#      容器内再降权就没有权限用这个能力了 —— 这是该镜像的产品语义（单机自用、一条 docker run）。
+#   代价：这个容器里的应用进程是 root。只应部署在完全信任管理员、且不需要多副本的机器上。
+RUN apk add --no-cache postgresql17=17.11-r0 postgresql17-client=17.11-r0 \
+    postgresql17-contrib=17.11-r0 tini=0.19.0-r3 su-exec=0.3-r0 \
     && mkdir -p /data /run/postgresql \
     && chown postgres:postgres /run/postgresql
 
