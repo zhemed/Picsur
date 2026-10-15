@@ -23,7 +23,7 @@
 # 依赖：`pnpm`、`python3`（+ PyYAML）。默认 registry 是官方源（本机默认源没有
 # audit 端点），可用 PICSUR_AUDIT_REGISTRY 覆盖。
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 
 REGISTRY="${PICSUR_AUDIT_REGISTRY:-https://registry.npmjs.org/}"
 TMP="$(mktemp)"

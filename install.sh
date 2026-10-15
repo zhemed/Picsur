@@ -124,7 +124,8 @@ while [ $# -gt 0 ]; do
     --accept-new-privileges) ACCEPT_NEW_PRIVILEGES=1; continue ;;
     --dir|--port|--version|--admin-password)
       [ $# -gt 0 ] || die_arg "选项 $arg 缺少参数值"
-      val="$1"; shift ;;
+      val="$1"; shift
+      [ -n "$val" ] || die_arg "选项 $arg 缺少参数值（空值不被接受）" ;;
     --dir=*|--port=*|--version=*|--admin-password=*)
       val="${arg#*=}"
       [ -n "$val" ] || die_arg "选项 ${arg%%=*} 缺少参数值" ;;
