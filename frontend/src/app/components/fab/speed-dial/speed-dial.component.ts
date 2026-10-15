@@ -1,4 +1,4 @@
-import { Component, HostListener, Input, Output } from '@angular/core';
+import { Component, Input, Output } from '@angular/core';
 import { Subject } from 'rxjs';
 import { OpenManager } from './open-manager';
 import { SpeedDialAnimation } from './speed-dial.animation';
@@ -8,6 +8,14 @@ import { SpeedDialAnimation } from './speed-dial.animation';
   selector: 'speed-dial',
   templateUrl: './speed-dial.component.html',
   animations: [SpeedDialAnimation],
+  // Angular 21 no longer accepts stacked @HostListener decorators, so the
+  // global listeners live in the host metadata.
+  host: {
+    '(document:touchstart)': 'touchEvent($event)',
+    '(document:touchend)': 'touchEvent($event)',
+    '(document:click)': 'anyClick()',
+    '(document:keydown.escape)': 'anyClick()',
+  },
 })
 export class SpeedDialComponent {
   @Input('aria-label') ariaLabel = 'Floating Action Button';
@@ -24,8 +32,6 @@ export class SpeedDialComponent {
 
   private touchUntil = 0;
 
-  @HostListener('document:touchstart', ['$event'])
-  @HostListener('document:touchend', ['$event'])
   touchEvent(e: TouchEvent) {
     if (e.type === 'touchstart') {
       this.touchUntil = Infinity;
@@ -34,8 +40,6 @@ export class SpeedDialComponent {
     }
   }
 
-  @HostListener('document:click', ['$event'])
-  @HostListener('document:keydown.escape', ['$event'])
   anyClick() {
     if (!this.openManager.isOpen || this.openManager.isAnimating) return;
 
