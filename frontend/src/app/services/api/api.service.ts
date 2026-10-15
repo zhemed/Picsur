@@ -61,6 +61,24 @@ function CreateFailedRunningRequest<R>(failure: Failure) {
   } as RunningRequest<R>;
 }
 
+/**
+ * Failures are answered as `{success:false, data:{type, message}}`, where the
+ * type is one of the `FT` values (and the HTTP status is 4xx/5xx). Mapping it
+ * back keeps the reason available to the caller: without it a rejected login
+ * would look like a broken connection instead of bad credentials.
+ */
+function FailureFromEnvelope(type: string, message: string): Failure {
+  const failureType = Object.values(FT).includes(type as FT)
+    ? (type as FT)
+    : FT.Unknown;
+
+  return Fail(failureType, message);
+}
+
+function IsOkStatus(status: number): boolean {
+  return status >= 200 && status < 300;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -140,35 +158,42 @@ export class ApiService {
     const resultSchema = ApiResponseSchema(type.zodSchema as z.AnyZodObject);
     type resultType = z.infer<typeof resultSchema>;
 
-    const result = this.fetchJsonAs<resultType>(url, options);
-
-    return MapRunningRequest(result, async (r) => {
-      const validateResult = resultSchema.safeParse(r);
-      if (!validateResult.success) {
-        return Fail(
-          FT.SysValidation,
-          'api.somethingWentWrong',
-          validateResult.error,
-        );
-      }
-
-      if (validateResult.data.success === false)
-        return Fail(FT.Unknown, r.data.message);
-
-      return validateResult.data.data;
-    });
-  }
-
-  private fetchJsonAs<T>(
-    url: string,
-    options: AxiosRequestConfig,
-  ): RunningRequest<T> {
     const response = this.fetch(url, {
       ...options,
       responseType: 'json',
     });
 
-    return MapRunningRequest(response, async (r) => r.data);
+    return MapRunningRequest(response, async (r) => {
+      const body = r.data as resultType | undefined;
+      const validateResult = resultSchema.safeParse(body);
+      if (!validateResult.success) {
+        // An unparseable body means we never reached the API (proxy error
+        // page, truncated answer). A body that *is* an envelope but does not
+        // match the expected data is a contract problem instead.
+        const isEnvelope =
+          typeof body === 'object' && body !== null && 'success' in body;
+        return isEnvelope
+          ? Fail(
+              FT.SysValidation,
+              'api.somethingWentWrong',
+              validateResult.error,
+            )
+          : Fail(
+              FT.Network,
+              'api.nonOkResponse',
+              `status ${r.status}: ${String(validateResult.error)}`,
+            );
+      }
+
+      if (validateResult.data.success === false) {
+        return FailureFromEnvelope(
+          validateResult.data.data.type,
+          validateResult.data.data.message,
+        );
+      }
+
+      return validateResult.data.data;
+    });
   }
 
   private fetchBuffer(
@@ -181,6 +206,9 @@ export class ApiService {
     });
 
     return MapRunningRequest(response, async (r) => {
+      if (!IsOkStatus(r.status))
+        return Fail(FT.Network, 'api.nonOkResponse', r.status);
+
       // Axios normalises header names to lowercase, but be defensive about it:
       // without the mime type the downloaded file has no extension, and the
       // SVG/SVG download path depends on this lookup.
@@ -218,6 +246,9 @@ export class ApiService {
     const response = this.fetch(url, options);
 
     return MapRunningRequest(response, async (r) => {
+      if (!IsOkStatus(r.status))
+        return Fail(FT.Network, 'api.nonOkResponse', r.status);
+
       return r.headers as AxiosResponseHeaders;
     });
   }
@@ -243,6 +274,11 @@ export class ApiService {
       try {
         const result = await axios.request({
           url,
+          // Failures are answered with a JSON body that carries the reason
+          // (401 for a wrong password, 403, 404, ...). Letting axios throw on
+          // those would turn every one of them into "network error" and throw
+          // the reason away - the consumers below decide what a status means.
+          validateStatus: () => true,
           onDownloadProgress: (e) => {
             downloadProgress.next((e.loaded / (e.total ?? 1000000)) * 100);
           },
@@ -256,9 +292,6 @@ export class ApiService {
         uploadProgress.complete();
         downloadProgress.complete();
 
-        if (result.status < 200 || result.status >= 300) {
-          return Fail(FT.Network, 'api.nonOkResponse');
-        }
         return result;
       } catch (e) {
         return Fail(FT.Network, e);

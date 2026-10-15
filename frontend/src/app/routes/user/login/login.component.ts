@@ -4,7 +4,7 @@ import { I18nService } from '../../../i18n/i18n.service';
 
 import { AutoUnsubscribe } from 'ngx-auto-unsubscribe-decorator';
 import { Permission } from 'picsur-shared/dist/dto/permissions.enum';
-import { HasFailed } from 'picsur-shared/dist/types/failable';
+import { HasFailed, FT } from 'picsur-shared/dist/types/failable';
 import { LoginControl } from '../../../models/forms/login.control';
 import { PermissionService } from '../../../services/api/permission.service';
 import { UserPassModel } from '../../../models/forms-dto/userpass.dto';
@@ -59,8 +59,17 @@ export class LoginComponent implements OnInit {
     const user = await this.userService.login(data.username, data.password);
     this.loading = false;
 
-    if (HasFailed(user))
+    if (HasFailed(user)) {
+      // The server answers a rejected login with a 401 envelope, but the
+      // reason it sends is not translated. Keep the wording of the form.
+      if (user.getType() === FT.Authentication)
+        return this.errorService.warn(
+          this.i18n.instant('auth.invalidUsernameOrPassword'),
+          this.logger,
+        );
+
       return this.errorService.showFailure(user, this.logger);
+    }
 
     this.errorService.success(this.i18n.instant('auth.loginSuccess'));
     this.router.navigate(['/']);

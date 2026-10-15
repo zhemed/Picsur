@@ -19,7 +19,7 @@
   "orientation": "portrait",
   "display": "standalone",
   "dir": "auto",
-  "lang": "en-US",
+  "lang": "zh-CN",
   "name": "Picsur",
   "short_name": "Picsur",
   "description": "An easy to use, selfhostable image sharing service"

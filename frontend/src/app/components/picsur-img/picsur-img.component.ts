@@ -5,7 +5,8 @@ import {
   ElementRef,
   Input,
   OnChanges,
-  ViewChild
+  OnDestroy,
+  ViewChild,
 } from '@angular/core';
 import { FileType, ImageFileType } from 'picsur-shared/dist/dto/mimes.dto';
 import { AsyncFailable, HasFailed } from 'picsur-shared/dist/types/failable';
@@ -29,8 +30,15 @@ enum PicsurImgState {
   styleUrls: ['./picsur-img.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PicsurImgComponent implements OnChanges {
+export class PicsurImgComponent implements OnChanges, OnDestroy {
   private readonly logger = new Logger(PicsurImgComponent.name);
+
+  /**
+   * Blob URL of the image that is currently displayed. It has to be revoked
+   * by hand, otherwise every loaded image stays in memory until the page is
+   * unloaded.
+   */
+  private objectURL: string | null = null;
 
   @ViewChild('targetcanvas') private canvas: ElementRef<HTMLCanvasElement>;
   @ViewChild('targetimg') private img: ElementRef<HTMLImageElement>;
@@ -51,6 +59,10 @@ export class PicsurImgComponent implements OnChanges {
     if (this.isInView) this.reload();
   }
 
+  ngOnDestroy(): void {
+    this.releaseObjectURL();
+  }
+
   private reload() {
     const url = this.imageURL ?? '';
     if (!URLRegex.test(url)) {
@@ -62,6 +74,7 @@ export class PicsurImgComponent implements OnChanges {
     this.update(url)
       .then((result) => {
         if (HasFailed(result)) {
+          this.releaseObjectURL();
           this.state = PicsurImgState.Error;
           this.logger.error(result.getReason());
           this.changeDetector.markForCheck();
@@ -78,6 +91,8 @@ export class PicsurImgComponent implements OnChanges {
       const result = await this.qoiWorker.decode(url);
       if (HasFailed(result)) return result;
 
+      this.releaseObjectURL();
+
       const canvas = this.canvas.nativeElement;
       canvas.height = result.height;
       canvas.width = result.width;
@@ -91,11 +106,23 @@ export class PicsurImgComponent implements OnChanges {
       const img = this.img.nativeElement;
 
       const blob = new Blob([result.buffer]);
-      img.src = URL.createObjectURL(blob);
+      const previousObjectURL = this.objectURL;
+      this.objectURL = URL.createObjectURL(blob);
+      img.src = this.objectURL;
+
+      // Only revoke the old URL once the browser switched to the new one.
+      if (previousObjectURL !== null) URL.revokeObjectURL(previousObjectURL);
 
       this.state = PicsurImgState.Image;
     }
     this.changeDetector.markForCheck();
+  }
+
+  private releaseObjectURL(): void {
+    if (this.objectURL === null) return;
+
+    URL.revokeObjectURL(this.objectURL);
+    this.objectURL = null;
   }
 
   private async getFileType(url: string): AsyncFailable<FileType> {
