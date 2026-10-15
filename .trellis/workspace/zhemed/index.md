@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 20
+- **Total Sessions**: 21
 - **Last Active**: 2026-10-15
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~461 | Active |
+| `journal-1.md` | ~484 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 21 | 2026-10-15 | 清空审计遗留待办（四流）→ 0.8.0 | `3863bb8` | `master` |
 | 20 | 2026-10-15 | 全项目审计（四线）+ 修复（四流）+ 质检 → 0.7.9 | `5535f56` | `master` |
 | 19 | 2026-10-15 | 调查 Komari 免 socket 升级机制；决定保持应用持 socket | - | `master` |
 | 18 | 2026-10-13 | 修正部署文档：手动升级必须先 pull | `5bf0b0f` | `master` |

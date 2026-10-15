@@ -51,3 +51,9 @@
 **已推送历史里的测试主机名**：改写历史需要 `git filter-repo` + force push，会重写全部提交哈希、
 让现有 clone/PR 失效，且已分发出去的 clone 无从追回。用户决定：**不改，记为"已知且不处理"**，
 不再重复讨论。当前工作树已脱敏；本次审计亦确认跟踪文件与工作树无口令/密钥/私钥。
+
+## 集成备忘（Lead 2026-10-15）
+
+合并动了 lockfile 的分支后，**构建前先跑一次** `corepack pnpm install --frozen-lockfile`
+（本地 store 命中时约 2 秒）——本次 0.8.0 集成时正因主工作区 node_modules 陈旧（dropzone 18.1.1 vs lockfile 21.1.0）
+误报 NG2011，实际源码无问题。

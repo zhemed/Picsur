@@ -459,3 +459,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 21: 清空审计遗留待办（四流）→ 0.8.0
+<!-- trellis-session: v=2 fp=c0a9457c79a0573c -->
+
+**Date**: 2026-10-15
+**Task**: 清空审计遗留待办（四流）→ 0.8.0
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户：『把剩下的代办交给团队也解决了吧』+『直接适配到最新的，别再拿最低版本测试了』。四流：① Angular 追最新——团队判定 Angular 22 需 Node≥22.22.3 与 Node 20 构建契约冲突，故用 21.2.25 并做到浏览器侧告警 59→0；根 overrides TS ~5.5.4→~5.9.3 后三包同版本构建通过；手工等价迁移 4 项（@HostListener 堆叠→host 元数据、workspace 外 assets→构建前 sync:branding、TypedArray 泛型、axios header 类型）。② ESLint 9 flat config 迁移让 pnpm lint 复活（0 error/10 warning）+ InfoService 永不 resolve 根因改成必定 settle（探针 8/8 + 浏览器 E2E）。③ CI push/PR 门禁、镜像非 root（连带发现非 root 连不上 docker.sock→group_add GID 方案，34/34 回归）、install.sh 双实例互踩守卫、Dockerfile 可复现性（digest/apk/sha256/工具版本/actions SHA/dependabot）、仓库卫生（2.8MB dump 出库、sharex 注释清理）。④ 后端低危 5 条全清（SVG 带参错误语义、主格式不复制字节、错误不缓存 30 天、日志 2178→329 字符、错字）。Lead 质检：逐线抽查越界/关键词（③ 三条存疑项查清：apk 实际 13 行锁定、dump 确已出库只剩 310B 摘要、sharex 残留是说明性注释无域名），四条合并无冲突；集成时前端构建报 NG2011，查明是我主工作区 node_modules 陈旧（非代码问题），install --frozen-lockfile 后三包全绿；发 0.8.0。教训：合并动 lockfile 的分支后必须先 install 再构建。未做：Angular 22（需整体升 Node）、@ng-web-apis v5、animations/platform-browser-dynamic 弃用迁移、prettier 规则开启（255 条/59 文件，单开一轮）、历史 dump 缩减。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3863bb8` | chore(release): 0.8.0 |
+
+### Status
+
+[OK] **Completed**
