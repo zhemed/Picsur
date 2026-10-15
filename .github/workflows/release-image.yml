@@ -55,7 +55,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
 
       - id: build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ./Dockerfile
@@ -68,7 +68,7 @@ jobs:
       # all-in-one 变体（内嵌 PostgreSQL 17）：只在发布时构建，基底直接用刚构建出来的那个镜像的
       # digest（不用 :latest —— 避免基底被上一次发布或别的跑动串掉）
       - if: github.ref_type == 'tag'
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ./Dockerfile.allinone
