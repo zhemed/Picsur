@@ -45,6 +45,9 @@ bash support/release-local.sh --dry-run
   （面板比较的是版本号，重推同版本对已部署的实例不可见）。
 - 发布前自检：`bash support/audit-prod.sh`（后端/共享口径必须 0；浏览器侧应无 critical/high）、
   `bash support/regression-image-api.sh <base-url> <admin-password>`（34 项接口/格式回归）。
+  回归**夹具自给**：缺 `base.{png,jpg,webp,avif,jxl,jp2,heif,qoi}` / `big-900mp.png` 时脚本
+  自动生成（本地 sharp 编不出 JXL/JP2 就换带完整 libvips 的容器，
+  `PICSUR_FIXTURE_IMAGE`，默认 `ghcr.io/zhemed/picsur:allinone`）；docker 不可用会直接报错退出。
 - 发布后：按第 5 节用真实实例点一次面板升级验收。
 
 ## 4. 构建与依赖
@@ -56,7 +59,10 @@ bash support/release-local.sh --dry-run
 
 ## 5. 验收清单（每次发布后跑一遍）
 
-1. `bash support/regression-image-api.sh <新实例> <管理员口令>` → 34/34；
+1. 接口/格式回归（一条命令，夹具自动就位）：
+   ```bash
+   bash support/regression-image-api.sh <新实例> <管理员口令>   # → RESULT: 34 passed, 0 failed
+   ```
 2. 打开面板「关于」页：显示当前/最新版本、**不是**「正在检查更新…」或「未启用」；
 3. 若这次含自升级相关改动：在测试实例点一次「立即升级」，确认进度显示、成功自动刷新；
 4. 数据抽查：升级前后图片数量一致、任取一张图 `/i/<id>.png` 返回 200。
