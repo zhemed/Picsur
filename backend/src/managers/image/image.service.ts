@@ -143,6 +143,7 @@ export class ImageManagerService {
       userid,
       name,
       fileType.identifier,
+      processResult,
       withDeleteKey,
     );
     if (HasFailed(imageEntity)) return imageEntity;

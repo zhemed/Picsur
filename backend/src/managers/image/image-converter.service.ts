@@ -156,6 +156,10 @@ export class ImageConverterService {
     return {
       image: result.data,
       filetype: targetFiletype.identifier,
+      // The worker already reports the output size, so the caller can store the
+      // dimensions of what it just produced without decoding anything again.
+      width: result.info.width,
+      height: result.info.height,
     };
   }
 

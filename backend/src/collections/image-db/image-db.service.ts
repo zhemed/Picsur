@@ -22,6 +22,7 @@ export class ImageDBService {
     userid: string,
     filename: string,
     sourceFiletype: string,
+    dimensions: { width?: number; height?: number },
     withDeleteKey: boolean,
   ): AsyncFailable<EImageBackend> {
     let imageEntity = new EImageBackend();
@@ -29,6 +30,9 @@ export class ImageDBService {
     imageEntity.created = new Date();
     imageEntity.file_name = filename;
     imageEntity.source_filetype = sourceFiletype;
+    // Unknown for formats we store without decoding (SVG) - stays null.
+    imageEntity.width = dimensions.width ?? null;
+    imageEntity.height = dimensions.height ?? null;
     if (withDeleteKey) imageEntity.delete_key = generateRandomString(32);
 
     try {
