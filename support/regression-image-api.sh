@@ -41,19 +41,20 @@ done
 # 实例默认每 IP 60 请求/分钟（PicsurLayers 的全局 throttler）。本套件约 50 个请求，
 # 单次跑没问题，但**紧接着跑第二次**会撞上限流，然后 26 项全变 FAIL —— 那是限流
 # 不是回归。下面把 curl 包一层：看到 429 就等一会儿重试，得到的是确定性结论。
+# 一次 429 说明窗口还没转过来，等它自己重置（60s 窗口），最多等 ~72s。
 sleep_warned=0
 curl() {
   local attempt out
-  for attempt in 1 2 3 4; do
+  for attempt in $(seq 1 13); do
     out=$(command curl "$@")
     case "$out" in
       429 | *'"statusCode":429'* | *'HTTP/1.1 429'*)
-        if [ "$attempt" -lt 4 ]; then
+        if [ "$attempt" -lt 13 ]; then
           if [ "$sleep_warned" -eq 0 ]; then
-            echo "  (instance rate limited us, waiting for the window to reset…)" >&2
+            echo "  (instance rate limited this IP; honouring the 60s window — the run takes a bit longer)" >&2
             sleep_warned=1
           fi
-          sleep 5
+          sleep 6
           continue
           fi
         ;;
@@ -97,12 +98,12 @@ fi
 # 限流窗口可能被上一次运行占满：先探一次，必要时等窗口重置（最多 ~60s），
 # 免得登录/前几项直接被 429 打死。
 PROBE_WAITED=0
-for _ in $(seq 1 15); do
+for _ in $(seq 1 17); do
   CODE=$(command curl -s -o /dev/null -w '%{http_code}' "$BASE/api/info")
   [ "$CODE" != "429" ] && break
-  [ "$PROBE_WAITED" -eq 0 ] && echo "  instance is rate limiting this IP, waiting for the window…"
+  [ "$PROBE_WAITED" -eq 0 ] && echo "  instance is rate limiting this IP, waiting for the 60s window to reset…"
   PROBE_WAITED=1
-  sleep 5
+  sleep 6
 done
 
 TOKEN=$(curl -s -X POST "$BASE/api/user/login" -H 'Content-Type: application/json' \
