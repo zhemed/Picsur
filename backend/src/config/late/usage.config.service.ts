@@ -44,10 +44,8 @@ export class UsageConfigService {
     return trackingID;
   }
 
-  async getMetricsEnabled(): AsyncFailable<boolean> {
-    return this.sysPref.getBooleanPreference(SysPreference.EnableTelemetry);
-  }
-
+  // 上报总开关已随之删除（enable_telemetry 是个没有端点的死设置）：
+  // 现在唯一的口径是 ReportUrl 是否为空，见 usage.service.ts。
   async getMetricsInterval(): Promise<number> {
     return ReportInterval;
   }

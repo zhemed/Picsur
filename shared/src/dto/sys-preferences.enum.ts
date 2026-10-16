@@ -19,15 +19,38 @@ export enum SysPreference {
   ConversionTimeLimit = 'conversion_time_limit',
   ConversionMemoryLimit = 'conversion_memory_limit',
 
-  EnableTracking = 'enable_tracking',
   TrackingUrl = 'tracking_url',
   TrackingId = 'tracking_id',
-
-  EnableTelemetry = 'enable_telemetry',
 }
 
 export type SysPreferences = SysPreference[];
 export const SysPreferenceList: string[] = Object.values(SysPreference);
+
+/**
+ * The preferences the panel exposes for editing.
+ *
+ * Everything else in the enum is fixed: it is either managed by environment
+ * variables or read only once at startup, so an input box for it would lie
+ * about taking effect - and `jwt_secret` would be echoed back as plain text.
+ * Those keys keep existing (and keep their default in
+ * `PreferenceDefaultsService`), they simply can not be read or written over
+ * the API any more.
+ *
+ * Keep this list in sync with `frontend/src/app/i18n/sys-pref.i18n.ts`.
+ */
+export const SysPreferenceExposedList: SysPreference[] = [
+  SysPreference.HostOverride,
+
+  SysPreference.RemoveDerivativesAfter,
+  SysPreference.AllowEditing,
+
+  SysPreference.TrackingUrl,
+  SysPreference.TrackingId,
+];
+
+export function isSysPreferenceExposed(key: string): boolean {
+  return SysPreferenceExposedList.includes(key as SysPreference);
+}
 
 // Syspref Value types
 export const SysPreferenceValueTypes: {
@@ -45,11 +68,8 @@ export const SysPreferenceValueTypes: {
   [SysPreference.ConversionTimeLimit]: 'string',
   [SysPreference.ConversionMemoryLimit]: 'number',
 
-  [SysPreference.EnableTracking]: 'boolean',
   [SysPreference.TrackingUrl]: 'string',
   [SysPreference.TrackingId]: 'string',
-
-  [SysPreference.EnableTelemetry]: 'boolean',
 };
 
 export const SysPreferenceValidators: {
@@ -67,9 +87,6 @@ export const SysPreferenceValidators: {
   [SysPreference.ConversionTimeLimit]: IsValidMS(),
   [SysPreference.ConversionMemoryLimit]: IsPosInt(),
 
-  [SysPreference.EnableTracking]: z.boolean(),
   [SysPreference.TrackingUrl]: z.string().regex(URLRegex).or(z.literal('')),
   [SysPreference.TrackingId]: IsEntityID().or(z.literal('')),
-
-  [SysPreference.EnableTelemetry]: z.boolean(),
 };

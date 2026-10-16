@@ -47,11 +47,8 @@ export class PreferenceDefaultsService {
     [SysPreference.ConversionTimeLimit]: '15s',
     [SysPreference.ConversionMemoryLimit]: 512,
 
-    [SysPreference.EnableTracking]: false,
     [SysPreference.TrackingUrl]: '',
     [SysPreference.TrackingId]: '',
-
-    [SysPreference.EnableTelemetry]: true,
   };
 
   public getSysDefault(pref: SysPreference): PrefValueType {

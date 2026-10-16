@@ -22,10 +22,6 @@ export class UsageManagerModule implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    if (!(await this.usageConfigService.getMetricsEnabled())) {
-      this.logger.log('Telemetry is disabled');
-    }
-
     const interval = setInterval(
       this.cronJob.bind(this),
       await this.usageConfigService.getMetricsInterval(),

@@ -96,6 +96,20 @@ if (!(await this.usageConfig.getMetricsUrl())) return; // ② 端点为空 → �
 
 ---
 
+### 3.1 系统偏好只暴露真正需要在线改的项（2026-10-16 定调）
+
+判据只有一条：**这项偏好的改动能不能立刻生效、且出错不会把实例弄坏？** 不能的就不给入口。
+
+- 面板里只列 `SysPreferenceExposedList`（`shared/src/dto/sys-preferences.enum.ts`）里的 5 项：
+  `host_override` / `remove_derivatives_after` / `allow_editing` / `tracking_url` / `tracking_id`；
+- 只在启动时读一次的（`jwt_secret`、`jwt_expires_in`）、排障专用且改坏就全站挂的
+  （`conversion_time_limit`、`conversion_memory_limit`）、以及"强度无上限会自锁"的
+  `bcrypt_strength`，一律保留默认值但**不给 UI**：`GET/POST /api/pref/sys/:key` 对它们返回 400
+  （`getExposedPreferences()` / `setExposedPreference()` 的守门逻辑），前端 i18n 也不留词条；
+- `jwt_secret` 曾经在设置页明文回显 ✗ —— 现在既不在列表里，也不允许单读；
+- 死设置（`enable_tracking` 无人读取、`enable_telemetry` 端点为空）直接从枚举/默认值/校验器删掉，
+  不要留着当"隐私开关"的错觉；旧库里的残留行不会被读取，可日后单独清。
+
 ## 4. Validation & Error Matrix
 
 | 条件                                                 | 结果                                                                                                                       |
@@ -339,10 +353,12 @@ SVG 与其它格式不同：**按原始向量存为 master，绝不交给 sharp 
 ### 轮换步骤（实测可用）
 
 ```bash
-# 1) 换 JWT secret：改数据库首选项（用当前有效的 token）
-curl -X POST localhost:8080/api/pref/sys/jwt_secret \
-  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-  -d "{\"value\":\"$(openssl rand -hex 32)\"}"
+# 1) 换 JWT secret：面板里已经改不了它（'jwt_secret' 属固定项，API 会返回 400）。
+#    两条可用路径：
+#    a) 设 PICSUR_JWT_SECRET 并重启 —— LateConfigModule 在启动时用它覆盖首选项；
+#    b) 直接改库（改完要重启才生效）：
+docker exec -i <db 容器> psql -U picsur -d <库> \
+  -c "UPDATE e_sys_preference_backend SET value='$(openssl rand -hex 32)' WHERE key='jwt_secret'"
 
 # 2) 换 admin 口令：走接口（需要 admin 的 user id 与当前 token）
 curl -X POST localhost:8080/api/user/update -H "Authorization: Bearer $TOKEN" \

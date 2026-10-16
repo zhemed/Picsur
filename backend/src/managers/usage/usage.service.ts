@@ -43,10 +43,7 @@ export class UsageService {
   ) {}
 
   public async execute() {
-    if (!(await this.usageConfig.getMetricsEnabled())) return;
-
-    // 没有配置上报端点就直接跳过：这是代码层的兜底，
-    // 避免「换了数据库/重新部署后 enable_telemetry 回到默认 true」又开始悄悄出网。
+    // 没有配置上报端点就直接跳过：本仓库的上报端点为空，所以永远不会出网。
     if (!(await this.usageConfig.getMetricsUrl())) return;
 
     const id = await this.getSystemID();
