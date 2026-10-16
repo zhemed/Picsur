@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 26
+- **Total Sessions**: 27
 - **Last Active**: 2026-10-16
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~599 | Active |
+| `journal-1.md` | ~622 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 27 | 2026-10-16 | 收尾：CI 恢复绿 + 清理已合并 worktree 与完成任务 | `c642d8e` | `master` |
 | 26 | 2026-10-16 | 精简轮收口：0.9.0 + 去角色化设计定稿（暂缓实施） | `1e0bbaa` | `master` |
 | 25 | 2026-10-16 | support/ 精简收尾（删 4 个一次性脚本） | `db04c3b` | `master` |
 | 24 | 2026-10-16 | 仓库大面积精简：单部署路径 + 单发布路径 + 手册重写 | `6fc28d9` | `master` |

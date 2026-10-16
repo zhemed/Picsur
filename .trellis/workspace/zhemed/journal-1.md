@@ -597,3 +597,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 27: 收尾：CI 恢复绿 + 清理已合并 worktree 与完成任务
+<!-- trellis-session: v=2 fp=c5ebc9264d8b7862 -->
+
+**Date**: 2026-10-16
+**Task**: 收尾：CI 恢复绿 + 清理已合并 worktree 与完成任务
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+CI 连红 5 次的根因＝lint 步骤的条件魔法（配置落地后从跳过变硬门禁）+ support/*.cjs 在 flat config 下缺 Node/浏览器 globals（53 errors）；修法＝显式两套 globals（no-undef 仍 error、不排除目录、不吞退出码）+ lint 无条件化 + spec 增 CI 门禁矩阵；master 与分支 run 均 success。用户批准清理：移除 6 个已合并 worktree（ci-fix/derolify/gallery-dims/hint/slim-features/fix-nonroot），归档 4 个已完成任务（ci-green/derolify-impl/revert-verify-fix/update-check-fix）；gallery-layout 暂留待 prs-stream 的探针断言项；历史分支与 experiments/rust 全部保留。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c642d8e` | merge: fix/ci-green [task:10-16-ci-green] |
+
+### Status
+
+[OK] **Completed**
