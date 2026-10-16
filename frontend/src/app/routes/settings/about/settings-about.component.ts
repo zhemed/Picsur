@@ -16,6 +16,7 @@ import { InfoService } from '../../../services/api/info.service';
 import { SystemUpdateService } from '../../../services/api/system-update.service';
 import { Logger } from '../../../services/logger/logger.service';
 import { ErrorService } from '../../../util/error-manager/error.service';
+import { reloadFresh } from '../../../util/reload-fresh';
 
 /**
  * What the panel is currently doing, derived from what we can actually observe:
@@ -192,28 +193,6 @@ export class SettingsAboutComponent implements AfterViewInit, OnDestroy {
         // version the instance was rolled back to and offers a retry.
         return null;
     }
-  }
-
-  /**
-   * Reload onto the freshly started container.
-   *
-   * A plain `reload()` may be answered from the browser cache, which after an
-   * upgrade means the *old* bundle keeps running against the new server — the
-   * compatibility guard then pops its "server not compatible" dialog on a page
-   * that is otherwise fine. The extra parameter makes the document request
-   * unique, so the tab really loads the version that is being served now.
-   */
-  private reloadFresh(): void {
-    const location = this.windowRef.location;
-    try {
-      const url = new URL(location.href);
-      url.searchParams.set('_upgraded', String(Date.now()));
-      location.replace(url.toString());
-      return;
-    } catch {
-      // Anything unexpected: fall back to the plain reload.
-    }
-    location.reload();
   }
 
   /**
@@ -436,7 +415,7 @@ export class SettingsAboutComponent implements AfterViewInit, OnDestroy {
       // Another version answers now, so the new container is serving. Reload
       // instead of leaving a stale bundle in the tab.
       this.upgradePhase = 'restarting';
-      this.reloadFresh();
+      reloadFresh(this.windowRef.location);
       return;
     }
 

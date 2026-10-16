@@ -189,10 +189,9 @@
     }
   },
   "compatibility": {
-    "title": "服务器不兼容",
-    "description": "服务器与此客户端版本不兼容。您可以忽略此提示，但可能会有功能无法正常工作。",
-    "back": "返回",
-    "ignore": "忽略"
+    "title": "页面需要刷新",
+    "description": "当前页面是旧版本，与服务器不匹配，继续使用可能出现异常。点「立即刷新」载入新版本。",
+    "refresh": "立即刷新"
   },
   "preferences": {
     "noUserPermission": "您没有编辑用户偏好设置的权限",

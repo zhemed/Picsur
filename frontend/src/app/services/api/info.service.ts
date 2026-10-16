@@ -40,6 +40,9 @@ export class InfoService {
    */
   private readonly loadedInfo = new BehaviorSubject<ServerInfo | null>(null);
 
+  /** Set as soon as this session got an answer from *this* server. */
+  private loadedFromServer = false;
+
   public get live(): Observable<ServerInfo | null> {
     return this.loadedInfo.asObservable();
   }
@@ -148,15 +151,26 @@ export class InfoService {
     }
   }
 
-  /** True once *this* server answered `/api/info`, cached data does not count. */
+  /**
+   * True once *this* server answered `/api/info`, cached data does not count.
+   *
+   * This must not be `loadedInfo.value !== null`: the constructor seeds that
+   * subject from the previous visit, so the flag used to be true before this
+   * session had talked to the server at all. `getLoadedSnapshot()` then handed
+   * the *stored* info to its callers, and the compatibility check compared the
+   * client against a version the server may have stopped serving long ago —
+   * which popped its "page needs a refresh" dialog on a perfectly fine page,
+   * over and over, because refreshing could not clear the stored value.
+   */
   public isLoaded(): boolean {
-    return this.loadedInfo.value !== null;
+    return this.loadedFromServer;
   }
 
   private async updateInfo(): AsyncFailable<ServerInfo> {
     const response = await this.api.get(InfoResponse, '/api/info').result;
     if (HasFailed(response)) return response;
 
+    this.loadedFromServer = true;
     this.loadedInfo.next(response);
     this.infoStorage.set(response);
     return response;
