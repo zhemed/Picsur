@@ -689,3 +689,26 @@ zh-default 只改前端：picsur-img 增加 native 模式（原生 <img loading=
 ### Status
 
 [OK] **Completed**
+
+
+## Session 31: 接续中断收尾：确认 spec 提交已合并、CI 绿、清尾巴
+<!-- trellis-session: v=2 fp=3d66e8be19657c2a -->
+
+**Date**: 2026-10-16
+**Task**: 接续中断收尾：确认 spec 提交已合并、CI 绿、清尾巴
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户两次中断后要求继续。核实（不盲重试）：上次被中断的合并+推送其实已成功 —— 5a06a14（spec 制度：注入页面的代码新增浏览器全局必须登记到 eslint 配置）已在远端 master，CI run 38943762900 success；本地曾多出的 1 个未推送提交是我的任务记录，已推送。补齐收尾：移除 fix/ci-spec-globals-rule 的 worktree 与分支（0 未并入提交）、归档本任务、写 journal。最终基线：master=6257a93（收口提交后）、CI success、线上 ghcr 0.10.3=latest。本轮 CI 红过两次（同一类：探针浏览器全局未登记），修复 99efaa6 + 制度 5a06a14 均已合并。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6257a93` | chore(task): open the resume-and-closeout task |
+
+### Status
+
+[OK] **Completed**
