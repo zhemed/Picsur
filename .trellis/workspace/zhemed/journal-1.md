@@ -643,3 +643,26 @@ CI 连红 5 次的根因＝lint 步骤的条件魔法（配置落地后从跳过
 ### Status
 
 [OK] **Completed**
+
+
+## Session 29: 纠正：不存在'默认缩到 512'；/i/<id> 无扩展名=下载原图(404+占位图)
+<!-- trellis-session: v=2 fp=823471ec9746e418 -->
+
+**Date**: 2026-10-16
+**Task**: 纠正：不存在'默认缩到 512'；/i/<id> 无扩展名=下载原图(404+占位图)
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+prs-stream 复核推翻 Lead 结论：/i/<id> 无扩展名走 variant='original'（image.controller.ts:93），普通上传未保留原图时返回 404 + branding/messages/notfound.png（512x361/33516B）。Lead 复核确认：/i/<id> 与 /i/<不存在id> 响应体与仓库 notfound.png 哈希完全一致（23995390147dee5c），/i/<id>.png 才是 200/447698 字节的原尺寸无损图；image.dto.ts 无任何默认值、image-converter.service.ts:111 只在给维度时 resize -> 真默认是'不缩放'，热链接本就是原尺寸。Lead 上次测量漏看 HTTP 状态码，已改正 spec 并注明来源。画质结论（PNG 逐像素无损）不受影响。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1d00ac0` | docs(spec): record what the image routes actually return |
+
+### Status
+
+[OK] **Completed**

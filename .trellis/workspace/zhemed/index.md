@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 28
+- **Total Sessions**: 29
 - **Last Active**: 2026-10-16
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~645 | Active |
+| `journal-1.md` | ~668 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 29 | 2026-10-16 | 纠正：不存在'默认缩到 512'；/i/<id> 无扩展名=下载原图(404+占位图) | `1d00ac0` | `master` |
 | 28 | 2026-10-16 | 画质结案：PNG 取图逐像素无损，体积差来自重压缩+剥元数据 | `05f2788` | `master` |
 | 27 | 2026-10-16 | 收尾：CI 恢复绿 + 清理已合并 worktree 与完成任务 | `c642d8e` | `master` |
 | 26 | 2026-10-16 | 精简轮收口：0.9.0 + 去角色化设计定稿（暂缓实施） | `1e0bbaa` | `master` |
