@@ -173,6 +173,72 @@ for f in png jpg webp avif jxl jp2 heif qoi; do
   fi
 done
 
+echo "== 9. legacy rows without dimensions must not break the listing =="
+# 0.10.2 added `width`/`height` to EImageSchema (`.positive()`) and the list
+# endpoint validates its own response, so a row that predates the columns - or
+# was written by another version - carrying NULL/0 made the WHOLE listing answer
+# 500 and the gallery render blank. The schema must tolerate any stored value.
+#
+# Making such a row needs database access, so this section finds one by itself
+# and says so loudly when it cannot, instead of passing silently.
+#   PICSUR_PSQL='docker exec <container> psql -U picsur -d picsur'
+PSQL_CMD="${PICSUR_PSQL:-}"
+if [ -z "$PSQL_CMD" ] && command -v psql >/dev/null 2>&1 && [ -n "${PICSUR_DB_DATABASE:-}" ]; then
+  PSQL_CMD="psql -U ${PICSUR_DB_USERNAME:-picsur} -d ${PICSUR_DB_DATABASE}"
+  [ -n "${PICSUR_DB_HOST:-}" ] && PSQL_CMD="$PSQL_CMD -h ${PICSUR_DB_HOST}"
+fi
+if [ -z "$PSQL_CMD" ] && command -v docker >/dev/null 2>&1; then
+  for c in $(docker ps --format '{{.Names}}' 2>/dev/null | grep -i picsur); do
+    if docker exec "$c" psql -U picsur -d picsur -tAc 'select 1' >/dev/null 2>&1; then
+      PSQL_CMD="docker exec $c psql -U picsur -d picsur"; break
+    fi
+  done
+fi
+
+dims_of_id() {
+  $PSQL_CMD -tAc "select coalesce(width::text,'NULL')||','||coalesce(height::text,'NULL') from e_image_backend where id='$LEGACY_ID'" 2>/dev/null | tr -d '[:space:]'
+}
+
+if [ -z "$PSQL_CMD" ]; then
+  echo "  [SKIP] no database access found; set PICSUR_PSQL='docker exec <container> psql -U picsur -d picsur' to cover this"
+else
+  # A fresh upload: the image from section 2 has been deleted by the delete
+  # sections above, so it is no longer a row we can age.
+  LEGACY_UP=$(curl -s -X POST "$BASE/api/image/upload" -H "$AUTH" -F "file=@${FIXTURES}/base.png")
+  LEGACY_ID=$(echo "$LEGACY_UP" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("data",{}).get("id",""))' 2>/dev/null)
+  if [ -z "$LEGACY_ID" ]; then
+    bad "could not upload the image used for the legacy-row check"
+  else
+    ORIG_DIMS=$(dims_of_id)
+    for PAIR in "NULL:NULL" "0:0"; do
+      W="${PAIR%%:*}"; H="${PAIR##*:}"
+      $PSQL_CMD -c "update e_image_backend set width=$W, height=$H where id='$LEGACY_ID'" >/dev/null 2>&1
+      RCODE=$(curl -s -o /tmp/rg-legacy.json -w '%{http_code}' -X POST "$BASE/api/image/list" \
+        -H "$AUTH" -H 'Content-Type: application/json' -d '{"count":10,"page":0}')
+      GOT=$(python3 -c '
+import sys, json
+try:
+    rows = json.load(open("/tmp/rg-legacy.json"))["data"]["results"]
+except Exception:
+    print("unparseable"); raise SystemExit
+hit = [r for r in rows if r["id"] == sys.argv[1]]
+print("%s,%s" % (hit[0]["width"], hit[0]["height"]) if hit else "row-missing")
+' "$LEGACY_ID" 2>/dev/null)
+      WANT=$([ "$W" = "NULL" ] && echo "None,None" || echo "$W,$H")
+      if [ "$RCODE" = "201" ] && [ "$GOT" = "$WANT" ]; then
+        ok "row with width/height=$W,$H -> /api/image/list 201, dims come back as $GOT"
+      else
+        bad "row with width/height=$W,$H -> list HTTP $RCODE, dims '$GOT' (want 201 / '$WANT')"
+      fi
+    done
+    # Other endpoints that return the image entity must survive the same row.
+    $PSQL_CMD -c "update e_image_backend set width=NULL, height=NULL where id='$LEGACY_ID'" >/dev/null 2>&1
+    check "legacy row -> /i/meta 200" "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$BASE/i/meta/$LEGACY_ID")" "200"
+    check "legacy row -> /api/image/list/all 201" "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/image/list/all" -H "$AUTH" -H 'Content-Type: application/json' -d '{"count":10,"page":0}')" "201"
+    curl -s -X POST "$BASE/api/image/delete" -H "$AUTH" -H 'Content-Type: application/json' -d "{\"ids\":[\"$LEGACY_ID\"]}" -o /dev/null
+  fi
+fi
+
 echo
 echo "RESULT: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
