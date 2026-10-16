@@ -10,6 +10,7 @@ import { V050A1672154027079 } from './1672154027079-V_0_5_0_a.js';
 import { AddImageSourceFiletype1780617600000 } from './1780617600000-AddImageSourceFiletype.js';
 import { RemoveApikeyPermissionFromRoles1792195200000 } from './1792195200000-RemoveApikeyPermissionFromRoles.js';
 import { AddUserPermissions1792281600000 } from './1792281600000-AddUserPermissions.js';
+import { RemoveRoleAdminPermission1792368000000 } from './1792368000000-RemoveRoleAdminPermission.js';
 
 export const MigrationList: Newable<MigrationInterface>[] = [
   V030A1661692206479,
@@ -22,4 +23,5 @@ export const MigrationList: Newable<MigrationInterface>[] = [
   AddImageSourceFiletype1780617600000,
   RemoveApikeyPermissionFromRoles1792195200000,
   AddUserPermissions1792281600000,
+  RemoveRoleAdminPermission1792368000000,
 ];

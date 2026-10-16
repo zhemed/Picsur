@@ -143,7 +143,7 @@ GET    /api/pref/sys  /  /api/pref/sys/:key
 | 无扩展名的 `/i/<有效 id>` | 有保留原图 → 200 原图；无原图 → **404 + no-store**（正文仍是占位图）；SVG → 200。**#129 吸收后这条从"恒 200 占位图"变成了"按原图有无分流"**，改前端或文档前先读 §3.4 |
 | 无扩展名的 `/i/<无效 id>` | 404 + 占位图 + `no-store` |
 | 扩展名不在支持列表 | 400（`ImageFullIdPipe` 校验；具体列表见 `shared/src/util/common-regex.ts` / mime 枚举） |
-| 无 token 上传 | 201（匿名，落到 guest 用户），前提是 guest 角色有上传权限 |
+| 无 token 上传 | 201（匿名，落到 guest 用户），前提是 guest **有**上传权限：非 demo 实例只给 `GuestPermissions`（不能传），`PICSUR_DEMO=true` 的实例通过 `GuestDefaultPermissions(isDemo)` 额外给 `image-upload`（重启生效） |
 | 密码错误登录 | `success:false` + 4xx（实测未取具体码，未验证） |
 | 超过 `PICSUR_MAX_FILE_SIZE` | 4xx（未验证具体码） |
 | 超过像素上限的图片 | **400** `{"type":"usrvalidation","data":{"message":"Image is too large to process: <w>x<h> (<n> pixels) exceeds the maximum of <limit> pixels. Set PICSUR_MAX_IMAGE_PIXELS to raise the limit (0 disables it)."}}`（修复前是 500 `Worker closed`） |

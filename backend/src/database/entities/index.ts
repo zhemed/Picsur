@@ -4,7 +4,6 @@ import { EImageBackend } from './images/image.entity.js';
 import { ESysPreferenceBackend } from './system/sys-preference.entity.js';
 import { ESystemStateBackend } from './system/system-state.entity.js';
 import { EUsrPreferenceBackend } from './system/usr-preference.entity.js';
-import { ERoleBackend } from './users/role.entity.js';
 import { EUserBackend } from './users/user.entity.js';
 
 export const EntityList = [
@@ -12,7 +11,6 @@ export const EntityList = [
   EImageFileBackend,
   EImageDerivativeBackend,
   EUserBackend,
-  ERoleBackend,
   ESysPreferenceBackend,
   EUsrPreferenceBackend,
   ESystemStateBackend,
