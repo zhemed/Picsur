@@ -3,9 +3,11 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
+  EventEmitter,
   Input,
   OnChanges,
   OnDestroy,
+  Output,
   ViewChild,
 } from '@angular/core';
 import { FileType, ImageFileType } from 'picsur-shared/dist/dto/mimes.dto';
@@ -47,6 +49,15 @@ export class PicsurImgComponent implements OnChanges, OnDestroy {
   private isInView = false;
 
   @Input('src') imageURL: string | undefined;
+
+  /**
+   * Size of the picture that was actually decoded, in pixels.
+   *
+   * The gallery uses it to decide whether the thumbnail can fill its box
+   * (`object-fit: cover`) or has to stay at its own size: blowing a small
+   * picture up to fill a fixed card is what made the gallery look blurry.
+   */
+  @Output() loadedSize = new EventEmitter<{ width: number; height: number }>();
 
   public state: PicsurImgState = PicsurImgState.Init;
 
@@ -100,6 +111,7 @@ export class PicsurImgComponent implements OnChanges, OnDestroy {
       canvas.getContext('2d')?.putImageData(result.data, 0, 0);
 
       this.state = PicsurImgState.Canvas;
+      this.loadedSize.emit({ width: result.width, height: result.height });
     } else {
       const result = await this.apiService.getBuffer(url).result;
       if (HasFailed(result)) return result;
@@ -109,6 +121,14 @@ export class PicsurImgComponent implements OnChanges, OnDestroy {
       const blob = new Blob([result.buffer]);
       const previousObjectURL = this.objectURL;
       this.objectURL = URL.createObjectURL(blob);
+
+      // The natural size is only known once the browser decoded the blob.
+      img.onload = () => {
+        this.loadedSize.emit({
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+        });
+      };
       img.src = this.objectURL;
 
       // Only revoke the old URL once the browser switched to the new one.

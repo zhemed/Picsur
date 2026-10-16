@@ -6,43 +6,53 @@
 
 <ng-container *ngIf="images !== null && images.length > 0">
   <h1>{{ 'images.title' | translate }}</h1>
-  <masonry [columns]="columns">
-    <ng-template *ngFor="let image of images" masonry-item>
-      <div class="m-2">
-        <mat-card>
-          <mat-card-header>
-            <mat-card-title>{{ image.file_name | truncate }}</mat-card-title>
-            <mat-card-subtitle>
-              {{ 'images.uploaded' | translate }}
-              {{ image.created | amTimeAgo }}
-              {{
-                image.expires_at === null
-                  ? ''
-                  : '| ' +
-                    ('images.expires' | translate) +
-                    ' ' +
-                    (image.expires_at | amTimeAgo)
-              }}
-            </mat-card-subtitle>
-          </mat-card-header>
-          <picsur-img
-            mat-card-image
-            [src]="getThumbnailUrl(image)"
-            [attr.alt]="'images.uploadedByYouAlt' | translate"
-          >
-          </picsur-img>
-          <mat-card-actions>
-            <button mat-stroked-button (click)="viewImage(image)">
-              {{ 'common.actions.view' | translate }}
-            </button>
-            <button mat-button color="warn" (click)="deleteImage(image)">
-              {{ 'common.actions.delete' | translate }}
-            </button>
-          </mat-card-actions>
-        </mat-card>
+
+  <!--
+    A plain CSS grid, not a masonry: every card in a row is exactly as tall as
+    its neighbours (the thumbnail box has a fixed aspect ratio), which is what
+    the "everything is crooked" complaint was about.
+  -->
+  <div class="gallery-grid">
+    <mat-card class="gallery-card" *ngFor="let image of images">
+      <div class="gallery-thumb">
+        <picsur-img
+          class="fill"
+          [class.fit-none]="smallThumbs.has(image.id)"
+          [src]="getThumbnailUrl(image)"
+          [attr.data-requested-width]="thumbRequestWidth(image)"
+          (loadedSize)="onThumbLoaded(image, $event)"
+          [attr.alt]="'images.uploadedByYouAlt' | translate"
+        >
+        </picsur-img>
       </div>
-    </ng-template>
-  </masonry>
+
+      <mat-card-header>
+        <mat-card-title class="gallery-title" [title]="image.file_name">
+          {{ image.file_name | truncate }}
+        </mat-card-title>
+        <mat-card-subtitle class="gallery-subtitle">
+          {{ 'images.uploaded' | translate }} {{ image.created | amTimeAgo }}
+          {{
+            image.expires_at === null
+              ? ''
+              : '| ' +
+                ('images.expires' | translate) +
+                ' ' +
+                (image.expires_at | amTimeAgo)
+          }}
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-actions class="gallery-actions">
+        <button mat-stroked-button (click)="viewImage(image)">
+          {{ 'common.actions.view' | translate }}
+        </button>
+        <button mat-button color="warn" (click)="deleteImage(image)">
+          {{ 'common.actions.delete' | translate }}
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
 
   <paginator
     [total-pages]="pages"

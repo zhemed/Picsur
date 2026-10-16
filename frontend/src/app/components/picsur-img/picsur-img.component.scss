@@ -18,6 +18,33 @@ img {
   height: 100%;
 }
 
+/**
+ * `.fill` makes the component take the whole box its parent gives it and lets
+ * the picture cover that box (cropping the overflow), which is what a card
+ * grid wants. Kept opt-in so the view page keeps its own layout.
+ */
+:host(.fill) {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+:host(.fill) canvas,
+:host(.fill) img {
+  object-fit: cover;
+  object-position: center;
+}
+
+/**
+ * A picture smaller than the box must not be stretched to fill it — that is
+ * upscaling, and it is exactly what made thumbnails look unclear. `.fit-none`
+ * draws it at its own pixel size, centred.
+ */
+:host(.fit-none) canvas,
+:host(.fit-none) img {
+  object-fit: none;
+}
+
 ngui-inview {
   min-height: 1px;
 }

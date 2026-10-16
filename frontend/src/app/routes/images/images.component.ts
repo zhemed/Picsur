@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, Inject, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { I18nService } from '../../i18n/i18n.service';
 
@@ -15,6 +15,7 @@ import {
   switchMap,
   timer,
 } from 'rxjs';
+import { WINDOW } from '@ng-web-apis/common';
 import { ImageService } from '../../services/api/image.service';
 import { UserService } from '../../services/api/user.service';
 import { Logger } from '../../services/logger/logger.service';
@@ -31,7 +32,29 @@ export class ImagesComponent implements OnInit {
   private readonly logger: Logger = new Logger(ImagesComponent.name);
 
   imagesSub = new BehaviorSubject<EImage[] | null>(null);
+
+  /** Cards per row; kept in sync with the grid breakpoints in the SCSS. */
   columns = 1;
+
+  /**
+   * Pictures whose own size is smaller than the card's thumbnail box.
+   *
+   * Those must not be stretched to fill the box — that is upscaling and it is
+   * what made the gallery look blurry. They are drawn at their own size.
+   */
+  smallThumbs = new Set<string>();
+
+  /** CSS pixel width of one card, used to size the derivative request. */
+  private cardWidth = 320;
+
+  /**
+   * Thumbnail URLs that were re-requested after the first decode showed they
+   * were too small. Keyed by image id.
+   */
+  private thumbOverrides = new Map<string, string>();
+
+  /** Width (in source pixels) each image was last requested at. */
+  private thumbRequests = new Map<string, number>();
 
   public get images() {
     const value = this.imagesSub.value;
@@ -54,6 +77,7 @@ export class ImagesComponent implements OnInit {
     private readonly errorService: ErrorService,
     private readonly dialogService: DialogService,
     private readonly i18n: I18nService,
+    @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
   ngOnInit() {
@@ -75,14 +99,30 @@ export class ImagesComponent implements OnInit {
   @AutoUnsubscribe()
   private subscribeMobile() {
     return this.bootstrapService.screenSize().subscribe((size) => {
+      // Same breakpoints as `.gallery-grid` in the SCSS: 4 / 3 / 2 / 1.
       if (size <= BSScreenSize.sm) {
         this.columns = 1;
-      } else if (size <= BSScreenSize.lg) {
+      } else if (size <= BSScreenSize.md) {
         this.columns = 2;
-      } else {
+      } else if (size <= BSScreenSize.xl) {
         this.columns = 3;
+      } else {
+        this.columns = 4;
       }
+
+      this.cardWidth = this.measureCardWidth();
     });
+  }
+
+  /**
+   * Width of one card in CSS pixels, derived from the viewport and the grid
+   * breakpoints (page padding 16px each side, 16px gaps).
+   */
+  private measureCardWidth(): number {
+    const viewport = this.windowRef.innerWidth || 1024;
+    const padding = 32;
+    const gaps = (this.columns - 1) * 16;
+    return Math.max(120, (viewport - padding - gaps) / this.columns);
   }
 
   @AutoUnsubscribe()
@@ -126,11 +166,89 @@ export class ImagesComponent implements OnInit {
     });
   }
 
+  /**
+   * Thumbnail URL that matches how big the picture is actually drawn.
+   *
+   * The old request asked for `height=480` no matter what the card showed, so
+   * a portrait picture came back 240x480 and was then stretched over a 408px
+   * wide box (1.7x upscaling — the blur the owner reported), while a wide
+   * picture got a 1440px file for a 408px slot. Now the request is derived from
+   * the card width times the screen density, with headroom for the crop that
+   * `object-fit: cover` does, and `shrinkonly=yes` keeps the server from
+   * inventing pixels the original does not have.
+   */
   getThumbnailUrl(image: EImage) {
+    const override = this.thumbOverrides.get(image.id);
+    if (override !== undefined) return override;
+
+    const width = this.defaultThumbWidth();
+    this.thumbRequests.set(image.id, width);
+    return this.buildThumbUrl(image, width);
+  }
+
+  /** Width in pixels the current thumbnail was requested at (for the probe). */
+  public thumbRequestWidth(image: EImage): number | null {
+    return this.thumbRequests.get(image.id) ?? null;
+  }
+
+  private defaultThumbWidth(): number {
+    const density = this.windowRef.devicePixelRatio || 1;
+    // 1.5x headroom: a 16:9 picture cropped into a 4:3 box is drawn 1.33x wider.
+    const target = Math.round(this.cardWidth * density * 1.5);
+    return Math.min(1600, Math.max(160, target));
+  }
+
+  private buildThumbUrl(image: EImage, width: number): string {
     return (
       this.imageService.GetImageURL(image.id, ImageFileType.QOI) +
-      '?height=480&shrinkonly=yes'
+      `?width=${width}&shrinkonly=yes`
     );
+  }
+
+  /**
+   * Remembers pictures that are smaller than their box, so they are drawn 1:1
+   * instead of being blown up.
+   */
+  onThumbLoaded(image: EImage, size: { width: number; height: number }) {
+    const boxWidth = this.cardWidth;
+    const boxHeight = this.cardWidth * (3 / 4); // .gallery-thumb is 4:3
+
+    const fits = size.width >= boxWidth && size.height >= boxHeight;
+    if (fits) {
+      this.smallThumbs.delete(image.id);
+    } else {
+      this.smallThumbs.add(image.id);
+    }
+
+    this.correctThumbSize(image, size, { width: boxWidth, height: boxHeight });
+  }
+
+  /**
+   * Ask for a bigger derivative when the first one turns out too small.
+   *
+   * A fixed card box crops with `object-fit: cover`, so the drawn width is not
+   * the box width: an ultra wide picture is drawn `aspect / (4/3)` times wider,
+   * and on a 2x screen it needs twice the pixels again. The first request only
+   * guesses, so once the real dimensions are known, re-request exactly what the
+   * card shows (`shrinkonly=yes` still keeps the server from inventing pixels —
+   * a small original simply stays 1:1 instead of being blown up).
+   */
+  private correctThumbSize(
+    image: EImage,
+    size: { width: number; height: number },
+    box: { width: number; height: number },
+  ) {
+    const density = this.windowRef.devicePixelRatio || 1;
+    const scale = Math.max(box.width / size.width, box.height / size.height);
+    const needed = Math.ceil(size.width * scale * density);
+
+    const requested = this.thumbRequests.get(image.id) ?? 0;
+    if (needed <= size.width * 1.05) return; // the source is the limit, done
+    if (needed <= requested) return; // already asked for enough
+
+    const width = Math.min(2560, needed);
+    this.thumbRequests.set(image.id, width);
+    this.thumbOverrides.set(image.id, this.buildThumbUrl(image, width));
   }
 
   viewImage(image: EImage) {
