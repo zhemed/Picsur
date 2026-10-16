@@ -1,10 +1,83 @@
-picsur-img {
-  margin-top: 1em;
-  margin-bottom: 0.5em;
+/**
+ * The gallery used to be a masonry: every card was as tall as its picture, so
+ * nothing lined up. It is a plain grid now, and every card is the same height
+ * because the thumbnail box has a fixed ratio and the text block is clamped.
+ *
+ * Breakpoints (kept in sync with `BSScreenSize` in images.component.ts):
+ *   >= 1200px  4 columns
+ *   >= 992px   3 columns
+ *   >= 768px   2 columns
+ *   <  768px   1 column
+ */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+
+  @media (max-width: 1199px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 991px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 767px) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
 }
 
-// add 1em margin left to each non-first button in
+.gallery-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
-mat-card-actions > :not(:first-of-type) {
-  margin-left: 1em;
+/**
+ * Fixed ratio thumbnail: this is what makes rows line up. The picture inside
+ * either covers the box (big enough) or keeps its own size (small), it is never
+ * stretched.
+ */
+.gallery-thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gallery-title {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.gallery-subtitle {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-height: 1.25em;
+}
+
+.gallery-actions {
+  margin-top: auto;
+  padding: 8px 8px 12px;
+  gap: 8px;
+
+  // Touch targets: Material's text buttons are ~36px tall, below the 44px
+  // minimum a finger needs. Grow them, and let them share the row on phones.
+  button {
+    min-height: 44px;
+  }
+
+  @media (max-width: 767px) {
+    button {
+      flex: 1 1 0;
+    }
+  }
 }
