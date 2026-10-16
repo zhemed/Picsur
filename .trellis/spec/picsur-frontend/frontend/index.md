@@ -42,6 +42,17 @@ This directory contains guidelines for frontend development. Fill in each file w
         其它 Material 组件的硬编码文案（日期选择器、对话框等）同样要接到 `I18nService`。
       - `I18nService.languageChange` 是语言切换流：切换语言后需要重算的派生值（分页器文案等）订阅它。
       - 组件里要注入 `I18nService`（不要再引入 `@ngx-translate/*`，本仓库没这个依赖）。
+- [ ] **异步状态必须自己触发渲染**（2026-10-16 定调，`10-16-about-page-fix`）：
+      由 promise 回调 / poll 定时器改出来的状态（「正在检查」「正在升级」这类）**不会**可靠地触发变更检测，
+      页面会停在第一帧文案上，只有刷新或再点一下才显示真实状态。
+      做法：注入 `ChangeDetectorRef`，每次异步改状态后显式 `detectChanges()`；
+      组件构造期（view 还没建）要先用 `ngAfterViewInit` 置位再渲染，否则会抛异常。
+      参考实现：`frontend/src/app/routes/settings/about/settings-about.component.ts` 的 `render()`。
+- [ ] **「未知」不等于「关闭」**：答案还没拿到（加载中/失败/超时）时，不要渲染「功能未启用」这类结论性文案，
+      否则用户会以为后端把功能关了。状态机要区分 idle / loading / ok / failed，失败给可读原因 + 重试入口。
+- [ ] **跨网络/跨重启的流程要有上界与自动收尾**：升级、检查这类流程客户端必须有超时与可重试兜底；
+      升级过程中轮询后端状态并显示阶段（拉镜像 / 重启中），版本变化后**自动刷新页面**，
+      不要留给用户手动强刷；失败要显示「已回滚到 <version>」+ 原因。
 
 ---
 

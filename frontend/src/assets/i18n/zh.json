@@ -241,7 +241,20 @@
       "command": "升级命令",
       "manualHint": "使用 docker compose 部署？在安装目录执行「docker compose pull && docker compose up -d」，或重新运行 install.sh。",
       "enableHint": "想要一键升级？把 /var/run/docker.sock 挂进本容器并设置 PICSUR_ALLOW_SELF_UPDATE=true。这等于把宿主 docker 的控制权交给面板，请确认你信任所有面板管理员后再开启。",
-      "started": "已开始升级到 {{ version }}，实例即将重启，恢复后页面会自动刷新。"
+      "started": "已开始升级到 {{ version }}，实例即将重启，恢复后页面会自动刷新。",
+      "checkFailed": "检查更新失败：{{ reason }}",
+      "checkRetry": "可以点击「检查更新」重试。",
+      "selfUpdateUnknown": "检查成功前无法判断面板内升级是否已启用。",
+      "upgradeStarting": "正在开始升级…",
+      "upgradingTo": "正在升级到 {{ version }}…",
+      "upgradePulling": "正在拉取新镜像并重建容器…",
+      "upgradeRestarting": "服务正在重启，新版本就绪后本页会自动刷新…",
+      "upgradeElapsed": "已用时 {{ seconds }} 秒",
+      "rollbackTitle": "升级失败，已回滚到 {{ version }}",
+      "upgradeTimeoutTitle": "升级未在预期时间内完成",
+      "upgradeTimeoutReason": "10 分钟内未收到结果。请先查看容器日志，然后重试。",
+      "failureReason": "原因：{{ reason }}",
+      "retry": "重试"
     },
     "roles": {
       "title": "角色",

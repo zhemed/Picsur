@@ -29,7 +29,7 @@ import { KeyStorageService } from '../storage/key-storage.service';
   Proud of this, it works so smoooth
 */
 
-interface RunningRequest<R> {
+export interface RunningRequest<R> {
   uploadProgress: Observable<number>;
   downloadProgress: Observable<number>;
   result: AsyncFailable<R>;

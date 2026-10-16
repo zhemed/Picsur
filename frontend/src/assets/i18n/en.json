@@ -241,7 +241,20 @@
       "command": "Update command",
       "manualHint": "Using docker compose? run \u201cdocker compose pull && docker compose up -d\u201d in your install directory, or re-run install.sh.",
       "enableHint": "Want the one click update? Mount /var/run/docker.sock into this container and set PICSUR_ALLOW_SELF_UPDATE=true. That gives the panel control over the host docker daemon, so only enable it if you trust every panel admin.",
-      "started": "Update to {{ version }} started. This instance restarts now, the page reloads when it is back."
+      "started": "Update to {{ version }} started. This instance restarts now, the page reloads when it is back.",
+      "checkFailed": "Checking for updates failed: {{ reason }}",
+      "checkRetry": "You can retry with the \u201cCheck for updates\u201d button.",
+      "selfUpdateUnknown": "The self update state is unknown until the check succeeds.",
+      "upgradeStarting": "Starting the update\u2026",
+      "upgradingTo": "Updating to {{ version }}\u2026",
+      "upgradePulling": "Pulling the new image and rebuilding the container\u2026",
+      "upgradeRestarting": "The service is restarting; this page reloads as soon as the new version answers\u2026",
+      "upgradeElapsed": "Elapsed: {{ seconds }}s",
+      "rollbackTitle": "The update failed, rolled back to {{ version }}",
+      "upgradeTimeoutTitle": "The update did not finish in time",
+      "upgradeTimeoutReason": "No result within 10 minutes. Check the container logs, then try again.",
+      "failureReason": "Reason: {{ reason }}",
+      "retry": "Retry"
     },
     "roles": {
       "title": "Roles",
