@@ -34,6 +34,23 @@ export class EImageBackend implements EImage {
   })
   source_filetype: string | null;
 
+  // Pixel size of the original. Recorded while the upload is transcoded (the
+  // sharp worker already reports the output size, so this costs no extra
+  // decode). Nullable: rows from before these columns exist, and formats that
+  // are stored without decoding, keep null and clients fall back to measuring
+  // the picture once it has loaded.
+  @Column({
+    type: 'int',
+    nullable: true,
+  })
+  width: number | null;
+
+  @Column({
+    type: 'int',
+    nullable: true,
+  })
+  height: number | null;
+
   @Column({
     type: 'timestamptz',
     nullable: true,

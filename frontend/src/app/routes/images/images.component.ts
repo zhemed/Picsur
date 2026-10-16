@@ -176,14 +176,80 @@ export class ImagesComponent implements OnInit {
    * the card width times the screen density, with headroom for the crop that
    * `object-fit: cover` does, and `shrinkonly=yes` keeps the server from
    * inventing pixels the original does not have.
+   *
+   * When the list gave us the original's size, that headroom is not a guess any
+   * more: the size the card draws at can be worked out up front, so the picture
+   * never has to be measured and re-requested.
    */
   getThumbnailUrl(image: EImage) {
     const override = this.thumbOverrides.get(image.id);
     if (override !== undefined) return override;
 
-    const width = this.defaultThumbWidth();
+    const { width: sourceWidth, height: sourceHeight } = image;
+    const known =
+      sourceWidth !== null &&
+      sourceHeight !== null &&
+      sourceWidth > 0 &&
+      sourceHeight > 0;
+
+    const width = known
+      ? this.exactThumbWidth(sourceWidth, sourceHeight)
+      : this.defaultThumbWidth();
+
     this.thumbRequests.set(image.id, width);
     return this.buildThumbUrl(image, width);
+  }
+
+  /** True when the API told us the original's pixel size. */
+  private hasKnownSize(image: EImage): boolean {
+    return (
+      image.width !== null &&
+      image.height !== null &&
+      image.width > 0 &&
+      image.height > 0
+    );
+  }
+
+  /**
+   * Should this thumbnail be drawn at its own size instead of filling the box?
+   *
+   * Pure on purpose (the template calls it): when the original's size is known
+   * the answer is available before the picture even loads, which keeps a small
+   * picture from flashing upscaled for one frame. Measured pictures land in
+   * `smallThumbs` once they have loaded.
+   */
+  public isSmallThumb(image: EImage): boolean {
+    if (this.smallThumbs.has(image.id)) return true;
+    if (!this.hasKnownSize(image)) return false;
+
+    const boxHeight = this.cardWidth * (3 / 4); // .gallery-thumb is 4:3
+    return (image.width ?? 0) < this.cardWidth || (image.height ?? 0) < boxHeight;
+  }
+
+  /**
+   * Width in source pixels a card actually draws, derived from the original's
+   * own size.
+   *
+   * `object-fit: cover` scales until the picture covers the box, so the drawn
+   * width follows whichever ratio is larger, and the screen then needs that
+   * many physical pixels. This is the same number `correctThumbSize` works out
+   * after measuring - computing it here makes the first request the right one.
+   *
+   * The request is deliberately not clamped to the original's own width: when
+   * the original is too small for the slot, asking for the honestly needed size
+   * is what lets the server say "this is all there is" (`shrinkonly=yes` still
+   * refuses to enlarge), and it is how the caller can tell a too-small original
+   * apart from an undersized request.
+   */
+  private exactThumbWidth(sourceWidth: number, sourceHeight: number): number {
+    const density = this.windowRef.devicePixelRatio || 1;
+    const boxWidth = this.cardWidth;
+    const boxHeight = this.cardWidth * (3 / 4); // .gallery-thumb is 4:3
+
+    const scale = Math.max(boxWidth / sourceWidth, boxHeight / sourceHeight);
+    const needed = Math.ceil(sourceWidth * scale * density);
+
+    return Math.min(2560, Math.max(160, needed));
   }
 
   /** Width in pixels the current thumbnail was requested at (for the probe). */
@@ -219,6 +285,12 @@ export class ImagesComponent implements OnInit {
     } else {
       this.smallThumbs.add(image.id);
     }
+
+    // The request was already derived from the size the list gave us, so
+    // measuring the decoded picture cannot turn up anything new. Correcting
+    // here is precisely the second request this feature removes; when the size
+    // is unknown the old measure-then-correct path still runs.
+    if (this.hasKnownSize(image)) return;
 
     this.correctThumbSize(image, size, { width: boxWidth, height: boxHeight });
   }

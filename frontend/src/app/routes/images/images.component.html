@@ -17,7 +17,7 @@
       <div class="gallery-thumb">
         <picsur-img
           class="fill"
-          [class.fit-none]="smallThumbs.has(image.id)"
+          [class.fit-none]="isSmallThumb(image)"
           [src]="getThumbnailUrl(image)"
           [attr.data-requested-width]="thumbRequestWidth(image)"
           (loadedSize)="onThumbLoaded(image, $event)"
