@@ -182,7 +182,7 @@ user-admin"这类复杂校验；但仍要在测试里覆盖"把某个普通管�
 | 对象 | 处理 |
 |---|---|
 | 路由 `/settings/roles`（`settings.routing.module.ts:57-70`） | 删除；侧栏由路由数据生成（`SettingsSidebarComponent`），入口自动消失 |
-| `frontend/src/app/routes/settings/roles/**`（4 文件 / 554 行含 edit 页） | 删除 |
+| `frontend/src/app/routes/settings/roles/**`（8 文件 / 484 行） | 删除 |
 | `frontend/src/app/services/api/roles.service.ts`（70 行） | 删除；`static-info.service.ts:23-35` 的 `getSpecialRoles()` 及 `/api/roles/special` 兜底一并删 |
 | 后端 `routes/api/roles/**`、`collections/role-db/**`、`database/entities/users/role.entity.ts`、`models/constants/roles.const.ts` | 删除（表保留，见 §5.2） |
 | i18n | `settings.roles.*`（en/zh 各 20 键）、`permissions.roleAdmin`、`settings.users.roles`（改成 `permissions`） |
