@@ -173,24 +173,30 @@ GET    /api/pref/sys  /  /api/pref/sys/:key
 | 超像素上传 | → 400，且消息里同时出现实际像素数与上限值；之后 `/api/info` 仍 200（服务未崩） |
 | 7 种格式转码 | `qoi/webp/avif/jxl/jp2/heif/png` 全部 200；**JXL/JP2 必须在容器/自编译 libvips 环境跑**，宿主预编译 sharp 没有这两个解码器（见 `build-and-deploy.md` §8.3.4） |
 
-### 6.1 可复现的回归脚本
+### 6.1 可复现的回归脚本（必须自给自足）
 
-仓库内 `support/regression-image-api.sh`（任务 `10-13-fix-known-bugs` 交付）自带登录与断言：
+仓库内 `support/regression-image-api.sh`（任务 `10-13-fix-known-bugs` 交付，任务
+`10-16-revert-verify-fix` 改为自给自足）自带登录与断言，**并自己保证夹具备齐**：
 
 ```bash
-# 备料：夹具用容器里的 sharp 生成（宿主缺 JXL/JP2 编码器）
-mkdir -p /tmp/bugs-fx
-docker run --rm -v /tmp/bugs-fx:/out -v "$PWD/support/make-image-fixtures.cjs:/picsur/backend/mk.cjs:ro" \
-  -w /picsur/backend --entrypoint node zhemed/picsur:local /picsur/backend/mk.cjs
-
-# 运行（base-url 指向已启动实例）
-. /root/picsur/.env
-./support/regression-image-api.sh http://localhost:8095 "$PICSUR_ADMIN_PASSWORD"
+# 一条命令；夹具缺失时脚本自动调用 make-image-fixtures.cjs 生成
+bash support/regression-image-api.sh http://localhost:8080 "$PICSUR_ADMIN_PASSWORD"
 # 期望 RESULT: 34 passed, 0 failed
 ```
 
+夹具由 `support/make-image-fixtures.cjs` 负责（`[fixture-dir]` 默认 `/tmp/bugs-fx`，
+可用 `$PICSUR_FIXTURES` 覆盖）：它在本地 sharp 编不出 JXL/JP2 时**自动改用带完整
+libvips 的容器**（`PICSUR_FIXTURE_IMAGE`，默认 `ghcr.io/zhemed/picsur:allinone`）生成
+并拷回；docker 不可用又编不出来时**直接 FATAL 退出**（exit 2）并给出提示，不会静默
+跑出一堆 FAIL。离线机器可用 `PICSUR_FIXTURE_NO_PULL=1` 禁止拉镜像。
+
+**约定：回归必须自给自足。** 任何"验收门"（脚本、CI、手册清单）都必须能在一台
+干净检出上从零跑到结论：夹具自己生成、实例地址与口令由参数传入、不依赖某人手里的
+临时文件、不依赖人工前置步骤。新加检查项时要把它需要的输入一起脚本化。
+
 宿主（预编译 sharp）跑同一脚本会失败 4 项：`.jxl/.jp2` 的输出转码与源格式上传
-—— 这是 `build-and-deploy.md` §8.3.4 记录的已知环境差异，不是回归。
+—— 这是 `build-and-deploy.md` §8.3.4 记录的已知环境差异，不是回归。用
+`PICSUR_FIXTURE_IMAGE` + 容器实例即可 34/34。
 
 ---
 

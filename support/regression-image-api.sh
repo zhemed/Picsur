@@ -1,33 +1,114 @@
 #!/bin/bash
-# Picsur 图像 API 回归套件（冒烟 5 步 + 7 格式 + 删除语义 + 像素上限）。
+# Picsur 图像 API 回归套件（冒烟 5 步 + 7 格式 + 删除语义 + 像素上限，共 34 项）。
 #
 # 用法：
-#   ./support/regression-image-api.sh <base-url> <admin-password> [fixture-dir]
+#   bash support/regression-image-api.sh <base-url> <admin-password> [fixture-dir]
 #
-# 夹具目录默认为 /tmp/bugs-fx，需要这些文件（见 support/make-image-fixtures.cjs）：
-#   base.{png,jpg,webp,avif,jxl,jp2,heif,qoi}   # 源格式上传用例
-# 另外需要 /tmp/big-900mp.png（超像素图，见本脚本末尾说明）。
+#   <base-url>        实例地址，例如 http://localhost:8080
+#   <admin-password>  PICSUR_ADMIN_PASSWORD（容器内：sed -n 's/^PICSUR_ADMIN_PASSWORD=//p' /data/allinone.env）
+#   [fixture-dir]     夹具目录，默认 $PICSUR_FIXTURES，再默认 /tmp/bugs-fx
 #
-# 注意：JXL/JP2 的转码与源格式上传**只能在自编译 libvips 的环境**（容器）里通过；
-#       宿主预编译 sharp 没有这两个解码器，会在 §4/§8 各失败一项，属已知环境差异。
+# **夹具是自给的**：目录里缺文件时本脚本会自动调用
+# support/make-image-fixtures.cjs 生成；该脚本在本地 sharp 编不出 JXL/JP2 时
+# 自动改用带完整 libvips 的容器（默认 ghcr.io/zhemed/picsur:allinone）。
+# 生成失败会直接 FATAL 退出（exit 2）并给出提示，不会跑出一堆 FAIL。
 #
 # 例：
-#   . /root/picsur/.env && ./support/regression-image-api.sh http://localhost:8095 "$PICSUR_ADMIN_PASSWORD"
+#   bash support/regression-image-api.sh http://localhost:18080 "$PW"          # 一条命令，夹具自动就位
+#   PICSUR_FIXTURES=/tmp/my-fx bash support/regression-image-api.sh http://localhost:8080 "$PW"
+#   PICSUR_FIXTURE_NO_PULL=1 bash support/regression-image-api.sh …            # 离线机器：只用本地镜像
+#
+# 环境说明：JXL/JP2 的转码与源格式上传**只能在自编译 libvips 的环境**（容器）里通过；
+#           宿主预编译 sharp 没有这两个解码器，会在 §4/§8 各失败一项，属已知环境差异。
 set -uo pipefail
 
 BASE="${1:?base url}"
 PW="${2:?admin password}"
-FIXTURES="${3:-/tmp/bugs-fx}"
-BIG_IMAGE="${BIG_IMAGE:-/tmp/big-900mp.png}"
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+FIXTURES="${3:-${PICSUR_FIXTURES:-/tmp/bugs-fx}}"
+BIG_IMAGE="${BIG_IMAGE:-${FIXTURES}/big-900mp.png}"
 COOKIE_JAR=$(mktemp)
 PASS=0; FAIL=0
 ok()   { printf '  [PASS] %s\n' "$1"; PASS=$((PASS+1)); }
 bad()  { printf '  [FAIL] %s\n' "$1"; FAIL=$((FAIL+1)); }
 check(){ if [ "$2" = "$3" ]; then ok "$1 ($2)"; else bad "$1 (got '$2', want '$3')"; fi; }
 
+# --- 依赖与夹具（在任何用例之前，失败就明确退出） ------------------------------
+for bin in curl node python3; do
+  command -v "$bin" >/dev/null 2>&1 || { echo "FATAL: '$bin' is required but not in PATH" >&2; exit 2; }
+done
+
+# 实例默认每 IP 60 请求/分钟（PicsurLayers 的全局 throttler）。本套件约 50 个请求，
+# 单次跑没问题，但**紧接着跑第二次**会撞上限流，然后 26 项全变 FAIL —— 那是限流
+# 不是回归。下面把 curl 包一层：看到 429 就等一会儿重试，得到的是确定性结论。
+# 一次 429 说明窗口还没转过来，等它自己重置（60s 窗口），最多等 ~72s。
+sleep_warned=0
+curl() {
+  local attempt out
+  for attempt in $(seq 1 13); do
+    out=$(command curl "$@")
+    case "$out" in
+      429 | *'"statusCode":429'* | *'HTTP/1.1 429'*)
+        if [ "$attempt" -lt 13 ]; then
+          if [ "$sleep_warned" -eq 0 ]; then
+            echo "  (instance rate limited this IP; honouring the 60s window — the run takes a bit longer)" >&2
+            sleep_warned=1
+          fi
+          sleep 6
+          continue
+          fi
+        ;;
+    esac
+    printf '%s' "$out"
+    return 0
+  done
+  printf '%s' "$out"
+  return 0
+}
+
+echo "== 0. fixtures =="
+FIXTURE_FORMATS=(png jpg webp avif jxl jp2 heif qoi)
+MISSING=()
+for f in "${FIXTURE_FORMATS[@]}"; do
+  [ -s "${FIXTURES}/base.${f}" ] || MISSING+=("base.${f}")
+done
+[ -s "$BIG_IMAGE" ] || MISSING+=("$(basename "$BIG_IMAGE")")
+
+if [ "${#MISSING[@]}" -gt 0 ]; then
+  echo "  missing in ${FIXTURES}: ${MISSING[*]}"
+  echo "  generating them with support/make-image-fixtures.cjs …"
+  if ! node "${SCRIPT_DIR}/make-image-fixtures.cjs" "$FIXTURES"; then
+    cat >&2 <<EOF
+
+FATAL: could not prepare the fixtures, so the regression was not run.
+
+The generator above explains what is missing. Quick options:
+  * install docker            -> fixtures are then built inside
+                                 ${PICSUR_FIXTURE_IMAGE:-ghcr.io/zhemed/picsur:allinone}
+  * or pass a ready fixture dir as the 3rd argument:
+        bash support/regression-image-api.sh <url> <password> /path/to/fixtures
+        (needs base.{png,jpg,webp,avif,jxl,jp2,heif,qoi} + big-900mp.png)
+EOF
+    exit 2
+  fi
+else
+  echo "  ok: ${#FIXTURE_FORMATS[@]} format fixtures + $(basename "$BIG_IMAGE") present in ${FIXTURES}"
+fi
+
+# 限流窗口可能被上一次运行占满：先探一次，必要时等窗口重置（最多 ~60s），
+# 免得登录/前几项直接被 429 打死。
+PROBE_WAITED=0
+for _ in $(seq 1 17); do
+  CODE=$(command curl -s -o /dev/null -w '%{http_code}' "$BASE/api/info")
+  [ "$CODE" != "429" ] && break
+  [ "$PROBE_WAITED" -eq 0 ] && echo "  instance is rate limiting this IP, waiting for the 60s window to reset…"
+  PROBE_WAITED=1
+  sleep 6
+done
+
 TOKEN=$(curl -s -X POST "$BASE/api/user/login" -H 'Content-Type: application/json' \
   -d "{\"username\":\"admin\",\"password\":\"$PW\"}" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("data",{}).get("jwt_token",""))')
-if [ -z "$TOKEN" ]; then echo "FATAL: login failed"; exit 2; fi
+if [ -z "$TOKEN" ]; then echo "FATAL: login failed (wrong password, or instance not reachable at $BASE)"; exit 2; fi
 AUTH="Authorization: Bearer $TOKEN"
 
 echo "== 1. service info =="
@@ -96,14 +177,3 @@ echo
 echo "RESULT: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
 
-# 超像素夹具 /tmp/big-900mp.png 可以很小（sharp 只看头部声明的尺寸）：
-#   python3 - <<'PY'
-#   import zlib, struct, binascii
-#   def chunk(t, d):
-#       return struct.pack('>I', len(d)) + t + d + struct.pack('>I', binascii.crc32(t+d) & 0xffffffff)
-#   w = h = 30000  # 900_000_000 px，远超默认上限 268402689
-#   ihdr = struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)
-#   idat = zlib.compress(b'\x00' + b'\x00' * (w * 3), 9)
-#   open('/tmp/big-900mp.png','wb').write(
-#       b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', ihdr) + chunk(b'IDAT', idat) + chunk(b'IEND', b''))
-#   PY
