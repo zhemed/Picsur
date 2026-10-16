@@ -137,7 +137,19 @@ export class UserDbService {
     const userToModify = await this.findOne(uuid);
     if (HasFailed(userToModify)) return userToModify;
 
-    return await this.rolesService.getPermissions(userToModify.roles);
+    // Transition (step 1 of removing the role system): permissions come from
+    // the user's own column *and* from its roles. The migration filled the
+    // column with the role union, so this changes nothing yet - it just means
+    // the new column is already read. The role half goes away in step 2.
+    const rolePermissions = await this.rolesService.getPermissions(
+      userToModify.roles,
+    );
+    if (HasFailed(rolePermissions)) return rolePermissions;
+
+    return makeUnique([
+      ...rolePermissions,
+      ...(userToModify.permissions ?? []),
+    ]) as Permissions;
   }
 
   public async updatePassword(
