@@ -55,6 +55,9 @@ This directory contains guidelines for frontend development. Fill in each file w
 - [ ] **「关于」页的手动命令块是兜底不是装饰**：只在**可升级**或**升级失败**时显示，
       「已是最新 / 升级中 / 刚升级成功」都不显示（否则会在“一切正常”的页面上挂一大块命令框）。
       实现见 `settings-about.component.ts` 的 `showManualCommand` / `showManualHintLine`。
+- [ ] **不设版本兼容弹窗**（2026-10-16，`10-16-update-check-fix`）：客户端与服务端版本不一致时
+      **不做拦截、不弹对话框**（曾经有一个"服务器不兼容"对话框，用户要求整体移除）；
+      升级后的刷新由升级流程自己负责（`util/reload-fresh.ts`），不要再引入启动期版本比对。
 - [ ] **「未知」不等于「关闭」**：答案还没拿到（加载中/失败/超时）时，不要渲染「功能未启用」这类结论性文案，
       否则用户会以为后端把功能关了。状态机要区分 idle / loading / ok / failed，失败给可读原因 + 重试入口。
 - [ ] **跨网络/跨重启的流程要有上界与自动收尾**：升级、检查这类流程客户端必须有超时与可重试兜底；
