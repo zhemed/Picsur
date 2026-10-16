@@ -99,3 +99,14 @@ The goal is to help AI assistants and new team members understand how YOUR proje
 ---
 
 **Language**: All documentation should be written in **English**.
+
+### Material 21 的两条取色/定位坑（2026-10-17 实测）
+
+1. **面板类组件必须显式发 `--mat-*` 令牌**：select / menu / dialog / table / chip 等的底色都走
+   `var(--mat-xxx, var(--mat-sys-…))`；我们的主题是手写 legacy 调色板，**不发这些令牌** ✗ →
+   组件会静默落回默认（**对话框=白板、表格=近黑字、下拉面板=全透明 `rgba(0,0,0,0)`** ✗）。
+   统一做法：在 `scss/material/material-theme.scss` 里**从我们自己的调色板**发令牌（不硬编码颜色 ✓）。
+   已知需覆盖：`.mat-mdc-dialog-container`、`.mat-mdc-table`、`.mat-mdc-chip`、`div.mat-mdc-select-panel`（含选中/ hover state layer）。
+2. **Material 21 的 select 面板不在 `.cdk-overlay-container` 里** ✗ —— 它用 **popover API 渲染在 `mat-select` 元素内部**（外面套 `.cdk-overlay-popover`）✓。
+   所以老写法 `.cdk-overlay-container div.mat-mdc-select-panel` **完全不命中** ✗；要写 `body div.mat-mdc-select-panel`
+   （顺便压过 Material 自带的 `div.mat-mdc-select-panel{max-height:275px}` 特异性 ✓ —— 需要它**向下展开**时把 max-height 压到下方可用空间内即可 ✓）。
