@@ -44,7 +44,7 @@ bash support/release-local.sh --dry-run
 - 脚本会拒绝脏工作树、未推送提交、版本回退与重复发布 —— **不要重推同一个版本号**
   （面板比较的是版本号，重推同版本对已部署的实例不可见）。
 - 发布前自检：`bash support/audit-prod.sh`（后端/共享口径必须 0；浏览器侧应无 critical/high）、
-  `bash support/regression-image-api.sh <base-url>`（34 项接口/格式回归）。
+  `bash support/regression-image-api.sh <base-url> <admin-password>`（34 项接口/格式回归）。
 - 发布后：按第 5 节用真实实例点一次面板升级验收。
 
 ## 4. 构建与依赖
@@ -56,7 +56,7 @@ bash support/release-local.sh --dry-run
 
 ## 5. 验收清单（每次发布后跑一遍）
 
-1. `bash support/regression-image-api.sh <新实例>` → 34/34；
+1. `bash support/regression-image-api.sh <新实例> <管理员口令>` → 34/34；
 2. 打开面板「关于」页：显示当前/最新版本、**不是**「正在检查更新…」或「未启用」；
 3. 若这次含自升级相关改动：在测试实例点一次「立即升级」，确认进度显示、成功自动刷新；
 4. 数据抽查：升级前后图片数量一致、任取一张图 `/i/<id>.png` 返回 200。
