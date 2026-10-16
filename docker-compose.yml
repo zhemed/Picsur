@@ -1,3 +1,6 @@
+# ⚠️ 内部/开发用，不是用户部署方式。
+# 用户部署只有一种：README 里那条 `docker run ... ghcr.io/zhemed/picsur:allinone`。
+# 这个文件只服务于本机开发与发布验证脚本（support/verify-published-image.sh 等）。
 # Picsur 常驻部署（自有镜像 + Postgres）
 #
 # 用法（在仓库根目录）：
