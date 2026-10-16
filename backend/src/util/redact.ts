@@ -3,10 +3,12 @@ import { createHash } from 'crypto';
 /**
  * Renders a credential (API key, token, ...) for a log line without leaking it.
  *
- * Logs are shipped, screenshotted and attached to tickets, and an API key that
- * ends up there is a usable credential: `ApiKeyStrategy` used to log the full
- * key on every failed lookup, which includes the case of a *valid* key while
- * the database is unavailable (audit A-5).
+ * Logs are shipped, screenshotted and attached to tickets, and a credential
+ * that ends up there is a usable one. The API key strategy that originally
+ * motivated this (it logged the full key on every failed lookup, including a
+ * *valid* key while the database was unavailable - audit A-5) is gone as of
+ * 2026-10-16, but the helper stays: anything that logs a secret should use it
+ * instead of interpolating the value.
  *
  * The output keeps enough to correlate two log lines (first 4 chars + hash
  * prefix) and nothing that can be replayed.

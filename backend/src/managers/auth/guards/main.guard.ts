@@ -18,9 +18,14 @@ import { isPermissionsArray } from '../../../models/validators/permissions.valid
 // This guard extends both the jwt authenticator and the guest authenticator
 // The order matters here, because this results in the guest authenticator being used as a fallback
 // This way a user will get his own account when logged in, but received guest permissions when not
+//
+// The `apikey` strategy (`Authorization: Api-Key <key>`) used to sit in front of
+// these; the API key feature was removed on 2026-10-16, so an Api-Key header now
+// simply fails all three strategies and the request is rejected. The database
+// table is still there, it is just no longer read.
 
 @Injectable()
-export class MainAuthGuard extends AuthGuard(['apikey', 'jwt', 'guest']) {
+export class MainAuthGuard extends AuthGuard(['jwt', 'guest']) {
   private readonly logger = new Logger(MainAuthGuard.name);
 
   constructor(
