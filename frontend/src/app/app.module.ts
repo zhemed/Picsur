@@ -12,7 +12,6 @@ import { HeaderModule } from './components/header/header.module';
 import { GuardsModule } from './guards/guards.module';
 import { PicsurPaginatorIntl } from './i18n/paginator.i18n';
 import { ApiErrorManagerModule } from './util/api-error-manager/api-error-manager.module';
-import { CompatibilityManagerModule } from './util/compatibilitiy-manager/compatibility-manager.module';
 import { SnackBarManagerModule } from './util/snackbar-manager/snackbar-manager.module';
 
 @NgModule({
@@ -24,7 +23,6 @@ import { SnackBarManagerModule } from './util/snackbar-manager/snackbar-manager.
     MatSidenavModule,
 
     SnackBarManagerModule.forRoot(),
-    CompatibilityManagerModule,
     ApiErrorManagerModule,
 
     GuardsModule,

@@ -7,7 +7,6 @@ import {
   FT,
   HasFailed,
 } from 'picsur-shared/dist/types/failable';
-import { SemVerRegex } from 'picsur-shared/dist/util/common-regex';
 import { BehaviorSubject, filter, Observable, take } from 'rxjs';
 import pkg from '../../../../package.json';
 import { ServerInfo } from '../../models/dto/server-info.dto';
@@ -18,8 +17,8 @@ import { ApiService } from './api.service';
 /**
  * How long {@link InfoService.getLoadedSnapshot} waits for `/api/info` before
  * giving up and reporting a failure. Without a bound, a server (or proxy) that
- * never answers left the returned promise pending forever — which is exactly
- * what used to hang the compatibility check at startup.
+ * never answers left the returned promise pending forever, so every caller
+ * waiting for the server info hung with it.
  */
 const INFO_LOAD_TIMEOUT_MS = 5000;
 
@@ -121,46 +120,13 @@ export class InfoService {
     return this.location.protocol + '//' + this.location.host;
   }
 
-  // If either version starts with 0. it has to be exactly the same
-  // If both versions start with something else, they have to match the first part
-  public async isCompatibleWithServer(): AsyncFailable<boolean> {
-    const info = await this.getLoadedSnapshot();
-    if (HasFailed(info)) return info;
-
-    const serverVersion = info.version;
-    const clientVersion = this.getFrontendVersion();
-
-    if (!SemVerRegex.test(serverVersion) || !SemVerRegex.test(clientVersion)) {
-      return Fail(
-        FT.SysValidation,
-        `Not a valid semver: ${serverVersion} or ${clientVersion}`,
-      );
-    }
-
-    const serverDecoded = serverVersion.split('.');
-    const clientDecoded = clientVersion.split('.');
-
-    if (serverDecoded[0] === '0' || clientDecoded[0] === '0') {
-      if (serverVersion !== clientVersion) {
-        return false;
-      } else {
-        return true;
-      }
-    } else {
-      return serverDecoded[0] === clientDecoded[0];
-    }
-  }
-
   /**
    * True once *this* server answered `/api/info`, cached data does not count.
    *
    * This must not be `loadedInfo.value !== null`: the constructor seeds that
    * subject from the previous visit, so the flag used to be true before this
-   * session had talked to the server at all. `getLoadedSnapshot()` then handed
-   * the *stored* info to its callers, and the compatibility check compared the
-   * client against a version the server may have stopped serving long ago —
-   * which popped its "page needs a refresh" dialog on a perfectly fine page,
-   * over and over, because refreshing could not clear the stored value.
+   * session had talked to the server at all, and `getLoadedSnapshot()` handed
+   * the *stored* info to its callers instead of waiting for a real answer.
    */
   public isLoaded(): boolean {
     return this.loadedFromServer;

@@ -188,11 +188,6 @@
       "description": "The page you are looking for does not exist."
     }
   },
-  "compatibility": {
-    "title": "This page needs a refresh",
-    "description": "This page is running an older version than the server, which can cause errors. Refresh to load the new version.",
-    "refresh": "Refresh now"
-  },
   "preferences": {
     "noUserPermission": "You do not have permission to edit user preferences",
     "noSystemPermission": "You do not have permission to edit system preferences"
