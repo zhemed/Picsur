@@ -194,6 +194,28 @@ export class SettingsAboutComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Whether the manual command block should be on the page.
+   *
+   * It is a fallback, not decoration: showing it while everything is fine (up
+   * to date, or an upgrade that just succeeded) only produced a large block
+   * under an otherwise "all good" page. It appears when the panel cannot do
+   * the update itself and there is something to do, or after a failed upgrade
+   * where it is the way out.
+   */
+  public get showManualCommand(): boolean {
+    if (this.checkResult === null || this.upgrading) return false;
+    if (this.shownFailure !== null) return true;
+    return !this.selfUpdateEnabled && this.checkResult.updateAvailable;
+  }
+
+  /** The one line "how to do it by hand", when the button is the main path. */
+  public get showManualHintLine(): boolean {
+    if (this.checkResult === null || this.upgrading) return false;
+    if (this.shownFailure !== null) return false;
+    return this.selfUpdateEnabled && this.checkResult.updateAvailable;
+  }
+
   /** Progress line while an upgrade runs. */
   public get upgradeMessage(): string {
     switch (this.upgradePhase) {
@@ -237,14 +259,19 @@ export class SettingsAboutComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  public async checkForUpdates(): Promise<void> {
+  /**
+   * @param force bypass the backend cache. True for the explicit "check for
+   *   updates" click (a release published a minute ago must show up), false
+   *   for the page load and the upgrade progress poll, which keep the cache.
+   */
+  public async checkForUpdates(force = false): Promise<void> {
     if (this.checking) return;
     this.checking = true;
     // A new attempt must not keep showing the previous failure.
     this.checkFailure = null;
     this.render();
     try {
-      const result = await this.updateService.checkForUpdates();
+      const result = await this.updateService.checkForUpdates({ force });
       if (HasFailed(result)) {
         // Keep the reason on the page: the snackbar disappears, and a silent
         // "unknown" state is what users read as "updating is disabled".
@@ -322,7 +349,7 @@ export class SettingsAboutComponent implements AfterViewInit, OnDestroy {
     this.upgradeFailure = null;
     this.failureAcknowledged = true;
     this.render();
-    await this.checkForUpdates();
+    await this.checkForUpdates(true);
 
     if (this.canUpgrade) await this.apply();
   }
@@ -346,7 +373,9 @@ export class SettingsAboutComponent implements AfterViewInit, OnDestroy {
       this.upgradeSeconds = Math.round((Date.now() - startedAt) / 1000);
       this.render();
 
-      const result = await this.updateService.checkForUpdates(POLL_TIMEOUT_MS);
+      const result = await this.updateService.checkForUpdates({
+        timeoutMs: POLL_TIMEOUT_MS,
+      });
 
       if (HasFailed(result)) {
         // The container is swapped right now: the API is unreachable until the

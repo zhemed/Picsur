@@ -48,6 +48,13 @@ This directory contains guidelines for frontend development. Fill in each file w
       做法：注入 `ChangeDetectorRef`，每次异步改状态后显式 `detectChanges()`；
       组件构造期（view 还没建）要先用 `ngAfterViewInit` 置位再渲染，否则会抛异常。
       参考实现：`frontend/src/app/routes/settings/about/settings-about.component.ts` 的 `render()`。
+- [ ] **检查更新按钮走强制刷新**（2026-10-16，`10-16-update-check-fix`）：
+      面板「检查更新」的 URL 带 `?force=true`（后端据此跳过约 1 小时的 GitHub 缓存，发版后点一次即可见）；
+      **页面首屏与升级进度轮询不要带 force**，那两条是有意省额度的缓存路径。
+      实现见 `frontend/src/app/services/api/system-update.service.ts` 的 `checkForUpdates()`。
+- [ ] **「关于」页的手动命令块是兜底不是装饰**：只在**可升级**或**升级失败**时显示，
+      「已是最新 / 升级中 / 刚升级成功」都不显示（否则会在“一切正常”的页面上挂一大块命令框）。
+      实现见 `settings-about.component.ts` 的 `showManualCommand` / `showManualHintLine`。
 - [ ] **「未知」不等于「关闭」**：答案还没拿到（加载中/失败/超时）时，不要渲染「功能未启用」这类结论性文案，
       否则用户会以为后端把功能关了。状态机要区分 idle / loading / ok / failed，失败给可读原因 + 重试入口。
 - [ ] **跨网络/跨重启的流程要有上界与自动收尾**：升级、检查这类流程客户端必须有超时与可重试兜底；
