@@ -158,6 +158,26 @@ if (!(await this.usageConfig.getMetricsUrl())) return; // ② 端点为空 → �
 | 持久化   | `docker compose restart picsur` 后再取原图                                                     | `200` 且内容一致                                                                                               |
 | 密钥     | `git grep` 扫跟踪范围                                                                          | 无真实口令/secret；`.env`、`.run/` 不在 `git status` 视野                                                      |
 
+### 6.1 CI 门禁（`.github/workflows/ci.yml`）
+
+push 到任意分支 / PR 触发，跑 4 步（**不构建、不发布镜像**；发布是另一条 `release-image.yml`）。
+**每一步的外部依赖都要写在 workflow 注释里**，改 CI 时同步更新本节 —— 判错时先看依赖，别先怀疑代码：
+
+| 步骤                  | 需要外网？                              | 需要浏览器？ | 失败时怎么判                                                                                                     |
+| --------------------- | --------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile` | **是**（registry.npmjs.org）  | 否           | 锁文件与 `package.json` 不一致＝真问题（本地跑 `pnpm install` 后提交锁文件）；纯连接错误＝源抖动，重跑。**别**用 `--no-frozen-lockfile` 绕 |
+| `pnpm build`（三包）  | 否                                      | 否           | 代码/类型错误，看 `tsc`/`ngc` 报错（本地同命令复现）                                                             |
+| `bash support/audit-prod.sh` | **是**（`pnpm audit` 只认官方 registry） | 否 | 日志里「后端/共享 N 条」＝新增了带告警的生产依赖（必须处理，见 AGENTS.md §6）；只有 registry 连接错误＝网络问题，重跑，**别改脚本** |
+| `pnpm lint`（eslint flat config） | 否                                 | **否**       | 代码问题，按 `文件:行` 修。探针脚本（`support/*-probe.cjs`）在 CI 里**只做静态 lint**；真跑它们要本机常驻 Chromium（见 `bw`） |
+
+- **CI 里没有任何需要浏览器环境的步骤**：34 项镜像回归（`support/regression-image-api.sh`）、视觉对比度探针、
+  画廊布局探针都在开发机上手动跑（它们要真实浏览器 + 起实例）。
+- 新增 CI 步骤时：写清「需要外网/浏览器吗」，并在上面表格里加一行；**不允许**用 `|| true`、`continue-on-error`
+  或“把目录排除出 lint”来换绿色（2026-10-16 的事故就是这样埋的：lint 步骤上线时 `support/*.cjs`
+  缺 Node/浏览器 globals，`no-undef` 报 53 处 error，CI 连续 5 次红）。
+- `eslint.config.cjs` 里 globals 的划分是**环境假设**，不是豁免：Node 脚本给 `NODE_GLOBALS`，
+  注入浏览器的探针脚本给 `NODE_GLOBALS + BROWSER_GLOBALS`，`no-undef` 全程保持 error。
+
 ---
 
 ## 7. Wrong vs Correct
