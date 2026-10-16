@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 24
+- **Total Sessions**: 25
 - **Last Active**: 2026-10-16
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~553 | Active |
+| `journal-1.md` | ~576 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 25 | 2026-10-16 | support/ 精简收尾（删 4 个一次性脚本） | `db04c3b` | `master` |
 | 24 | 2026-10-16 | 仓库大面积精简：单部署路径 + 单发布路径 + 手册重写 | `6fc28d9` | `master` |
 | 23 | 2026-10-16 | README 砍到唯一部署命令（面板升级为唯一升级路径） | `8b10e70` | `master` |
 | 22 | 2026-10-16 | 网页端一键升级闭环（0.8.1）—— 状态机/进度/自动刷新 + 非 root 自升级修复 | `11d053e` | `master` |

@@ -551,3 +551,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 25: support/ 精简收尾（删 4 个一次性脚本）
+<!-- trellis-session: v=2 fp=132524d1ebac36c9 -->
+
+**Date**: 2026-10-16
+**Task**: support/ 精简收尾（删 4 个一次性脚本）
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户勾选删除 support/ 里的 setversion.sh、purge-all.sh、actual-update.sh、dev.docker-compose.yml。保留 allinone-entrypoint.sh、apk-versions.sh、audit-prod.sh、make-image-fixtures.cjs、regression-image-api.sh、release-local.sh。仓库精简累计：跟踪文件 793→744，顶层只留源码与构建必需项，README 34 行、MAINTAINING 79 行单路径版。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `db04c3b` | chore: trim the remaining one-off support scripts |
+
+### Status
+
+[OK] **Completed**
