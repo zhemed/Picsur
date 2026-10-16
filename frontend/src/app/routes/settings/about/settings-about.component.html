@@ -17,7 +17,7 @@
       mat-stroked-button
       type="button"
       [disabled]="checking || applying || upgrading"
-      (click)="checkForUpdates()"
+      (click)="checkForUpdates(true)"
     >
       <mat-icon>refresh</mat-icon>
       {{ 'settings.about.check' | translate }}
@@ -102,12 +102,19 @@
     <p class="about-hint">{{ 'settings.about.selfUpdateUnknown' | translate }}</p>
   </ng-container>
 
-  <ng-container *ngIf="selfUpdateKnown && selfUpdateEnabled">
-    <p class="about-hint">{{ 'settings.about.manualHint' | translate }}</p>
-  </ng-container>
+  <p class="about-hint" *ngIf="showManualHintLine">
+    {{ 'settings.about.manualHint' | translate }}
+  </p>
 
-  <ng-container *ngIf="selfUpdateKnown && !selfUpdateEnabled">
-    <p>{{ 'settings.about.selfUpdateDisabled' | translate }}</p>
+  <!--
+    Manual fallback: only when the panel cannot update and there is something
+    to do, or after a failed upgrade. Rendering it while everything is up to
+    date put a big command box under an "all good" page.
+  -->
+  <ng-container *ngIf="showManualCommand">
+    <p *ngIf="!selfUpdateEnabled">
+      {{ 'settings.about.selfUpdateDisabled' | translate }}
+    </p>
 
     <copy-field
       [label]="'settings.about.command'"
@@ -115,6 +122,8 @@
     ></copy-field>
 
     <p class="about-hint">{{ 'settings.about.manualHint' | translate }}</p>
-    <p class="about-hint">{{ 'settings.about.enableHint' | translate }}</p>
+    <p class="about-hint" *ngIf="!selfUpdateEnabled">
+      {{ 'settings.about.enableHint' | translate }}
+    </p>
   </ng-container>
 </div>

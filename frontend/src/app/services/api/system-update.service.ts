@@ -19,6 +19,24 @@ import { ApiService } from './api.service';
 const CHECK_TIMEOUT_MS = 15000;
 
 /**
+ * Endpoint of the version check.
+ *
+ * `?force=true` asks the backend to skip its (about one hour) GitHub cache, so
+ * "check for updates" shows a release that was published a minute ago. The
+ * automatic calls (page load, upgrade progress poll) deliberately use the plain
+ * URL and keep hitting the cache, which saves GitHub quota.
+ */
+const CHECK_URL = '/api/system/update/check';
+const CHECK_URL_FORCE = `${CHECK_URL}?force=true`;
+
+export interface CheckForUpdatesOptions {
+  /** Bypass the backend cache. Only for an explicit user click. */
+  force?: boolean;
+  /** How long to wait for an answer before returning a failure. */
+  timeoutMs?: number;
+}
+
+/**
  * Talks to the admin only update endpoints.
  *
  * The backend never answers these calls with a network failure: when GitHub is
@@ -32,16 +50,20 @@ export class SystemUpdateService {
   constructor(private readonly api: ApiService) {}
 
   /**
-   * @param timeoutMs how long to wait for an answer. The manual button keeps the
+   * @param options.force bypass the backend cache (manual "check" click only).
+   * @param options.timeoutMs how long to wait. The manual button keeps the
    *   generous default; the upgrade progress poll passes a shorter bound so a
    *   container that is down mid swap is noticed quickly.
    */
   public async checkForUpdates(
-    timeoutMs = CHECK_TIMEOUT_MS,
+    options: CheckForUpdatesOptions = {},
   ): AsyncFailable<UpdateCheckResponse> {
     return this.withTimeout(
-      this.api.postEmpty(UpdateCheckResponse, '/api/system/update/check'),
-      timeoutMs,
+      this.api.postEmpty(
+        UpdateCheckResponse,
+        options.force ? CHECK_URL_FORCE : CHECK_URL,
+      ),
+      options.timeoutMs ?? CHECK_TIMEOUT_MS,
     );
   }
 
