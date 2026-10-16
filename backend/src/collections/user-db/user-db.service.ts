@@ -13,11 +13,13 @@ import { FindResult } from 'picsur-shared/dist/types/find-result';
 import { makeUnique } from 'picsur-shared/dist/util/unique';
 import { Repository } from 'typeorm';
 import { EUserBackend } from '../../database/entities/users/user.entity.js';
-import { Permissions } from '../../models/constants/permissions.const.js';
 import {
-  DefaultRolesList,
-  SoulBoundRolesList,
-} from '../../models/constants/roles.const.js';
+  Permissions,
+} from '../../models/constants/permissions.const.js';
+import {
+  ImplicitPermissions,
+  SuperUserPermissions,
+} from '../../models/constants/permission-templates.const.js';
 import {
   ImmutableUsersList,
   LockedLoginUsersList,
@@ -25,7 +27,6 @@ import {
 } from '../../models/constants/special-users.const.js';
 import { GetCols } from '../../util/collection.js';
 import { SysPreferenceDbService } from '../preference-db/sys-preference-db.service.js';
-import { RoleDbService } from '../role-db/role-db.service.js';
 
 @Injectable()
 export class UserDbService {
@@ -34,18 +35,25 @@ export class UserDbService {
   constructor(
     @InjectRepository(EUserBackend)
     private readonly usersRepository: Repository<EUserBackend>,
-    private readonly rolesService: RoleDbService,
     private readonly prefService: SysPreferenceDbService,
   ) {}
 
   // Creation and deletion
 
+  /**
+   * Creates a user.
+   *
+   * New accounts start with **no** permissions (default deny); the admin picks
+   * a template or ticks permissions in the user page. The built-in accounts
+   * (`guest`, `admin`) get their sets from `UserDbModule`.
+   *
+   * The legacy `roles` column is left at its default and never written again -
+   * it is kept frozen so a rollback to the previous release still works.
+   */
   public async create(
     username: string,
     password: string,
-    roles?: string[],
-    // Add option to create "invalid" users, should only be used by system
-    byPassRoleCheck?: boolean,
+    permissions: Permissions = [],
   ): AsyncFailable<EUserBackend> {
     if (await this.exists(username))
       return Fail(FT.Conflict, 'User already exists');
@@ -56,14 +64,10 @@ export class UserDbService {
     const user = new EUserBackend();
     user.username = username;
     user.hashed_password = hashedPassword;
-    if (byPassRoleCheck) {
-      const rolesToAdd = roles ?? [];
-      user.roles = makeUnique(rolesToAdd);
-    } else {
-      // Strip soulbound roles and add default roles
-      const rolesToAdd = this.filterAddedRoles(roles ?? []);
-      user.roles = makeUnique([...DefaultRolesList, ...rolesToAdd]);
-    }
+    user.permissions = makeUnique(permissions);
+    // The legacy column is NOT NULL without a database default: keep writing an
+    // empty array so inserts stay valid (and a rollback sees "no roles").
+    user.roles = [];
 
     try {
       return await this.usersRepository.save(user);
@@ -89,25 +93,32 @@ export class UserDbService {
 
   // Updating
 
-  public async setRoles(
+  /**
+   * Replaces the permissions of a user.
+   *
+   * The reserved `admin` account cannot be changed: it always has every
+   * permission (see `getPermissions`), so accepting the change would be a lie.
+   * It used to fail silently, which looked like a successful save in the UI.
+   */
+  public async setPermissions(
     uuid: string,
-    roles: string[],
+    permissions: Permissions,
   ): AsyncFailable<EUserBackend> {
     const userToModify = await this.findOne(uuid);
     if (HasFailed(userToModify)) return userToModify;
 
     if (ImmutableUsersList.includes(userToModify.username)) {
-      // Just fail silently
-      this.logger.verbose('User tried to modify system user, failed silently');
-      return userToModify;
+      return Fail(
+        FT.Permission,
+        `The built-in ${userToModify.username} account always has all permissions`,
+      );
     }
 
-    const rolesToKeep = userToModify.roles.filter((role) =>
-      SoulBoundRolesList.includes(role),
+    // Implicit permissions are granted at check time; storing them would only
+    // make the picker lie about what is really editable.
+    userToModify.permissions = makeUnique(
+      permissions.filter((permission) => !ImplicitPermissions.includes(permission)),
     );
-    const rolesToAdd = this.filterAddedRoles(roles);
-    const newRoles = makeUnique([...rolesToKeep, ...rolesToAdd]);
-    userToModify.roles = newRoles;
 
     try {
       return await this.usersRepository.save(userToModify);
@@ -116,39 +127,47 @@ export class UserDbService {
     }
   }
 
-  public async removeRoleEveryone(role: string): AsyncFailable<true> {
-    try {
-      await this.usersRepository
-        .createQueryBuilder('user')
-        .update()
-        .set({
-          roles: () => 'ARRAY_REMOVE(roles, :role)',
-        })
-        .where('roles @> ARRAY[:role]', { role })
-        .execute();
-    } catch (e) {
-      return Fail(FT.Database, e);
-    }
-
-    return true;
-  }
-
-  public async getPermissions(uuid: string): AsyncFailable<Permissions> {
+  /**
+   * System-only variant of `setPermissions` (seeding, demo mode).
+   *
+   * Skips the built-in-account guard on purpose: `UserDbModule` owns the guest
+   * account and has to be able to keep it in sync with the demo aware template.
+   */
+  public async forceSetPermissions(
+    uuid: string,
+    permissions: Permissions,
+  ): AsyncFailable<EUserBackend> {
     const userToModify = await this.findOne(uuid);
     if (HasFailed(userToModify)) return userToModify;
 
-    // Transition (step 1 of removing the role system): permissions come from
-    // the user's own column *and* from its roles. The migration filled the
-    // column with the role union, so this changes nothing yet - it just means
-    // the new column is already read. The role half goes away in step 2.
-    const rolePermissions = await this.rolesService.getPermissions(
-      userToModify.roles,
-    );
-    if (HasFailed(rolePermissions)) return rolePermissions;
+    userToModify.permissions = makeUnique(permissions);
+
+    try {
+      return await this.usersRepository.save(userToModify);
+    } catch (e) {
+      return Fail(FT.Database, e);
+    }
+  }
+
+  /**
+   * The permissions a request made by this user has.
+   *
+   * - the reserved `admin` account always gets everything (computed here, not
+   *   stored, so new permissions do not need a migration and the owner cannot
+   *   lock themselves out);
+   * - every account additionally gets the implicit permissions (login,
+   *   keep-login, settings);
+   * - the rest is whatever is stored on the user.
+   */
+  public async getPermissions(uuid: string): AsyncFailable<Permissions> {
+    const user = await this.findOne(uuid);
+    if (HasFailed(user)) return user;
+
+    if (ImmutableUsersList.includes(user.username)) return SuperUserPermissions;
 
     return makeUnique([
-      ...rolePermissions,
-      ...(userToModify.permissions ?? []),
+      ...ImplicitPermissions,
+      ...(user.permissions ?? []),
     ]) as Permissions;
   }
 
@@ -288,14 +307,6 @@ export class UserDbService {
   }
 
   // Internal
-
-  private filterAddedRoles(roles: string[]): string[] {
-    const filteredRoles = roles.filter(
-      (role) => !SoulBoundRolesList.includes(role),
-    );
-
-    return filteredRoles;
-  }
 
   private async getBCryptStrength(): Promise<number> {
     const result = await this.prefService.getNumberPreference(

@@ -12,17 +12,23 @@ import {
     UserUpdateRequest,
     UserUpdateResponse,
 } from 'picsur-shared/dist/dto/api/user-manage.dto';
-import { ThrowIfFailed } from 'picsur-shared/dist/types/failable';
+import { FT, Fail, ThrowIfFailed } from 'picsur-shared/dist/types/failable';
 import { UserDbService } from '../../../collections/user-db/user-db.service.js';
 import { EasyThrottle } from '../../../decorators/easy-throttle.decorator.js';
 import { RequiredPermissions } from '../../../decorators/permissions.decorator.js';
 import { Returns } from '../../../decorators/returns.decorator.js';
 import { Permission } from '../../../models/constants/permissions.const.js';
 import {
+    GuestPermissions,
+    ImplicitPermissions,
+    UserPermissions,
+} from '../../../models/constants/permission-templates.const.js';
+import {
     ImmutableUsersList,
     LockedLoginUsersList,
     UndeletableUsersList,
 } from '../../../models/constants/special-users.const.js';
+import { isPermissionsArray } from '../../../models/validators/permissions.validator.js';
 import { EUserBackend2EUser } from '../../../models/transformers/user.transformer.js';
 
 @Controller('api/user')
@@ -41,8 +47,7 @@ export class UserAdminController {
       await this.usersService.findMany(body.count, body.page),
     );
 
-    found.results = found.results.map(EUserBackend2EUser);
-    return found;
+    return { ...found, results: found.results.map(EUserBackend2EUser) };
   }
 
   @Post('create')
@@ -51,11 +56,16 @@ export class UserAdminController {
   async register(
     @Body() create: UserCreateRequest,
   ): Promise<UserCreateResponse> {
+    const requested: string[] = create.permissions ?? [];
+    if (!isPermissionsArray(requested)) {
+      throw Fail(FT.UsrValidation, 'Invalid permissions array');
+    }
+
     const user = ThrowIfFailed(
       await this.usersService.create(
         create.username,
         create.password,
-        create.roles,
+        requested,
       ),
     );
 
@@ -86,9 +96,14 @@ export class UserAdminController {
   ): Promise<UserUpdateResponse> {
     let user = ThrowIfFailed(await this.usersService.findOne(body.id));
 
-    if (body.roles) {
+    if (body.permissions) {
+      const requested: string[] = body.permissions;
+      if (!isPermissionsArray(requested)) {
+        throw Fail(FT.UsrValidation, 'Invalid permissions array');
+      }
+
       user = ThrowIfFailed(
-        await this.usersService.setRoles(body.id, body.roles),
+        await this.usersService.setPermissions(body.id, requested),
       );
     }
 
@@ -108,6 +123,9 @@ export class UserAdminController {
       ImmutableUsersList,
       LockedLoginUsersList,
       UndeletableUsersList,
+      ImplicitPermissions,
+      GuestPermissions,
+      UserPermissions,
     };
   }
 }

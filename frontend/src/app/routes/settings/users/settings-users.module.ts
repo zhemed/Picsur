@@ -13,6 +13,7 @@ import { SettingsUsersComponent } from './settings-users.component';
 import { SettingsUsersRoutingModule } from './settings-users.routing.module';
 import { FabModule } from '../../../components/fab/fab.module';
 import { I18nModule } from '../../../i18n/i18n.module';
+import { PipesModule } from '../../../pipes/pipes.module';
 import { ValuesPickerModule } from '../../../components/values-picker/values-picker.module';
 import { DialogManagerModule } from '../../../util/dialog-manager/dialog-manager.module';
 import { ErrorManagerModule } from '../../../util/error-manager/error-manager.module';
@@ -21,6 +22,7 @@ import { ErrorManagerModule } from '../../../util/error-manager/error-manager.mo
   declarations: [SettingsUsersComponent, SettingsUsersEditComponent],
   imports: [
     CommonModule,
+    PipesModule,
     ErrorManagerModule,
     DialogManagerModule,
     I18nModule,

@@ -1,13 +1,12 @@
 import { Logger, Module, OnModuleInit } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ImageDBModule } from '../../collections/image-db/image-db.module.js';
-import { RoleDbModule } from '../../collections/role-db/role-db.module.js';
 import { EarlyConfigModule } from '../../config/early/early-config.module.js';
 import { HostConfigService } from '../../config/early/host.config.service.js';
 import { DemoManagerService } from './demo.service.js';
 
 @Module({
-  imports: [ImageDBModule, EarlyConfigModule, RoleDbModule],
+  imports: [ImageDBModule, EarlyConfigModule],
   providers: [DemoManagerService],
 })
 export class DemoManagerModule implements OnModuleInit {
@@ -27,7 +26,8 @@ export class DemoManagerModule implements OnModuleInit {
   }
 
   private async setupDemoMode() {
-    this.demoManagerService.setupRoles();
+    // Guest upload rights come from the demo aware permission template
+    // (UserDbModule), there is nothing to widen here anymore.
 
     const interval = setInterval(
       // Run demoManagerService.execute() every interval

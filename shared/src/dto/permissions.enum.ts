@@ -16,6 +16,5 @@ export enum Permission {
 
   ImageAdmin = 'image-admin', // Ability to manage everyones manage images
   UserAdmin = 'user-admin', // Allow modification of users
-  RoleAdmin = 'role-admin', // Allow modification of roles
   SysPrefAdmin = 'syspref-admin',
 }

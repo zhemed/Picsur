@@ -27,24 +27,27 @@ export class EUserBackend implements OverriddenEUser {
   @Column({ nullable: false, unique: true })
   username: string;
 
-  @Column('text', { nullable: false, array: true })
-  roles: string[];
+  /**
+   * Legacy column, frozen.
+   *
+   * It pointed at rows in `e_role_backend` before the role system was removed.
+   * Nothing reads or writes it anymore; it is kept (and still populated) so a
+   * rollback to the previous release works. The migration
+   * `AddUserPermissions1792281600000` copied what it granted into
+   * `permissions`.
+   */
+  @Column('text', { nullable: false, array: true, default: '{}' })
+  roles?: string[];
 
   /**
    * Permissions granted to this user directly.
    *
-   * The role system is being removed: instead of `roles` pointing at rows in
-   * `e_role_backend`, the permissions live here. During the transition both are
-   * read (see `UserDbService.getPermissions`); the migration
-   * `AddUserPermissions1792281600000` materialised what every existing user
-   * effectively had.
-   *
-   * Optional on purpose: the column is `NOT NULL DEFAULT '{}'`, but an entity
-   * that was loaded without this column (or a freshly built one) must not
-   * silently write an empty array over the stored permissions on save.
+   * Implicit permissions (login, keep-login, settings) and the full set of the
+   * reserved `admin` account are added at check time, see
+   * `UserDbService.getPermissions`.
    */
   @Column('text', { nullable: false, array: true, default: '{}' })
-  permissions?: Permissions;
+  permissions: Permissions;
 
   @Column({ nullable: false, select: false })
   hashed_password?: string;

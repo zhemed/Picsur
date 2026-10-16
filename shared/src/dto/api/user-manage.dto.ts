@@ -61,6 +61,11 @@ export const GetSpecialUsersResponseSchema = z.object({
   UndeletableUsersList: IsStringList(),
   ImmutableUsersList: IsStringList(),
   LockedLoginUsersList: IsStringList(),
+  /** Permissions every account has; hidden in the permission picker. */
+  ImplicitPermissions: IsStringList(),
+  /** Starting points the UI offers when editing an account. */
+  GuestPermissions: IsStringList(),
+  UserPermissions: IsStringList(),
 });
 export class GetSpecialUsersResponse extends createZodDto(
   GetSpecialUsersResponseSchema,

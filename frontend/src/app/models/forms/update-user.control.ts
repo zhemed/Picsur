@@ -3,6 +3,7 @@ import {
   UserCreateRequest,
   UserUpdateRequest,
 } from 'picsur-shared/dist/dto/api/user-manage.dto';
+import { Permission } from 'picsur-shared/dist/dto/permissions.enum';
 import {
   CreatePasswordError,
   CreateUsernameError,
@@ -10,11 +11,20 @@ import {
   UsernameValidators,
 } from '../validators/user.validator';
 
+/**
+ * Form model of the user page.
+ *
+ * Accounts carry their permissions directly (the role concept is gone); the
+ * implicit ones (login, keep login, settings) are not part of the control, the
+ * server adds them.
+ */
 export class UpdateUserControl {
   private id = '';
   public username = new FormControl('', UsernameValidators);
   public password = new FormControl('', PasswordValidators);
-  public roles = new FormControl<string[]>([]);
+  public permissions = new FormControl<Permission[]>([], {
+    nonNullable: true,
+  });
 
   public get usernameValue() {
     return this.username.value;
@@ -28,8 +38,8 @@ export class UpdateUserControl {
     return CreatePasswordError(this.password.errors);
   }
 
-  public get selectedRoles(): string[] {
-    return this.roles.value ?? [];
+  public get selectedPermissions(): Permission[] {
+    return this.permissions.value ?? [];
   }
 
   // Data interaction
@@ -42,15 +52,15 @@ export class UpdateUserControl {
     this.username.setValue(username);
   }
 
-  public putRoles(roles: string[]) {
-    this.roles.setValue(roles);
+  public putPermissions(permissions: string[]) {
+    this.permissions.setValue(permissions as Permission[]);
   }
 
   public getDataCreate(): UserCreateRequest {
     return {
       username: this.username.value ?? '',
       password: this.password.value ?? '',
-      roles: this.selectedRoles,
+      permissions: this.selectedPermissions,
     };
   }
 
