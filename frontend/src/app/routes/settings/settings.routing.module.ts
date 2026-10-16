@@ -42,19 +42,6 @@ const SettingsRoutes: PRoutes = [
         },
       },
       {
-        path: 'roles',
-        loadChildren: () =>
-          import('./roles/settings-roles.module').then((m) => m.default),
-        data: {
-          permissions: [Permission.RoleAdmin],
-          page: {
-            title: 'settings.pages.roles',
-            icon: 'admin_panel_settings',
-            category: 'system',
-          },
-        },
-      },
-      {
         path: 'system',
         loadChildren: () =>
           import('./sys-pref/settings-sys-pref.module').then((m) => m.default),

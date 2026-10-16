@@ -7,6 +7,7 @@ import {
     PrimaryGeneratedColumn,
 } from 'typeorm';
 import { z } from 'zod';
+import type { Permissions } from '../../../models/constants/permissions.const.js';
 import { EUsrPreferenceBackend } from '../system/usr-preference.entity.js';
 
 // Different data for public and private
@@ -26,8 +27,27 @@ export class EUserBackend implements OverriddenEUser {
   @Column({ nullable: false, unique: true })
   username: string;
 
-  @Column('text', { nullable: false, array: true })
-  roles: string[];
+  /**
+   * Legacy column, frozen.
+   *
+   * It pointed at rows in `e_role_backend` before the role system was removed.
+   * Nothing reads or writes it anymore; it is kept (and still populated) so a
+   * rollback to the previous release works. The migration
+   * `AddUserPermissions1792281600000` copied what it granted into
+   * `permissions`.
+   */
+  @Column('text', { nullable: false, array: true, default: '{}' })
+  roles?: string[];
+
+  /**
+   * Permissions granted to this user directly.
+   *
+   * Implicit permissions (login, keep-login, settings) and the full set of the
+   * reserved `admin` account are added at check time, see
+   * `UserDbService.getPermissions`.
+   */
+  @Column('text', { nullable: false, array: true, default: '{}' })
+  permissions: Permissions;
 
   @Column({ nullable: false, select: false })
   hashed_password?: string;

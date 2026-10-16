@@ -6,14 +6,20 @@ import { IsPlainTextPwd, IsUsername } from '../validators/user.validators.js';
 export const SimpleUserSchema = z.object({
   username: IsUsername(),
   password: IsPlainTextPwd(),
-  roles: IsStringList(),
+  /** Optional: new accounts start with no permissions (default deny). */
+  permissions: IsStringList().optional(),
 });
 export type SimpleUser = z.infer<typeof SimpleUserSchema>;
 
 export const EUserSchema = z.object({
   id: IsEntityID(),
   username: IsUsername(),
-  roles: IsStringList(),
+  /**
+   * Permissions granted to this account directly. Implicit permissions (login,
+   * keep-login, settings) and the full set of the reserved `admin` account are
+   * added at check time and are not necessarily part of this list.
+   */
+  permissions: IsStringList(),
   hashedPassword: z.undefined(),
 });
 export type EUser = z.infer<typeof EUserSchema>;

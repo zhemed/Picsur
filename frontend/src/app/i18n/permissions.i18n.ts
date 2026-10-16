@@ -23,6 +23,5 @@ export const UIPermissionTranslationKeys: Partial<Record<Permission, string>> =
 
     [Permission.ImageAdmin]: 'permissions.imageAdmin',
     [Permission.UserAdmin]: 'permissions.userAdmin',
-    [Permission.RoleAdmin]: 'permissions.roleAdmin',
     [Permission.SysPrefAdmin]: 'permissions.sysPrefAdmin',
   };

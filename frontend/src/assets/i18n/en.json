@@ -205,8 +205,7 @@
     },
     "pages": {
       "general": "General",
-        "users": "Users",
-      "roles": "Roles",
+      "users": "Users",
       "system": "System Settings",
       "about": "About"
     },
@@ -221,9 +220,9 @@
       "latestVersion": "Latest version",
       "unknown": "unknown",
       "check": "Check for updates",
-      "checking": "Checking for updates\u2026",
+      "checking": "Checking for updates…",
       "upgrade": "Update now",
-      "upgrading": "Update running\u2026",
+      "upgrading": "Update running…",
       "updateAvailable": "Version {{ version }} is available",
       "upToDate": "This instance is up to date",
       "stateRunning": "An update is running, this instance will restart in a moment",
@@ -231,16 +230,16 @@
       "stateFailed": "The last update failed, check the container logs",
       "selfUpdateDisabled": "Updating from the panel is not available here. Update manually with:",
       "command": "Update command",
-      "manualHint": "Manual update: pull the new image with \u201cdocker pull ghcr.io/zhemed/picsur:allinone\u201d, then recreate the container with the same docker run command you started it with (keep your own name, port and volume arguments).",
-      "enableHint": "The one click update drives the host docker through the /var/run/docker.sock mount in the deploy command. No mount means no panel update: an attempt fails and says so. To switch panel updates off on purpose, set PICSUR_ALLOW_SELF_UPDATE=false \u2014 this page then only offers the command above.",
+      "manualHint": "Manual update: pull the new image with “docker pull ghcr.io/zhemed/picsur:allinone”, then recreate the container with the same docker run command you started it with (keep your own name, port and volume arguments).",
+      "enableHint": "The one click update drives the host docker through the /var/run/docker.sock mount in the deploy command. No mount means no panel update: an attempt fails and says so. To switch panel updates off on purpose, set PICSUR_ALLOW_SELF_UPDATE=false — this page then only offers the command above.",
       "started": "Update to {{ version }} started. This instance restarts now, the page reloads when it is back.",
       "checkFailed": "Checking for updates failed: {{ reason }}",
-      "checkRetry": "You can retry with the \u201cCheck for updates\u201d button.",
+      "checkRetry": "You can retry with the “Check for updates” button.",
       "selfUpdateUnknown": "The self update state is unknown until the check succeeds.",
-      "upgradeStarting": "Starting the update\u2026",
-      "upgradingTo": "Updating to {{ version }}\u2026",
-      "upgradePulling": "Pulling the new image and rebuilding the container\u2026",
-      "upgradeRestarting": "The service is restarting; this page reloads as soon as the new version answers\u2026",
+      "upgradeStarting": "Starting the update…",
+      "upgradingTo": "Updating to {{ version }}…",
+      "upgradePulling": "Pulling the new image and rebuilding the container…",
+      "upgradeRestarting": "The service is restarting; this page reloads as soon as the new version answers…",
       "upgradeElapsed": "Elapsed: {{ seconds }}s",
       "rollbackTitle": "The update failed, rolled back to {{ version }}",
       "upgradeTimeoutTitle": "The update did not finish in time",
@@ -248,38 +247,10 @@
       "failureReason": "Reason: {{ reason }}",
       "retry": "Retry"
     },
-    "roles": {
-      "title": "Roles",
-      "name": "Name",
-      "permissions": "Permissions",
-      "system": "System",
-      "actions": "Actions",
-      "edit": "Edit",
-      "selectPage": "Select page of roles",
-      "add": "Add Role",
-      "update": "UPDATE",
-      "createTooltip": "Create a new role",
-      "deleteConfirmTitle": "Are you sure you want to delete {{ name }}?",
-      "deleted": "Role deleted",
-      "created": "Role created",
-      "updated": "Role updated",
-      "editTitle": "Editing role \"{{ name }}\"",
-      "addTitle": "Add new role",
-      "roleName": "Role name",
-      "permission": "permission",
-      "permissionsMultiple": "Permissions",
-      "errors": {
-        "required": "Role name is required",
-        "minLength": "Role name is too short",
-        "maxLength": "Role name is too long",
-        "pattern": "Role name can only contain letters and numbers",
-        "invalid": "Invalid role name"
-      }
-    },
     "users": {
       "title": "Users",
       "username": "Username",
-      "roles": "Roles",
+      "permissions": "Permissions",
       "system": "System",
       "actions": "Actions",
       "selectPage": "Select page of users",
@@ -292,8 +263,13 @@
       "editTitle": "Editing user \"{{ name }}\"",
       "addTitle": "Add new user",
       "newPassword": "New Password",
-      "role": "role",
-      "rolesMultiple": "Roles",
+      "templates": "Start from:",
+      "templateGuest": "Guest defaults",
+      "templateUser": "User defaults",
+      "templateNone": "Clear",
+      "permission": "permission",
+      "permissionsMultiple": "Permissions",
+      "adminAlwaysAll": "The built-in admin account always has every permission and cannot be edited.",
       "effectivePermissions": "Effective Permissions",
       "update": "UPDATE"
     },
@@ -310,8 +286,12 @@
     "settings": "View settings",
     "imageAdmin": "Image Admin",
     "userAdmin": "User Admin",
-    "roleAdmin": "Role Admin",
-    "sysPrefAdmin": "System Admin"
+    "sysPrefAdmin": "System Admin",
+    "groups": {
+      "images": "Images",
+      "account": "Account",
+      "system": "System"
+    }
   },
   "userPreferences": {
     "keepOriginal": {
@@ -345,5 +325,6 @@
     "trackingId": {
       "name": "Ackee tracking website ID",
       "helpText": "ID of the website to track."
-    }  }
+    }
+  }
 }

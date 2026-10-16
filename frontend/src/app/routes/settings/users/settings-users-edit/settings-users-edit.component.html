@@ -52,14 +52,49 @@
   </div>
 
   <div class="row" *ngIf="!isLockedPerms()">
-    <div class="col-lg-6 col-12">
+    <div class="col-12">
+      <div class="permission-templates">
+        <span class="me-2">{{ 'settings.users.templates' | translate }}</span>
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="applyTemplate('guest')"
+        >
+          {{ 'settings.users.templateGuest' | translate }}
+        </button>
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="applyTemplate('user')"
+        >
+          {{ 'settings.users.templateUser' | translate }}
+        </button>
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="applyTemplate('none')"
+        >
+          {{ 'settings.users.templateNone' | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row" *ngIf="!isLockedPerms()">
+    <div class="col-lg-8 col-12">
       <values-picker
-        [name]="'settings.users.role' | translate"
-        [name-multiple]="'settings.users.rolesMultiple' | translate"
-        [control]="model.roles"
-        [disabled-list]="soulBoundRoles"
-        [selection-list]="allRoles"
+        [name]="'settings.users.permission' | translate"
+        [name-multiple]="'settings.users.permissionsMultiple' | translate"
+        [value-mapper]="UIFriendlyPermission"
+        [control]="model.permissions"
+        [selection-list]="allPermissions"
       ></values-picker>
+    </div>
+  </div>
+
+  <div class="row" *ngIf="isLockedPerms()">
+    <div class="col-12">
+      <p class="text-muted">{{ 'settings.users.adminAlwaysAll' | translate }}</p>
     </div>
   </div>
 
@@ -75,7 +110,7 @@
           *ngFor="let permission of getEffectivePermissions()"
           [disableRipple]="true"
         >
-          {{ permission | translate }}
+          {{ permission | permissionLabel }}
         </mat-chip>
       </mat-chip-listbox>
     </div>

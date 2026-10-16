@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
 import { AutoUnsubscribe } from 'ngx-auto-unsubscribe-decorator';
 import { AllPermissionsResponse } from 'picsur-shared/dist/dto/api/info.dto';
-import { SpecialRolesResponse } from 'picsur-shared/dist/dto/api/roles.dto';
 import { GetSpecialUsersResponse } from 'picsur-shared/dist/dto/api/user-manage.dto';
 import { Open } from 'picsur-shared/dist/types/failable';
 import { CacheService } from '../storage/cache.service';
@@ -20,20 +19,6 @@ export class StaticInfoService {
     this.subscribeVersion();
   }
 
-  public async getSpecialRoles(): Promise<SpecialRolesResponse> {
-    return this.cache.getFallback(
-      'specialRoles',
-      {
-        DefaultRoles: [],
-        ImmutableRoles: [],
-        SoulBoundRoles: [],
-        UndeletableRoles: [],
-        LockedPermissions: {},
-      },
-      () => this.api.get(SpecialRolesResponse, '/api/roles/special').result,
-    );
-  }
-
   public async getSpecialUsers(): Promise<GetSpecialUsersResponse> {
     return this.cache.getFallback(
       'specialUsers',
@@ -41,6 +26,9 @@ export class StaticInfoService {
         ImmutableUsersList: [],
         LockedLoginUsersList: [],
         UndeletableUsersList: [],
+        ImplicitPermissions: [],
+        GuestPermissions: [],
+        UserPermissions: [],
       },
       () => this.api.get(GetSpecialUsersResponse, '/api/user/special').result,
     );

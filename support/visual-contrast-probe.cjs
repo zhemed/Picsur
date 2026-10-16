@@ -71,7 +71,6 @@ const DEFAULT_ROUTES = [
   '/user/register',
   '/settings/general',
   '/settings/users',
-  '/settings/roles',
   '/settings/system',
   '/settings/about',
   '/error/401',
@@ -80,6 +79,7 @@ const DEFAULT_ROUTES = [
   // (the `**` route sends them to /error/404).
   '/settings/sharex',
   '/settings/apikeys',
+  '/settings/roles',
 ];
 
 /**
@@ -89,11 +89,11 @@ const DEFAULT_ROUTES = [
  */
 const EXPECTED_TABLES = [
   '/settings/users',
-  '/settings/roles',
 ];
 const MIN_TEXT_ELEMENTS = {
   '/settings/sharex': 5,
   '/settings/apikeys': 5,
+  '/settings/roles': 5,
   '/upload': 5,
   '/images/1': 5,
   '/user/login': 5,

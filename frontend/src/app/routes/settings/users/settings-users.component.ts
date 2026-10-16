@@ -25,10 +25,14 @@ export class SettingsUsersComponent implements OnInit {
 
   private UndeletableUsersList: string[] = [];
 
-  public readonly displayedColumns: string[] = ['username', 'roles', 'actions'];
+  public readonly displayedColumns: string[] = [
+    'username',
+    'permissions',
+    'actions',
+  ];
   public readonly pageSizeOptions: number[] = [5, 10, 25, 100];
   public readonly startingPageSize = this.pageSizeOptions[2];
-  public readonly rolesTruncate = 5;
+  public readonly permissionsTruncate = 5;
 
   public dataSubject = new BehaviorSubject<EUser[]>([]);
   public updateSubject = new Subject<PageEvent>();

@@ -205,8 +205,7 @@
     },
     "pages": {
       "general": "常规",
-        "users": "用户",
-      "roles": "角色",
+      "users": "用户",
       "system": "系统设置",
       "about": "关于"
     },
@@ -221,9 +220,9 @@
       "latestVersion": "最新版本",
       "unknown": "未知",
       "check": "检查更新",
-      "checking": "正在检查更新\u2026",
+      "checking": "正在检查更新…",
       "upgrade": "立即升级",
-      "upgrading": "升级进行中\u2026",
+      "upgrading": "升级进行中…",
       "updateAvailable": "发现新版本 {{ version }}",
       "upToDate": "当前已是最新版本",
       "stateRunning": "升级正在进行，实例稍后会自动重启",
@@ -248,38 +247,10 @@
       "failureReason": "原因：{{ reason }}",
       "retry": "重试"
     },
-    "roles": {
-      "title": "角色",
-      "name": "名称",
-      "permissions": "权限",
-      "system": "系统",
-      "actions": "操作",
-      "edit": "编辑",
-      "selectPage": "选择角色页面",
-      "add": "添加角色",
-      "update": "更新",
-      "createTooltip": "创建一个新角色",
-      "deleteConfirmTitle": "您确定要删除 {{ name }} 吗？",
-      "deleted": "角色已删除",
-      "created": "角色已创建",
-      "updated": "角色已更新",
-      "editTitle": "编辑角色 \"{{ name }}\"",
-      "addTitle": "添加新角色",
-      "roleName": "角色名称",
-      "permission": "权限",
-      "permissionsMultiple": "权限",
-      "errors": {
-        "required": "角色名称为必填项",
-        "minLength": "角色名称太短",
-        "maxLength": "角色名称太长",
-        "pattern": "角色名称只能包含字母和数字",
-        "invalid": "无效角色名称"
-      }
-    },
     "users": {
       "title": "用户",
       "username": "用户名",
-      "roles": "角色",
+      "permissions": "权限",
       "system": "系统",
       "actions": "操作",
       "selectPage": "选择用户页面",
@@ -292,8 +263,13 @@
       "editTitle": "编辑用户 \"{{ name }}\"",
       "addTitle": "添加新用户",
       "newPassword": "新密码",
-      "role": "角色",
-      "rolesMultiple": "角色",
+      "templates": "套用默认：",
+      "templateGuest": "访客默认",
+      "templateUser": "普通用户默认",
+      "templateNone": "清空",
+      "permission": "权限",
+      "permissionsMultiple": "权限",
+      "adminAlwaysAll": "内置 admin 账号始终拥有全部权限，不可编辑。",
       "effectivePermissions": "有效权限",
       "update": "更新"
     },
@@ -310,8 +286,12 @@
     "settings": "查看设置",
     "imageAdmin": "图片管理员",
     "userAdmin": "用户管理员",
-    "roleAdmin": "角色管理员",
-    "sysPrefAdmin": "系统管理员"
+    "sysPrefAdmin": "系统管理员",
+    "groups": {
+      "images": "图片",
+      "account": "账号",
+      "system": "系统"
+    }
   },
   "userPreferences": {
     "keepOriginal": {
@@ -345,5 +325,6 @@
     "trackingId": {
       "name": "Ackee 跟踪网站 ID",
       "helpText": "要跟踪的网站 ID。"
-    }  }
+    }
+  }
 }
