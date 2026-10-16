@@ -17,6 +17,15 @@
 #     注意：锁的是 amd64 的版本号，arm64 上同一 Alpine 分支的修订号可能不同；
 #   * libvips 源码包校验 sha256（值同时核对过 GitHub release asset 的 digest）；
 #   * 全局 node-gyp / node-addon-api 锁版本（与 lockfile 里的解析结果一致）。
+#
+# 构建阶段不变量（2026-10-16「发布偶发失败」根治后固化，别改）：
+#   * **需要写权限的构建阶段必须在 root 下执行**：每个构建阶段显式写 `USER root`；
+#     `USER node` 只用于最终运行阶段（见文件末尾）。构建阶段里加 `USER` 都是 bug。
+#   * 全局 pnpm 自带的 node-gyp 发布时**没有可执行位**（pnpm tarball 里 `node-gyp/gyp/*` 全是 0644），
+#     而 gyp 生成的 Makefile 在「自我再生」（`ACTION Regenerating Makefile`，Makefile 第 348 行那条规则）
+#     时会**直接执行** `gyp_main.py`（靠 shebang）→ `/bin/sh: … Permission denied`、make Error 126。
+#     是否触发取决于 make 的时间戳判断，所以表现为「偶发、重试即过」的发布中断。
+#     → 每次装完 pnpm / 装完依赖，都要用下面的 `chmod` 显式补齐 gyp 入口的 exec 位（别删）。
 
 # ============================================================
 # 阶段 1：JS 产物（shared → frontend → backend）
@@ -26,12 +35,21 @@
 # Node 版本必须是 20：Node ≥22.16 的 N-API 签名变更会让这些包编译失败（实测）。
 FROM node:20@sha256:8f693eaa7e0a8e71560c9a82b55fd54c2ae920a2ba5d2cde28bac7d1c01c9ba5 AS js_builder
 
-RUN npm install -g pnpm@9.6.0
+# 构建阶段必须 root（见文件头不变量）：pnpm/node-gyp 要写 /usr/local 与项目 node_modules
+USER root
+
+# pnpm 自带的 node-gyp 入口没有 exec 位（pnpm tarball 里就是 0644）→ 显式补齐。
+# 末尾那条 test 是断言：万一以后 pnpm 改了目录结构，chmod 会静默失配、这个坑又会回来 —— 直接让构建失败。
+RUN npm install -g pnpm@9.6.0 \
+ && find /usr/local/lib/node_modules -path '*/node-gyp/gyp/*' \( -name 'gyp' -o -name '*.py' \) -exec chmod +x {} + \
+ && test -n "$(find /usr/local/lib/node_modules -name gyp_main.py -print -quit)"
 
 WORKDIR /picsur
 COPY . .
 
-RUN pnpm install --frozen-lockfile
+# 装完依赖再补一次：node-gyp 可能是从依赖树里解出来的（本地 .pnpm 树），同样要能直接执行
+RUN pnpm install --frozen-lockfile \
+ && { find /picsur/node_modules -path '*/node-gyp/gyp/*' \( -name 'gyp' -o -name '*.py' \) -exec chmod +x {} + 2>/dev/null || true; }
 
 # 顺序不能变：backend / frontend 直接 import picsur-shared/dist/*
 RUN pnpm --filter picsur-shared build \
@@ -51,6 +69,9 @@ RUN mkdir -p /trimmed \
 # 版本不能低于 8.18.7：sharp 0.35.x 的 package.json config.libvips 要求 >=8.18.7，
 # 低于它 sharp 的 install 脚本会拒绝用全局 libvips（SHARP_FORCE_GLOBAL_LIBVIPS 下仍会失败）。
 FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS vips_builder
+
+# 构建阶段必须 root（见文件头不变量）
+USER root
 
 RUN apk add --no-cache \
     build-base=0.5-r3 meson=1.9.1-r0 cmake=4.1.3-r0 pkgconf=2.5.1-r0 \
@@ -77,6 +98,9 @@ RUN cd vips-*/ \
 # ============================================================
 FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS vips_runtime
 
+# 构建阶段必须 root（见文件头不变量）
+USER root
+
 COPY --from=vips_builder /usr/local /usr/local
 RUN apk add --no-cache \
     pkgconf=2.5.1-r0 glib=2.86.3-r0 expat=2.8.5-r0 libexif=0.6.26-r0 jpeg=9f-r0 \
@@ -91,9 +115,16 @@ RUN apk add --no-cache \
 # ============================================================
 FROM vips_builder AS prod_deps
 
+# 构建阶段必须 root（见文件头不变量）
+USER root
+
 # node-addon-api / node-gyp 供 sharp 的源码构建使用（sharp 自己的 node_modules 是空的，
 # 所以用 NODE_PATH 指到全局安装位置给它解析）；版本锁死，避免构建工具悄悄换代。
-RUN npm install -g pnpm@9.6.0 node-gyp@11.5.0 node-addon-api@8.2.2
+# 末尾这两条 chmod 是给 pnpm 自带的 node-gyp 补 exec 位（pnpm tarball 里是 0644，
+# 而 gyp 生成的 Makefile 自我再生时会直接执行 gyp_main.py → 偶发 EACCES，见文件头）
+RUN npm install -g pnpm@9.6.0 node-gyp@11.5.0 node-addon-api@8.2.2 \
+ && find /usr/local/lib/node_modules -path '*/node-gyp/gyp/*' \( -name 'gyp' -o -name '*.py' \) -exec chmod +x {} + \
+ && test -n "$(find /usr/local/lib/node_modules -name gyp_main.py -print -quit)"
 # sharp 从源码编译需要 python3 + 编译工具链
 RUN apk add --no-cache python3=3.12.15-r0 build-base=0.5-r3
 
@@ -101,7 +132,9 @@ WORKDIR /picsur
 COPY --from=js_builder /trimmed ./
 
 ENV SHARP_FORCE_GLOBAL_LIBVIPS=1
-RUN pnpm install --frozen-lockfile --prod
+# 这一步就是 2026-10-16 两次发布中断的地方（posix.js 的 gyp 构建）：装完依赖同样补一次 exec 位
+RUN pnpm install --frozen-lockfile --prod \
+ && { find /picsur/node_modules -path '*/node-gyp/gyp/*' \( -name 'gyp' -o -name '*.py' \) -exec chmod +x {} + 2>/dev/null || true; }
 
 # ⚠️ 关键：sharp >= 0.33 的安装流程**不会**自动从源码构建 —— 它只装预编译的
 # `@img/sharp-*`（自带一份精简 libvips，**不含 JPEG-XL / JPEG2000 编解码**，
@@ -115,7 +148,11 @@ RUN cd /picsur/backend/node_modules/sharp \
 # ============================================================
 FROM vips_runtime
 
-RUN npm install -g pnpm@9.6.0
+# 构建阶段必须 root（见文件头不变量）；顺带把 pnpm 自带 node-gyp 的 exec 位补上，
+# 让发布出去的镜像里这套工具链也是完整可用的（all-in-one 基镜像就是它）
+USER root
+RUN npm install -g pnpm@9.6.0 \
+ && find /usr/local/lib/node_modules -path '*/node-gyp/gyp/*' \( -name 'gyp' -o -name '*.py' \) -exec chmod +x {} +
 
 ENV PICSUR_PRODUCTION=true
 

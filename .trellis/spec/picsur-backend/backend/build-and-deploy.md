@@ -52,6 +52,7 @@ docker compose restart picsur # 验证重启恢复
 | 运行用户               | 常规镜像 `USER node`（uid 1000，非 root）；应用只写数据库与 /tmp，`/picsur` 用 `--chown=node:node` 保证可读。**例外**：all-in-one 保持 root（initdb/chown /data + 自升级要访问宿主 docker.sock，理由写在 `Dockerfile.allinone` 注释里） |
 | 可复现性（2026-10-15） | 基础镜像锁 digest、apk 锁 `=版本`、libvips 源码包 `sha256sum -c`、全局 node-gyp/node-addon-api 锁版本；Alpine 发新 `-rN` 后构建会明确失败，用 `bash support/apk-versions.sh` 重新解析并同步 |
 | 面板自升级 + 非 root   | 常规镜像不是 root，光挂 `/var/run/docker.sock` 还不够：还要把宿主 docker 组的 GID 加进容器（compose `group_add` / `PICSUR_DOCKER_GID`），否则 socket 打不开、面板退化成显示升级命令 |
+| 构建阶段用户（不变量） | **需要写权限的构建阶段必须在 root 下执行**（pnpm / node-gyp / apk 都要写 `/usr/local` 与项目 `node_modules`），每个构建阶段显式写 `USER root`；**`USER` 只用于最终运行阶段**（`Dockerfile` 末尾 `USER node`）。2026-10-16 两次发布中断的根因就是构建阶段缺 exec 位：全局 pnpm 自带的 `node-gyp/gyp/gyp_main.py` 在 tarball 里是 0644，而 gyp 生成的 Makefile 在「自我再生」时会直接执行它 → `/bin/sh: … Permission denied`、`make Error 126`（偶发＝取决于 make 的时间戳判断）。修法：装完 pnpm / 装完依赖后用 `find … -path '*/node-gyp/gyp/*' -exec chmod +x` 补齐 exec 位，那几行**不要删** |
 
 ---
 
