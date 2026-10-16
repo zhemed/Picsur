@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { I18nService } from '../../../../i18n/i18n.service';
 
 import { Permission } from 'picsur-shared/dist/dto/permissions.enum';
-import { HasFailed } from 'picsur-shared/dist/types/failable';
+import { Fail, FT, HasFailed } from 'picsur-shared/dist/types/failable';
 import {
   permissionGroupOf,
   orderedPermissions,
@@ -67,10 +67,7 @@ export class SettingsUsersEditComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    Promise.all([
-      this.initSpecialUsers(),
-      this.initPermissions(),
-    ])
+    Promise.all([this.initSpecialUsers(), this.initPermissions()])
       .then(() => this.initUser())
       .catch(this.logger.error);
   }
@@ -109,7 +106,8 @@ export class SettingsUsersEditComponent implements OnInit {
     this.model.putId(uuid);
 
     const user = await this.userManageService.getUser(uuid);
-    if (HasFailed(user)) return this.errorService.showFailure(user, this.logger);
+    if (HasFailed(user))
+      return this.errorService.showFailure(user, this.logger);
 
     this.model.putUsername(user.username);
     this.model.putPermissions(user.permissions ?? []);
@@ -125,7 +123,9 @@ export class SettingsUsersEditComponent implements OnInit {
           : [];
 
     this.model.putPermissions(
-      source.filter((permission) => !this.implicitPermissions.includes(permission)),
+      source.filter(
+        (permission) => !this.implicitPermissions.includes(permission),
+      ),
     );
   }
 
@@ -163,9 +163,34 @@ export class SettingsUsersEditComponent implements OnInit {
       const data = this.model.getDataUpdate();
       if (!data.password) delete data.password;
 
+      // The built-in admin keeps every permission, and the server rejects any
+      // request that carries a permission change for it — *including* a request
+      // that only wanted to change the password. The permission picker is hidden
+      // for that account, but the form still held its permissions and sent them
+      // along, so "update" answered 403 and the password was never changed.
+      // Send only what the account may actually change.
+      if (this.isLockedPerms()) {
+        delete data.permissions;
+        delete data.username;
+      }
+
       const resultUser = await this.userManageService.updateUser(data);
-      if (HasFailed(resultUser))
+      if (HasFailed(resultUser)) {
+        // A permission failure on the locked account is not the admin's fault:
+        // say it in the reader's language instead of the server's English.
+        if (this.isLockedPerms() && resultUser.getType() === FT.Permission) {
+          this.errorService.showFailure(
+            Fail(
+              FT.Permission,
+              this.i18n.instant('settings.users.adminReadonly'),
+            ),
+            this.logger,
+          );
+          return;
+        }
+
         return this.errorService.showFailure(resultUser, this.logger);
+      }
 
       this.errorService.success(this.i18n.instant('settings.users.updated'));
     }
@@ -177,7 +202,9 @@ export class SettingsUsersEditComponent implements OnInit {
   isLockedPerms(): boolean {
     if (this.adding) return false;
 
-    return this.immutableUsersList.includes(this.model.getDataCreate().username);
+    return this.immutableUsersList.includes(
+      this.model.getDataCreate().username,
+    );
   }
 
   /** Shown above the picker, so the admin knows which set it starts from. */

@@ -271,7 +271,8 @@
       "templateNone": "清空",
       "permission": "权限",
       "permissionsMultiple": "权限",
-      "adminAlwaysAll": "内置 admin 账号始终拥有全部权限，不可编辑。",
+      "adminReadonly": "内置 admin 账号的权限不可编辑，只有密码可以修改。",
+    "adminAlwaysAll": "内置 admin 账号始终拥有全部权限，不可编辑。",
       "effectivePermissions": "有效权限",
       "update": "更新"
     },
