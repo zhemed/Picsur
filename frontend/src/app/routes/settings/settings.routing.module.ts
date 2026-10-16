@@ -29,19 +29,6 @@ const SettingsRoutes: PRoutes = [
         },
       },
       {
-        path: 'apikeys',
-        loadChildren: () =>
-          import('./apikeys/settings-apikeys.module').then((m) => m.default),
-        data: {
-          permissions: [Permission.ApiKey],
-          page: {
-            title: 'settings.pages.apiKeys',
-            icon: 'key',
-            category: 'personal',
-          },
-        },
-      },
-      {
         path: 'users',
         loadChildren: () =>
           import('./users/settings-users.module').then((m) => m.default),

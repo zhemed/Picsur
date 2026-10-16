@@ -1,24 +1,28 @@
 import { Permission } from 'picsur-shared/dist/dto/permissions.enum';
 
-export const UIPermissionTranslationKeys: {
-  [key in Permission]: string;
-} = {
-  [Permission.ImageView]: 'permissions.imageView',
-  [Permission.ImageUpload]: 'permissions.imageUpload',
-  [Permission.ImageManage]: 'permissions.imageManage',
-  [Permission.ImageDeleteKey]: 'permissions.imageDeleteKey',
+/**
+ * Label for every permission the UI can show.
+ *
+ * A partial map on purpose: a permission can be removed from the shared enum
+ * while this build still runs (and the other way around), and consumers already
+ * fall back to the raw permission name — `UIPermissionTranslationKeys[name] ??
+ * name`. The API-key permissions were dropped here together with the feature.
+ */
+export const UIPermissionTranslationKeys: Partial<Record<Permission, string>> =
+  {
+    [Permission.ImageView]: 'permissions.imageView',
+    [Permission.ImageUpload]: 'permissions.imageUpload',
+    [Permission.ImageManage]: 'permissions.imageManage',
+    [Permission.ImageDeleteKey]: 'permissions.imageDeleteKey',
 
-  [Permission.UserLogin]: 'permissions.userLogin',
-  [Permission.UserKeepLogin]: 'permissions.userKeepLogin',
-  [Permission.UserRegister]: 'permissions.userRegister',
+    [Permission.UserLogin]: 'permissions.userLogin',
+    [Permission.UserKeepLogin]: 'permissions.userKeepLogin',
+    [Permission.UserRegister]: 'permissions.userRegister',
 
-  [Permission.Settings]: 'permissions.settings',
+    [Permission.Settings]: 'permissions.settings',
 
-  [Permission.ApiKey]: 'permissions.apiKey',
-
-  [Permission.ImageAdmin]: 'permissions.imageAdmin',
-  [Permission.UserAdmin]: 'permissions.userAdmin',
-  [Permission.RoleAdmin]: 'permissions.roleAdmin',
-  [Permission.ApiKeyAdmin]: 'permissions.apiKeyAdmin',
-  [Permission.SysPrefAdmin]: 'permissions.sysPrefAdmin',
-};
+    [Permission.ImageAdmin]: 'permissions.imageAdmin',
+    [Permission.UserAdmin]: 'permissions.userAdmin',
+    [Permission.RoleAdmin]: 'permissions.roleAdmin',
+    [Permission.SysPrefAdmin]: 'permissions.sysPrefAdmin',
+  };
