@@ -528,3 +528,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 24: 仓库大面积精简：单部署路径 + 单发布路径 + 手册重写
+<!-- trellis-session: v=2 fp=3170d3d2cf7d9016 -->
+
+**Date**: 2026-10-16
+**Task**: 仓库大面积精简：单部署路径 + 单发布路径 + 手册重写
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户：『我们这个仓库开始大面积精简』并勾选四项。已完成：① 删 install.sh 与 .github/workflows/release-image.yml（第一批）；② 删 docker-compose.yml（compose 部署方式彻底退场）；③ 删 .agents/skills（50 文件的 Trellis 技能副本，全局已装）；④ 删依赖 compose 的 support/verify-published-image.sh，验证改用 all-in-one 形态；⑤ docs/MAINTAINING.md 重写为单路径版（唯一 docker run 部署 + 面板升级 + 手动路径 + 发布脚本与守卫 + 构建/依赖 + 验收清单 + 排障速查 + 安全要点）。保留：support/release-local.sh、regression-image-api.sh、audit-prod.sh、apk-versions.sh、make-image-fixtures.cjs、allinone-entrypoint.sh；.trellis 归档未动（用户未选）。GitHub 侧前置：master 已加保护（禁强推/删除、不拦直推）、12 个 Dependabot PR 关闭并删分支、移除 dependabot 配置，远端只剩 master。用户后续维护只需记住：部署=那条 docker run；升级=面板点一下。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6fc28d9` | chore: slim the repo to a single path |
+
+### Status
+
+[OK] **Completed**
