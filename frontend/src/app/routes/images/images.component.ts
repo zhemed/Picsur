@@ -1,4 +1,10 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  Inject,
+  OnDestroy,
+  OnInit,
+} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { I18nService } from '../../i18n/i18n.service';
 
@@ -23,15 +29,37 @@ import { BSScreenSize, BootstrapService } from '../../util/bootstrap.service';
 import { DialogService } from '../../util/dialog-manager/dialog.service';
 import { ErrorService } from '../../util/error-manager/error.service';
 
+/**
+ * How long the page may show "loading" before it admits something is wrong.
+ *
+ * The list request has no timeout of its own, and a request that never settles
+ * (a stalled connection, a proxy that swallowed the answer) left the page on
+ * its spinner forever — which the owner saw as "a blank page, only the header".
+ * A readable failure with a retry button beats an endless spinner.
+ */
+const LOAD_TIMEOUT_MS = 10000;
+
 @Component({
   standalone: false,
   templateUrl: './images.component.html',
   styleUrls: ['./images.component.scss'],
 })
-export class ImagesComponent implements OnInit {
+export class ImagesComponent implements OnInit, OnDestroy {
   private readonly logger: Logger = new Logger(ImagesComponent.name);
 
   imagesSub = new BehaviorSubject<EImage[] | null>(null);
+
+  /**
+   * The list request failed (server error, network, permissions).
+   *
+   * Without this the page kept `images === null`, which renders the loading
+   * spinner forever: a failed request looked exactly like a blank page. The
+   * owner hit this when the API answered 500 for every list request.
+   */
+  public loadFailed = false;
+
+  /** Cleared when the list request settles; see LOAD_TIMEOUT_MS. */
+  private loadTimer: ReturnType<typeof setTimeout> | undefined;
 
   /** Cards per row; kept in sync with the grid breakpoints in the SCSS. */
   columns = 1;
@@ -77,11 +105,35 @@ export class ImagesComponent implements OnInit {
     private readonly errorService: ErrorService,
     private readonly dialogService: DialogService,
     private readonly i18n: I18nService,
+    private readonly changeDetector: ChangeDetectorRef,
     @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
   ngOnInit() {
     this.load().catch(this.logger.error);
+    this.armLoadTimeout();
+  }
+
+  ngOnDestroy(): void {
+    this.clearLoadTimeout();
+  }
+
+  private armLoadTimeout(): void {
+    this.clearLoadTimeout();
+    this.loadTimer = setTimeout(() => {
+      if (this.images !== null || this.loadFailed) return;
+      this.loadFailed = true;
+      this.render();
+      this.logger.error(
+        `Image list did not answer within ${LOAD_TIMEOUT_MS}ms`,
+      );
+    }, LOAD_TIMEOUT_MS);
+  }
+
+  private clearLoadTimeout(): void {
+    if (this.loadTimer === undefined) return;
+    clearTimeout(this.loadTimer);
+    this.loadTimer = undefined;
   }
 
   private async load() {
@@ -130,13 +182,7 @@ export class ImagesComponent implements OnInit {
     return this.userService.live.subscribe(async (user) => {
       if (user === null) return;
 
-      const list = await this.imageService.ListMyImages(24, this.page - 1);
-      if (HasFailed(list)) {
-        return this.logger.error(list.getReason());
-      }
-
-      this.pages = list.pages;
-      this.imagesSub.next(list.results);
+      await this.fetchImages();
     });
   }
 
@@ -365,6 +411,40 @@ export class ImagesComponent implements OnInit {
         this.images?.filter((i) => i.id !== image.id) ?? null,
       );
     }
+  }
+
+  /**
+   * Try the list again, e.g. after the server recovered.
+   *
+   * Deliberately just the request, not `load()`: re-running the whole setup
+   * would subscribe to the screen size and the user stream a second time, and
+   * the user stream does not necessarily emit again on its own.
+   */
+  public retryLoad(): void {
+    this.loadFailed = false;
+    this.armLoadTimeout();
+    this.fetchImages().catch(this.logger.error);
+  }
+
+  /** Fetch one page of the user's pictures and publish it. */
+  private async fetchImages(): Promise<void> {
+    const list = await this.imageService.ListMyImages(24, this.page - 1);
+    this.clearLoadTimeout();
+    if (HasFailed(list)) {
+      this.loadFailed = true;
+      this.render();
+      return this.logger.error(list.getReason());
+    }
+
+    this.loadFailed = false;
+    this.pages = list.pages;
+    this.imagesSub.next(list.results);
+    this.render();
+  }
+
+  /** Re-render after an async state change (the failure block appears at once). */
+  private render(): void {
+    this.changeDetector.detectChanges();
   }
 
   gotoPage(page: number) {
