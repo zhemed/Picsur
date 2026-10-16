@@ -3,11 +3,19 @@ name: ci
 # push / PR 的构建与依赖审计门禁 —— **不构建也不发布镜像**。
 # 镜像发布走 `release-image.yml`（只有 v* tag 或手动选 tag 才推），两者互不干扰。
 #
-# 门禁内容（与本地口径一致，见 AGENTS.md §3/§6）：
-#   1. pnpm install --frozen-lockfile（锁文件必须与 package.json 一致）
-#   2. pnpm build：shared → backend → frontend（Node 20 + pnpm 9.6.0）
-#   3. bash support/audit-prod.sh：后端/共享生产依赖必须 0 告警
-#   4. Lint：等 ② 线的 ESLint 9 flat config 落地后自动变成硬门禁（见最后一步）
+# 门禁内容（与本地口径一致，见 AGENTS.md §3/§6）与**各自的失败判法**：
+#   1. `pnpm install --frozen-lockfile` —— 需要外网（registry.npmjs.org）。
+#      失败＝锁文件与 package.json 不一致（真问题），或源抖动（重跑一次）。别用 --no-frozen-lockfile 绕。
+#   2. `pnpm build`（shared → backend → frontend）—— 不需要外网。失败＝代码/类型错误，看 tsc/ngc 报错。
+#   3. `bash support/audit-prod.sh` —— 需要外网（pnpm audit 只认官方 registry）。
+#      日志里出现「后端/共享 N 条」＝真的新增了带告警的生产依赖（必须处理）；
+#      只出现 registry 连接错误＝网络问题，重跑即可，不要改脚本。
+#   4. `pnpm lint`（eslint flat config）—— 不需要外网、**也不需要浏览器**：
+#      探针脚本（support/*-probe.cjs）在这里只做静态 lint，真跑它们要本机常驻 Chromium。
+#      报错就是代码问题，按文件:行 修。
+#
+# 一句话：**这个 workflow 里没有任何需要浏览器环境的步骤**。
+# 浏览器相关的验证（34 项镜像回归 support/regression-image-api.sh、视觉/布局探针）在开发机上手动跑。
 #
 # action 全部锁定 commit SHA（由 Dependabot 每周提 PR 更新）。
 
@@ -56,14 +64,12 @@ jobs:
       - name: 依赖审计（后端/共享口径必须 0）
         run: |
           python3 -m pip install --user --quiet pyyaml
-          bash support/audit-prod.sh
-
-      # ② 线（backlog/frontend-debt）把 ESLint 9 flat config 落地后，这一步自动生效；
-      # 在那之前跑 `pnpm lint` 只会因为 .eslintrc.cjs 与 ESLint 9 不兼容而报错，所以先跳过。
-      - name: Lint（flat config 落地后才强制）
-        run: |
-          if compgen -G "eslint.config.*" > /dev/null; then
-            pnpm lint
-          else
-            echo "::notice::还没有 ESLint 9 flat config（只有 .eslintrc.cjs），跳过 pnpm lint"
+          if ! bash support/audit-prod.sh; then
+            echo "::error::审计失败：上面若是 registry.npmjs.org 连接错误 → 网络/源问题（重跑）；若是告警条目 → 必须处理（AGENTS.md §6）"
+            exit 1
           fi
+
+      # eslint flat config 已落地（eslint.config.cjs），这条现在是真门禁：
+      # 不吞退出码、不降级规则、也不把 support/ 排除在外 —— support 脚本只是补了环境 globals。
+      - name: Lint（eslint flat config）
+        run: pnpm lint

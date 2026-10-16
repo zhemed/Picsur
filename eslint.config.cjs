@@ -39,6 +39,67 @@ const GLOBAL_IGNORES = [
   'frontend/src/environments/**',
 ];
 
+/**
+ * Node globals for the CommonJS scripts (`support/*.cjs`, repo configs).
+ *
+ * `js.configs.recommended` turns on `no-undef` for every file it matches, and
+ * these scripts run in Node — without this list `Buffer`, `__filename`,
+ * `setTimeout`… would all be reported as undefined (that is what made CI red
+ * for five runs in a row: `support/make-image-fixtures.cjs` alone had 13 such
+ * errors).
+ */
+const NODE_GLOBALS = {
+  module: 'writable',
+  exports: 'writable',
+  require: 'readonly',
+  process: 'readonly',
+  console: 'readonly',
+  __dirname: 'readonly',
+  __filename: 'readonly',
+  Buffer: 'readonly',
+  setTimeout: 'readonly',
+  clearTimeout: 'readonly',
+  setInterval: 'readonly',
+  clearInterval: 'readonly',
+  setImmediate: 'readonly',
+  URL: 'readonly',
+  URLSearchParams: 'readonly',
+  TextEncoder: 'readonly',
+  TextDecoder: 'readonly',
+  structuredClone: 'readonly',
+  fetch: 'readonly',
+};
+
+/**
+ * Browser globals for the `support/*-probe.cjs` scripts.
+ *
+ * They drive the resident Chromium through Playwright/CDP, so one file holds
+ * both halves: the Node-side orchestration *and* the functions that are
+ * injected into the page (`page.evaluate(...)` bodies are compiled in the
+ * browser, yet eslint sees them in this file). Without browser globals every
+ * `document` / `window` / `getComputedStyle` in those functions is a
+ * false-positive `no-undef` error.
+ *
+ * These probes are **not** run in CI (they need a real browser, see
+ * `.github/workflows/ci.yml`), but they are still linted: that is where the
+ * syntax and dead-code problems get caught.
+ */
+const BROWSER_GLOBALS = {
+  window: 'readonly',
+  document: 'readonly',
+  navigator: 'readonly',
+  location: 'readonly',
+  localStorage: 'readonly',
+  sessionStorage: 'readonly',
+  getComputedStyle: 'readonly',
+  requestAnimationFrame: 'readonly',
+  Node: 'readonly',
+  Element: 'readonly',
+  HTMLElement: 'readonly',
+  Event: 'readonly',
+  MutationObserver: 'readonly',
+};
+
 module.exports = [
   { ignores: GLOBAL_IGNORES },
 
@@ -110,19 +171,21 @@ module.exports = [
     rules: { 'no-useless-escape': 'off' },
   },
 
-  // Repo-level CommonJS config files (this file, the webpack config).
+  // Repo-level CommonJS config files (this file, the webpack config, support/*.cjs).
   {
     files: ['**/*.cjs'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'commonjs',
-      globals: {
-        module: 'writable',
-        require: 'readonly',
-        process: 'readonly',
-        __dirname: 'readonly',
-        console: 'readonly',
-      },
+      globals: { ...NODE_GLOBALS },
+    },
+  },
+
+  // 浏览器探针：Node 编排 + 注入页面的代码混在同一个文件里，两套 globals 都要给（见上面注释）。
+  {
+    files: ['support/**/*-probe.cjs'],
+    languageOptions: {
+      globals: { ...NODE_GLOBALS, ...BROWSER_GLOBALS },
     },
   },
 ];
