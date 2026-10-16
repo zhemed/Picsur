@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import isDocker from 'is-docker';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { UpdateState } from 'picsur-shared/dist/dto/api/update.dto';
 import { Fail, FT, IsFailure } from 'picsur-shared/dist/types/failable';
@@ -412,9 +412,24 @@ export class SelfUpdateService {
       // The helper runs with `restart: on-failure`: it may simply be between
       // two runs. Never touch the containers while it can still be working.
       if (helperId !== null && (await this.isHelperAlive(helperId))) {
-        this.logger.warn(
-          `The update helper is still working (${plan.helperName}), leaving the swap to it`,
+        if (await this.swapStarted(plan)) {
+          this.logger.warn(
+            `The update helper is still working (${plan.helperName}), leaving the swap to it`,
+          );
+          return;
+        }
+
+        // Nothing was touched yet (the old container still runs under its own
+        // name): the helper is alive but unable to do its job. Report it and
+        // release the lock instead of leaving the panel on "updating" forever.
+        this.logger.error(
+          `The update helper cannot start the swap (${plan.helperName}), giving up on this attempt`,
         );
+        this.lastUpdate = {
+          state: 'failed',
+          message: `${message}. The update helper could not start the swap, the instance keeps running unchanged. Details: docker logs ${plan.helperName}`,
+        };
+        this.running = false;
         return;
       }
 
@@ -424,6 +439,21 @@ export class SelfUpdateService {
 
       this.lastUpdate = { state: 'failed', message };
       this.running = false;
+    }
+  }
+
+  /**
+   * Did the swap actually touch anything? True as soon as the old container is
+   * renamed aside, stopped or gone; false while it still runs under its own
+   * name (then a broken helper did not change the world and we can give up).
+   */
+  private async swapStarted(plan: UpdatePlan): Promise<boolean> {
+    try {
+      const old = await this.docker.inspectContainer(plan.self.Id);
+      const name = containerNameFromInspect(old.Name);
+      return !(old.State.Running && name === plan.containerName);
+    } catch {
+      return true;
     }
   }
 
@@ -768,6 +798,42 @@ export class SelfUpdateService {
     );
   }
 
+  /**
+   * GID of the docker socket, as seen from inside this container.
+   *
+   * The socket is `root:docker 0660` on the host. The app container gets access
+   * through compose's `group_add`, but containers we create ourselves through
+   * the API (the update helper and the replacement) do not inherit that - and
+   * since 0.8.0 the regular image runs as the unprivileged `node` user, so
+   * without that group the helper cannot even talk to the socket. A bind mount
+   * keeps the host's numeric gid, so stat() inside the container is enough.
+   */
+  private socketGroupId(): number | null {
+    const socketPath = this.docker.getSocketPath();
+    try {
+      return statSync(socketPath).gid;
+    } catch (error) {
+      this.logger.warn(
+        `Could not read the group of the docker socket (${socketPath}): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return null;
+    }
+  }
+
+  /** Existing groups plus the socket gid (the helper/replacement need it). */
+  private withSocketGroup(
+    existing: string[] | undefined,
+    socketGid: number | null,
+  ): string[] | undefined {
+    const groups = [...(existing ?? [])];
+    if (socketGid !== null && !groups.includes(String(socketGid))) {
+      groups.push(String(socketGid));
+    }
+    return groups.length > 0 ? groups : undefined;
+  }
+
   private buildCreateConfig(plan: UpdatePlan, image: string): unknown {
     const self = plan.self;
     const hostConfigKeys = [
@@ -841,6 +907,15 @@ export class SelfUpdateService {
       }
     }
     if (binds.length > 0) hostConfig['Binds'] = binds;
+
+    // The replacement inherits the socket mount; if the *new* image runs as a
+    // non-root user (0.8.0+ does), it needs the socket's group as well, or the
+    // panel loses the ability to update itself. Harmless for root containers.
+    const socketGroups = this.withSocketGroup(
+      hostConfig['GroupAdd'] as string[] | undefined,
+      this.socketGroupId(),
+    );
+    if (socketGroups !== undefined) hostConfig['GroupAdd'] = socketGroups;
 
     const labels: Record<string, string> = {
       ...(self.Config.Labels ?? {}),
@@ -924,10 +999,24 @@ export class SelfUpdateService {
       apiTimeoutMs: 120000,
     };
 
+    const socketGid = this.socketGroupId();
+    const helperGroups = this.withSocketGroup(undefined, socketGid);
+    if (helperGroups === undefined) {
+      // No usable gid: the only way the helper can still reach the socket is
+      // root. Runs in a container that already has the socket, so this does not
+      // widen the blast radius - but it only happens when we cannot do better.
+      this.logger.warn(
+        'Could not determine the docker socket group; running the update helper as root so the upgrade can still work',
+      );
+    }
+
     return {
       // Run the helper from the image we are currently running: it is known to
       // work, the new image is not trusted until it answered its health probe.
       Image: plan.self.Config.Image,
+      // Unset = the image's own user (0.8.0+ runs as `node`). The helper talks
+      // to the socket, so it needs the same group access the app container has.
+      User: helperGroups === undefined ? '0' : undefined,
       Entrypoint: ['node'],
       Cmd: ['-e', UpdateHelperScript],
       Env: [`PICSUR_UPDATE_JOB=${JSON.stringify(job)}`],
@@ -940,6 +1029,7 @@ export class SelfUpdateService {
       },
       HostConfig: {
         Binds: [plan.socketBind],
+        ...(helperGroups !== undefined ? { GroupAdd: helperGroups } : {}),
         AutoRemove: false,
         // The helper is the only actor during the swap window. If it dies
         // (kill / OOM / docker daemon restart) docker has to bring it back,

@@ -455,3 +455,31 @@ curl -X POST localhost:8091/api/system/update/apply -H "Authorization: Bearer $T
 
 # 3) 坏镜像必须回滚且**只回滚一次**：helper 名 -rolledback、RestartCount 必须为 0、面板 failed
 ```
+
+**非 root 镜像下的 socket 权限（2026-10-16，`zh-default` 真机演练暴露）**
+
+0.8.0 起常规镜像 `USER node`（uid 1000），而宿主 socket 是 `root:docker 0660`。app 容器靠 compose 的
+`group_add: <docker gid>` 拿到权限，**但 helper 与替换容器是 app 用 Docker API 自己建的，不会继承 compose 的 group_add** ——
+于是 helper 一启动就 `EACCES`，旧代码还会把它误报成 `the old container is gone`，面板一直等到客户端超时才报错。
+
+修法（都在 `backend/src/managers/update/**`）：
+
+1. **读 socket 的 gid**：`statSync(<socketPath>).gid`（bind mount 保留宿主数值，容器内读到就是宿主 docker 组）。
+2. **helper 与替换容器都补这个 gid**：`HostConfig.GroupAdd = 老容器的 GroupAdd + socket gid`。
+   helper 仍以**镜像自带用户**跑（不再额外提权），只为它补上缺的那个组；
+   替换容器也补——否则「root 老容器 → node 新镜像」升完级之后，新容器自己又用不了 socket（下一次升级再坏）。
+3. **拿不到 gid 时的兜底**：helper 用 `User: '0'`（它是唯一带 socket 的容器，提权不扩大爆炸半径），并打 warn。
+4. **helper 启动先自检 socket**：`GET /version` 失败就打印真实原因（`EACCES`/`ENOENT`）并退出，不再伪装成「容器不见了」。
+5. `Config.User` 仍按老容器克隆：老容器为空（0.7.x 镜像没有 `USER` 指令）时，新容器回到镜像默认用户——
+   这正是「root 老容器 → node 新镜像」能自然切换的原因（实测 `User=[] → node`）。
+
+实测身份（非 root 实例 8091）：
+
+```
+helper: Config.User=node  HostConfig.GroupAdd=["998"]  → 日志 `uid=1000 gid=1000 groups=998,1000,1000`
+升级后的新容器: Config.User=node  GroupAdd=["998"]     → 下一次升级照旧成功
+```
+
+**给 0.7.x → 0.8.x 用户的注意**：那一次升级是**老代码**在执行，它不会给替换容器补 gid。
+所以从 0.7.x 升上来后请再跑一次 `install.sh`（或 `docker compose up -d`），让 compose 的 `group_add` 落到新容器上；
+否则新容器里的面板会显示"升级命令"而不是按钮（`PICSUR_DOCKER_GID` 要等于 `stat -c %g /var/run/docker.sock`）。
