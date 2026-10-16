@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 31
+- **Total Sessions**: 32
 - **Last Active**: 2026-10-16
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~714 | Active |
+| `journal-1.md` | ~737 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 32 | 2026-10-16 | 图库空白结案：无超时兜底 + 0 值校验坑，发 0.10.4 | `c50802b` | `master` |
 | 31 | 2026-10-16 | 接续中断收尾：确认 spec 提交已合并、CI 绿、清尾巴 | `6257a93` | `master` |
 | 30 | 2026-10-16 | 图库性能：首屏 1.7MB→20KB，请求 24→12 | `6727d6a` | `master` |
 | 29 | 2026-10-16 | 纠正：不存在'默认缩到 512'；/i/<id> 无扩展名=下载原图(404+占位图) | `1d00ac0` | `master` |

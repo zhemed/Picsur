@@ -712,3 +712,26 @@ zh-default 只改前端：picsur-img 增加 native 模式（原生 <img loading=
 ### Status
 
 [OK] **Completed**
+
+
+## Session 32: 图库空白结案：无超时兜底 + 0 值校验坑，发 0.10.4
+<!-- trellis-session: v=2 fp=9eafe3875e665f1d -->
+
+**Date**: 2026-10-16
+**Task**: 图库空白结案：无超时兜底 + 0 值校验坑，发 0.10.4
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户确认修复：'这次好了，几乎秒出图'。真因经用户两次质疑后实测确认——不是响应校验（用户库无 <=0 行；NULL 实测 201），而是前端列表请求无超时/无错误处理导致永远停在加载中。修复：10s 超时+可读错误+重试、缩略图不参与页面 loading。同时修掉真实隐患：width/height=0 会让 /api/image/list 500（本地逐值 A/B：NULL→201、0/负数→500），schema 放宽 nonnegative().nullable() 并新增老行回归（旧 37/1 → 新 38/0）。发布 0.10.4，用户实例复测图库正常且几乎秒出（首屏 1.7MB→20KB）。未解：0 值来源未定论；eslint 未忽略 .run/；9 条 lint warning；Rust spike 保留未推进。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c50802b` | docs(task): close the blank-gallery round with the verified cause |
+
+### Status
+
+[OK] **Completed**
