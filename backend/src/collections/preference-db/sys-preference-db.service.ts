@@ -7,14 +7,17 @@ import {
 } from 'picsur-shared/dist/dto/preferences.dto';
 import {
     SysPreference,
+    SysPreferenceExposedList,
     SysPreferenceList,
     SysPreferenceValidators,
     SysPreferenceValueTypes,
+    isSysPreferenceExposed,
 } from 'picsur-shared/dist/dto/sys-preferences.enum';
 import {
     AsyncFailable,
     Fail,
     FT,
+    Failable,
     HasFailed,
 } from 'picsur-shared/dist/types/failable';
 import { Repository } from 'typeorm';
@@ -125,16 +128,62 @@ export class SysPreferenceDbService {
     return pref.value;
   }
 
-  public async getAllPreferences(): AsyncFailable<DecodedSysPref[]> {
+  /**
+   * Only the preferences the panel is allowed to show. The others are fixed
+   * (environment variables or a startup-only value) and must not leak over the
+   * API - `jwt_secret` in particular would be echoed back in plain text.
+   */
+  public async getExposedPreferences(): AsyncFailable<DecodedSysPref[]> {
     // TODO: We are fetching each value invidually, we should fetch all at once
     const internalSysPrefs = await Promise.all(
-      SysPreferenceList.map((key) => this.getPreference(key)),
+      SysPreferenceExposedList.map((key) => this.getPreference(key)),
     );
     if (internalSysPrefs.some((pref) => HasFailed(pref))) {
       return Fail(FT.Internal, 'Could not get all preferences');
     }
 
     return internalSysPrefs as DecodedSysPref[];
+  }
+
+  public async getExposedPreference(
+    key: string,
+  ): AsyncFailable<DecodedSysPref> {
+    const denied = this.rejectUnexposed(key);
+    if (denied !== null) return denied;
+
+    return this.getPreference(key);
+  }
+
+  /**
+   * The panel path for writing. Fixed preferences are rejected instead of being
+   * silently written to the database where nothing would read them again until
+   * the next restart.
+   */
+  public async setExposedPreference(
+    key: string,
+    value: PrefValueType,
+  ): AsyncFailable<DecodedSysPref> {
+    const denied = this.rejectUnexposed(key);
+    if (denied !== null) return denied;
+
+    return this.setPreference(key, value);
+  }
+
+  private rejectUnexposed(key: string): Failable<DecodedSysPref> | null {
+    if (isSysPreferenceExposed(key)) return null;
+
+    // Unknown keys are left to the normal validation path, so that a typo still
+    // reports "unknown preference" rather than "not editable".
+    if (!SysPreferenceList.includes(key)) return null;
+
+    return Fail(
+      FT.UsrValidation,
+      `'${key}' is fixed and can not be changed from the panel. ${
+        key === SysPreference.JwtSecret
+          ? 'Set PICSUR_JWT_SECRET instead'
+          : 'Change it through the environment or the database'
+      }`,
+    );
   }
 
   // Private

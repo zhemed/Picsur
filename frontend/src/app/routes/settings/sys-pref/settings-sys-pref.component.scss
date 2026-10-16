@@ -1,0 +1,13 @@
+// Same wording style as the about page: a muted note plus an amber warning,
+// both legible in the dark and the light theme.
+.sys-pref-note {
+  margin: 0 0 1rem 0;
+  opacity: 0.7;
+  font-size: 0.85em;
+}
+
+.sys-pref-warn {
+  margin: 0 0 0.5rem 0;
+  color: #d9a400;
+  font-size: 0.85em;
+}

@@ -1,5 +1,7 @@
 <h1>{{ 'settings.systemTitle' | translate }}</h1>
 
+<p class="sys-pref-note">{{ 'settings.systemEnvManaged' | translate }}</p>
+
 <ng-container *ngFor="let category of preferences | async">
   <h2 *ngIf="category.category !== null">
     {{ category.category | translate }}
@@ -14,6 +16,9 @@
         [helpText]="getHelpText(pref.key) | translate"
         [validator]="getValidator(pref.key)"
       ></pref-option>
+      <p class="sys-pref-warn col-12" *ngIf="showAllowEditingWarning(pref)">
+        {{ 'systemPreferences.allowEditing.warning' | translate }}
+      </p>
     </ng-container>
   </div>
 </ng-container>

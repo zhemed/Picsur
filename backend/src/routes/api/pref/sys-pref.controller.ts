@@ -23,7 +23,7 @@ export class SysPrefController {
   @Returns(MultiplePreferencesResponse)
   @EasyThrottle(20)
   async getAllSysPrefs(): Promise<MultiplePreferencesResponse> {
-    const prefs = ThrowIfFailed(await this.prefService.getAllPreferences());
+    const prefs = ThrowIfFailed(await this.prefService.getExposedPreferences());
 
     return {
       results: prefs,
@@ -34,7 +34,9 @@ export class SysPrefController {
   @Get(':key')
   @Returns(GetPreferenceResponse)
   async getSysPref(@Param('key') key: string): Promise<GetPreferenceResponse> {
-    const pref = ThrowIfFailed(await this.prefService.getPreference(key));
+    const pref = ThrowIfFailed(
+      await this.prefService.getExposedPreference(key),
+    );
 
     return pref;
   }
@@ -49,7 +51,7 @@ export class SysPrefController {
     const value = body.value;
 
     const pref = ThrowIfFailed(
-      await this.prefService.setPreference(key, value),
+      await this.prefService.setExposedPreference(key, value),
     );
 
     return {

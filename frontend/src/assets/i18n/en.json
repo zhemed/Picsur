@@ -321,7 +321,8 @@
       "rolesMultiple": "Roles",
       "effectivePermissions": "Effective Permissions",
       "update": "UPDATE"
-    }
+    },
+    "systemEnvManaged": "JWT secret, JWT expiry, BCrypt strength and the convert/edit limits are managed by environment variables and are not editable here."
   },
   "permissions": {
     "imageView": "View Images",
@@ -349,7 +350,6 @@
     "categories": {
       "general": "General",
       "imageProcessing": "Image Processing",
-      "authentication": "Authentication",
       "usage": "Usage"
     },
     "hostOverride": {
@@ -362,43 +362,15 @@
     },
     "allowEditing": {
       "name": "Allow images to be edited",
-      "helpText": "Allow images to be edited (e.g. resize, flip). Using these features will use more CPU power."
-    },
-    "conversionTimeLimit": {
-      "name": "Convert/Edit Time Limit",
-      "helpText": "Time limit for converting/editing images. You may need to increase this on low powered devices."
-    },
-    "conversionMemoryLimit": {
-      "name": "Convert/Edit Memory Limit MB",
-      "helpText": "Memory limit for converting/editing images. You only need to increase this if you are storing massive images."
-    },
-    "jwtSecret": {
-      "name": "JWT Secret",
-      "helpText": "Secret used to sign JWT authentication tokens."
-    },
-    "jwtExpiresIn": {
-      "name": "JWT Expiry Time",
-      "helpText": "Time before JWT authentication tokens expire."
-    },
-    "bcryptStrength": {
-      "name": "BCrypt Strength",
-      "helpText": "Strength of BCrypt hashing algorithm, 10 is recommended. Reduce this if running on a low powered device."
-    },
-    "enableTracking": {
-      "name": "Enable Ackee Web Tracking",
-      "helpText": "Enable tracking of the website usage using Ackee. You will need to set the tracking URL and ID."
+      "helpText": "Allow images to be edited (e.g. resize, flip). Using these features will use more CPU power.",
+      "warning": "Heads up: while editing is off, any request that asks for a converted or edited image (resize, flip, ...) is silently served as the original. Third-party tools that rely on those parameters will look like they do nothing."
     },
     "trackingUrl": {
       "name": "Ackee tracking URL",
       "helpText": "URL of the Ackee tracking server. Requests are proxied, so ensure the X-Forwarded-For header is handled."
     },
     "trackingId": {
-      "name": "Ackee trackign website ID",
+      "name": "Ackee tracking website ID",
       "helpText": "ID of the website to track."
-    },
-    "enableTelemetry": {
-      "name": "Enable System Telemetry",
-      "helpText": "Enable system telemetry, this will send anonymous usage data to the developers."
-    }
-  }
+    }  }
 }

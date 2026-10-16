@@ -321,7 +321,8 @@
       "rolesMultiple": "角色",
       "effectivePermissions": "有效权限",
       "update": "更新"
-    }
+    },
+    "systemEnvManaged": "JWT 密钥、JWT 过期时间、BCrypt 强度与转换/编辑限制由环境变量管理，不在此处修改。"
   },
   "permissions": {
     "imageView": "查看图片",
@@ -349,7 +350,6 @@
     "categories": {
       "general": "常规",
       "imageProcessing": "图像处理",
-      "authentication": "身份验证",
       "usage": "使用情况"
     },
     "hostOverride": {
@@ -362,31 +362,8 @@
     },
     "allowEditing": {
       "name": "允许编辑图片",
-      "helpText": "允许编辑图片（例如缩放、翻转）。使用这些功能将消耗更多 CPU 能力。"
-    },
-    "conversionTimeLimit": {
-      "name": "转换/编辑时间限制",
-      "helpText": "转换/编辑图片的时间限制。在低性能设备上您可能需要增加此值。"
-    },
-    "conversionMemoryLimit": {
-      "name": "转换/编辑内存限制 MB",
-      "helpText": "转换/编辑图片的内存限制。只有在存储大尺寸图片时才需要增加此值。"
-    },
-    "jwtSecret": {
-      "name": "JWT 密钥",
-      "helpText": "用于签署 JWT 身份验证令牌的密钥。"
-    },
-    "jwtExpiresIn": {
-      "name": "JWT 过期时间",
-      "helpText": "JWT 身份验证令牌过期前的时间。"
-    },
-    "bcryptStrength": {
-      "name": "BCrypt 强度",
-      "helpText": "BCrypt 哈希算法的强度，建议为 10。如果在低性能设备上运行，请降低此值。"
-    },
-    "enableTracking": {
-      "name": "启用 Ackee 网络跟踪",
-      "helpText": "使用 Ackee 启用网站使用情况跟踪。您需要设置跟踪 URL 和 ID。"
+      "helpText": "允许编辑图片（例如缩放、翻转）。使用这些功能将消耗更多 CPU 能力。",
+      "warning": "提醒：关闭编辑后，任何要求转换/编辑（缩放、翻转等）的取图请求都会被静默地按原图返回——依赖这些参数的第三方工具会看起来完全没反应。"
     },
     "trackingUrl": {
       "name": "Ackee 跟踪 URL",
@@ -395,10 +372,5 @@
     "trackingId": {
       "name": "Ackee 跟踪网站 ID",
       "helpText": "要跟踪的网站 ID。"
-    },
-    "enableTelemetry": {
-      "name": "启用系统遥测",
-      "helpText": "启用系统遥测，这将向开发者发送匿名的使用数据。"
-    }
-  }
+    }  }
 }

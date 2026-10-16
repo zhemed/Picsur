@@ -3,6 +3,7 @@ import { DecodedPref } from 'picsur-shared/dist/dto/preferences.dto';
 import {
   SysPreference,
   SysPreferenceValidators,
+  isSysPreferenceExposed,
 } from 'picsur-shared/dist/dto/sys-preferences.enum';
 import { map, Observable } from 'rxjs';
 
@@ -33,6 +34,15 @@ export class SettingsSysprefComponent {
     return SysPreferenceValidators[key as SysPreference] ?? z.any();
   }
 
+  /**
+   * With editing turned off the API silently ignores every request carrying
+   * edit parameters (resize, flip, ...), so the admin has to be told instead of
+   * wondering why "nothing happens".
+   */
+  public showAllowEditingWarning(pref: DecodedPref): boolean {
+    return pref.key === SysPreference.AllowEditing && pref.value === false;
+  }
+
   preferences: Observable<
     Array<{ category: string | null; prefs: DecodedPref[] }>
   >;
@@ -40,12 +50,17 @@ export class SettingsSysprefComponent {
   constructor(public readonly sysPrefService: SysPrefService) {
     this.preferences = sysPrefService.live.pipe(
       map((prefs) => {
+        // The backend only serves the exposed preferences, filtering here as
+        // well keeps the page honest if it ever talks to an older backend.
+        const visible = prefs.filter((pref) =>
+          isSysPreferenceExposed(pref.key),
+        );
         const categories = makeUnique(
-          prefs.map((pref) => this.getCategory(pref.key)),
+          visible.map((pref) => this.getCategory(pref.key)),
         );
         return categories.map((category) => ({
           category,
-          prefs: prefs.filter(
+          prefs: visible.filter(
             (pref) => this.getCategory(pref.key) === category,
           ),
         }));
