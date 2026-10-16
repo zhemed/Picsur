@@ -99,7 +99,7 @@ docker run -d --name picsur --restart always -p 8080:8080 -v ./data:/data ghcr.i
 **compose + install.sh（多容器，生产口径）** —— 独立 Postgres 容器，脚本自动生成密钥并部署：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zhemed/picsur/master/install.sh | bash
+# 用户部署只有一种：README 里那条 docker run（all-in-one）
 ```
 
 脚本是**幂等**的（重复执行=升级，不覆盖已有 `.env`、不重建数据卷），支持 `--dir/--port/--version/--admin-password`；
