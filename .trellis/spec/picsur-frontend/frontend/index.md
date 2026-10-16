@@ -68,6 +68,12 @@ This directory contains guidelines for frontend development. Fill in each file w
       已按此修：`.mat-mdc-table`、`.mat-mdc-chip`、`.mat-mdc-dialog-container`（见 `scss/material/material-theme.scss`）；
       新组件（tabs / tooltip / select-panel / paginator / progress …）用同样方式补，
       不要改模板绕、也不要在组件 SCSS 里硬编码颜色。
+- [ ] **删功能要清干净**（2026-10-16，`10-16-update-check-fix` 删 ShareX）：一次删除必须同时处理
+      ① 侧栏入口（它来自路由 `data.page`，删路由即删入口）、② 页面目录与配置生成器、
+      ③ 路由条目、④ **i18n 两本词典的对应词条**（`.shareX` 与 `pages.shareX`，删完复核无孤儿 key）、
+      ⑤ 对比度探针的覆盖（`support/visual-contrast-probe.cjs` 的路由清单里保留**旧地址**，
+      断言它落到 404 而不是白屏）；`app.routing.module.ts` 的 `**` 兜底负责把未知地址送到 `/error/404`。
+      删完用全局搜索（功能名，大小写不敏感）+ 探针全量跑一遍确认。
 - [ ] **不设版本兼容弹窗**（2026-10-16，`10-16-update-check-fix`）：客户端与服务端版本不一致时
       **不做拦截、不弹对话框**（曾经有一个"服务器不兼容"对话框，用户要求整体移除）；
       升级后的刷新由升级流程自己负责（`util/reload-fresh.ts`），不要再引入启动期版本比对。

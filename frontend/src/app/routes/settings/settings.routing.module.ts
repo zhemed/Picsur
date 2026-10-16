@@ -42,19 +42,6 @@ const SettingsRoutes: PRoutes = [
         },
       },
       {
-        path: 'sharex',
-        loadChildren: () =>
-          import('./sharex/settings-sharex.module').then((m) => m.default),
-        data: {
-          permissions: [Permission.ApiKey],
-          page: {
-            title: 'settings.pages.shareX',
-            icon: 'install_desktop',
-            category: 'personal',
-          },
-        },
-      },
-      {
         path: 'users',
         loadChildren: () =>
           import('./users/settings-users.module').then((m) => m.default),

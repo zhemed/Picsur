@@ -78,6 +78,7 @@ const DEFAULT_ROUTES = [
   '/settings/about',
   '/error/401',
   '/error/404',
+  // Removed pages: an old bookmark must land somewhere readable.
 ];
 
 /**
@@ -91,6 +92,7 @@ const EXPECTED_TABLES = [
   '/settings/apikeys',
 ];
 const MIN_TEXT_ELEMENTS = {
+  '/settings/sharex': 5,
   '/upload': 5,
   '/images/1': 5,
   '/user/login': 5,
@@ -219,6 +221,25 @@ function auditInPage(minRatio) {
     }
   }
 
+  // "Stuck loading": the old ShareX page rendered its title plus a permanent
+  // "加载中..." and nothing else, which no contrast check would ever catch.
+  const LOADING_TEXT = /^(loading|加载中|正在加载|载入中)[.…]*$/i;
+  const loadingIndicators = [];
+  for (const element of document.querySelectorAll('body *')) {
+    const text = ownText(element);
+    const visible =
+      element.getClientRects().length > 0 &&
+      getComputedStyle(element).visibility === 'visible';
+    if (!visible) continue;
+    const spins =
+      element.matches(
+        'mat-progress-spinner, mat-progress-bar, .mat-mdc-progress-spinner',
+      ) && element.getBoundingClientRect().width > 0;
+    if ((text && LOADING_TEXT.test(text)) || spins) {
+      loadingIndicators.push(text || element.tagName.toLowerCase());
+    }
+  }
+
   // Coverage: a page that renders no table/chip must not silently "pass".
   const markers = {
     textElements: checked,
@@ -230,7 +251,7 @@ function auditInPage(minRatio) {
     dialogs: document.querySelectorAll('mat-dialog-container').length,
   };
 
-  return { findings, lightPanels, markers };
+  return { findings, lightPanels, markers, loadingIndicators };
 }
 
 async function main() {
@@ -296,6 +317,19 @@ async function main() {
         await page.waitForTimeout(2500);
         audit = await page.evaluate(auditInPage, minRatio);
 
+        // A page may legitimately be loading for a moment; only a loading state
+        // that never clears counts as stuck.
+        if (audit.loadingIndicators.length > 0) {
+          for (
+            let wait = 0;
+            wait < 6 && audit.loadingIndicators.length > 0;
+            wait += 1
+          ) {
+            await page.waitForTimeout(2500);
+            audit = await page.evaluate(auditInPage, minRatio);
+          }
+        }
+
         const needsTable = EXPECTED_TABLES.includes(route);
         const minimum = MIN_TEXT_ELEMENTS[route] ?? DEFAULT_MIN_TEXT_ELEMENTS;
         const tooThin =
@@ -340,6 +374,7 @@ async function main() {
 
       const needsTable = EXPECTED_TABLES.includes(route);
       const minimum = MIN_TEXT_ELEMENTS[route] ?? DEFAULT_MIN_TEXT_ELEMENTS;
+      const stuckLoading = audit.loadingIndicators.length > 0;
       const rendered =
         audit.markers.textElements >= minimum &&
         (!needsTable || audit.markers.tableHeaders > 0);
@@ -361,6 +396,8 @@ async function main() {
         panels: audit.lightPanels.slice(0, 4),
         overlays: overlayAudits,
         markers: audit.markers,
+        loadingIndicators: audit.loadingIndicators.slice(0, 3),
+        stuckLoading,
         rendered,
         httpErrors: statuses.slice(0, 4),
         pageErrors: errors,
@@ -379,7 +416,7 @@ async function main() {
           ? 'ok  '
           : 'FAIL';
       console.log(
-        `${mark} ${lang} ${route.padEnd(20)} low-contrast=${entry.lowContrast} light-panels=${entry.lightPanels} text=${entry.markers.textElements} table=${entry.markers.tableHeaders}/${entry.markers.tableCells} chips=${entry.markers.chips}${overlayAudits.length ? ` overlay=${overlayAudits[0].lowContrast}` : ''}${!rendered ? ' NOT-RENDERED' : ''}${errors.length ? ` errors=${errors.length}` : ''}`,
+        `${mark} ${lang} ${route.padEnd(20)} low-contrast=${entry.lowContrast} light-panels=${entry.lightPanels} text=${entry.markers.textElements} table=${entry.markers.tableHeaders}/${entry.markers.tableCells} chips=${entry.markers.chips}${overlayAudits.length ? ` overlay=${overlayAudits[0].lowContrast}` : ''}${stuckLoading ? ' STUCK-LOADING' : ''}${!rendered && !stuckLoading ? ' NOT-RENDERED' : ''}${errors.length ? ` errors=${errors.length}` : ''}`,
       );
       await context.close();
       await new Promise((resolve) => setTimeout(resolve, gapMs));
