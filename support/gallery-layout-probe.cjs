@@ -164,6 +164,318 @@ function measure() {
   };
 }
 
+/**
+ * Performance half of the probe (`--perf`).
+ *
+ * The owner reported the page as "extremely laggy" and "takes forever to show
+ * anything". Guessing which part is slow is useless, so this mode records:
+ * request counts (image body / HEAD / API), per-picture duration and whether
+ * they overlap or run one after another, when the first picture is visible and
+ * when the last one is, redundant requests (same picture twice, a HEAD before
+ * every GET, a second "correction" request), how many pictures were fetched
+ * before anything was visible, and main thread blocking.
+ */
+
+/** Installed before any page script runs. */
+function installPerfObservers() {
+  window.__gp = { longTasks: [] };
+  try {
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries())
+        window.__gp.longTasks.push(Math.round(entry.duration));
+    }).observe({ entryTypes: ['longtask'] });
+  } catch {
+    /* longtask unsupported in this browser */
+  }
+}
+
+/** Runs in the page: which thumbnails have pixels, and which are on screen. */
+function sampleThumbs() {
+  const viewportH = window.innerHeight;
+  return [...document.querySelectorAll('picsur-img')].map((host) => {
+    const media = host.querySelector('canvas, img');
+    const ready = media
+      ? media.tagName === 'CANVAS'
+        ? media.width > 0 && media.height > 0
+        : media.naturalWidth > 0
+      : false;
+    const rect = host.getBoundingClientRect();
+    return { ready, onScreen: rect.bottom > 0 && rect.top < viewportH };
+  });
+}
+
+const medianOf = (values) => {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return Math.round(sorted[Math.floor(sorted.length / 2)] * 10) / 10;
+};
+const percentileOf = (values, p) => {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return (
+    Math.round(
+      sorted[
+        Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)
+      ] * 10,
+    ) / 10
+  );
+};
+
+async function runPerfOnce(
+  browser,
+  { base, token, outDir, run, route, viewportWidth },
+) {
+  const context = await browser.newContext({
+    viewport: { width: viewportWidth, height: 900 },
+  });
+  await context.addInitScript(installPerfObservers);
+  await context.addInitScript((t) => {
+    try {
+      localStorage.setItem('apiKey', t);
+      localStorage.setItem('picsur.language', 'zh');
+    } catch {
+      /* ignore */
+    }
+  }, token);
+
+  const page = await context.newPage();
+  const imageCalls = new Map();
+  const inFlight = new Set();
+  let maxConcurrent = 0;
+  let apiCalls = 0;
+  let imageBytes = 0;
+  let headBytes = 0;
+
+  page.on('request', (req) => {
+    if (req.url().includes('/api/')) apiCalls += 1;
+    if (!req.url().includes('/i/')) return;
+    const entry = {
+      method: req.method(),
+      start: Date.now(),
+      end: null,
+      status: null,
+    };
+    const list = imageCalls.get(req.url()) ?? [];
+    list.push(entry);
+    imageCalls.set(req.url(), list);
+    inFlight.add(entry);
+    maxConcurrent = Math.max(maxConcurrent, inFlight.size);
+  });
+  let pendingMethods = new Map();
+  page.on('request', (req) => {
+    if (req.url().includes('/i/')) pendingMethods.set(req, req.method());
+  });
+  page.on('response', async (res) => {
+    if (!res.url().includes('/i/')) return;
+    const method = pendingMethods.get(res.request()) ?? res.request().method();
+    const length = Number(res.headers()['content-length'] ?? '0');
+    let bytes = length;
+    if (!bytes) {
+      try {
+        bytes = (await res.body()).length;
+      } catch {
+        bytes = 0;
+      }
+    }
+    if (method === 'HEAD') headBytes += bytes;
+    else imageBytes += bytes;
+    const last = [...imageCalls.values()]
+      .flat()
+      .filter((c) => c.end !== null)
+      .pop();
+    if (last) last.bytes = bytes;
+
+    for (const entry of inFlight) {
+      if (entry.end === null) {
+        entry.end = Date.now();
+        entry.status = res.status();
+        inFlight.delete(entry);
+      }
+    }
+  });
+
+  const t0 = Date.now();
+  await page.goto(`${base}${route}`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 60000,
+  });
+
+  let firstVisible = null;
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline && firstVisible === null) {
+    const state = await page.evaluate(sampleThumbs);
+    if (state.some((s) => s.onScreen && s.ready))
+      firstVisible = Date.now() - t0;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  const loadedBeforeScroll = (await page.evaluate(sampleThumbs)).filter(
+    (s) => s.ready,
+  ).length;
+
+  // walk the page like a user, note when the last picture is ready
+  let allReady = null;
+  const scrollDeadline = Date.now() + 60000;
+  while (Date.now() < scrollDeadline) {
+    await page.evaluate(async () => {
+      for (const host of document.querySelectorAll('picsur-img')) {
+        host.scrollIntoView({ block: 'center' });
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      window.scrollTo(0, 0);
+      document
+        .querySelectorAll('mat-sidenav-content, .mat-drawer-content')
+        .forEach((el) => el.scrollTo?.(0, 0));
+    });
+    const state = await page.evaluate(sampleThumbs);
+    if (state.length > 0 && state.every((s) => s.ready)) {
+      allReady = Date.now() - t0;
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  // Revisit: leave the page and come back, like clicking the sidebar twice.
+  const firstPassEnd = Date.now();
+  const bytesAfterFirstPass = imageBytes + headBytes;
+  const callsBeforeRevisit = [...imageCalls.values()].flat().length;
+  await page.goto('about:blank', { waitUntil: 'load', timeout: 30000 });
+  const t1 = Date.now();
+  await page.goto(`${base}${route}`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 60000,
+  });
+  let revisitVisible = null;
+  const revisitDeadline = Date.now() + 15000;
+  while (Date.now() < revisitDeadline && revisitVisible === null) {
+    const state = await page.evaluate(sampleThumbs);
+    if (state.some((s2) => s2.onScreen && s2.ready))
+      revisitVisible = Date.now() - t1;
+    await new Promise((r) => setTimeout(r, 60));
+  }
+  const allCalls = [...imageCalls.values()].flat();
+  const revisitCalls = allCalls.slice(callsBeforeRevisit);
+  const revisitBytes = revisitCalls.reduce((sum, c) => sum + (c.bytes ?? 0), 0);
+
+  const longTasks = await page.evaluate(() => window.__gp?.longTasks ?? []);
+  const calls = [...imageCalls.values()].flat();
+  const durations = calls.map((c) => (c.end ?? Date.now()) - c.start);
+  const duplicated = [...imageCalls.entries()].filter(
+    ([, list]) => list.length > 1,
+  );
+
+  const result = {
+    run,
+    firstVisibleMs: firstVisible,
+    allReadyMs: allReady,
+    imageRequests: calls.length,
+    imageGets: calls.filter((c) => c.method === 'GET').length,
+    imageHeads: calls.filter((c) => c.method === 'HEAD').length,
+    apiRequests: apiCalls,
+    uniqueImageUrls: imageCalls.size,
+    duplicatedUrls: duplicated.map(([url, list]) => ({
+      path: url.split('/i/')[1],
+      count: list.length,
+    })),
+    maxConcurrentImages: maxConcurrent,
+    loadedBeforeScroll,
+    perImageMs: {
+      median: medianOf(durations),
+      p95: percentileOf(durations, 95),
+      max: Math.round(Math.max(0, ...durations)),
+    },
+    imageBytes,
+    headBytes,
+    totalBytes: imageBytes + headBytes,
+    firstPassMs: firstPassEnd - t0,
+    revisitVisibleMs: revisitVisible,
+    revisitRequests: revisitCalls.length,
+    revisitBytes,
+    longTasks: longTasks.length,
+    longTaskTotalMs: longTasks.reduce((a, b) => a + b, 0),
+    longestTaskMs: Math.round(Math.max(0, ...longTasks)),
+  };
+  await page.screenshot({ path: `${outDir}/perf-run${run}.png` });
+  await context.close();
+  return result;
+}
+
+async function runPerf(args) {
+  const base = (args.base || 'http://127.0.0.1:8095').replace(/\/$/, '');
+  const cdp = args.cdp || 'http://127.0.0.1:9222';
+  const token = args.token || process.env.PICSUR_PROBE_TOKEN || '';
+  const runs = Number(args.runs || 3);
+  const route = args.route || '/images/1';
+  const viewportWidth = Number(args.viewport || 1440);
+  const outDir = args.out || '/tmp/gallery-perf';
+  fs.mkdirSync(outDir, { recursive: true });
+
+  const { chromium } = loadPlaywright();
+  const browser = await chromium.connectOverCDP(cdp, { timeout: 30000 });
+  const results = [];
+  for (let run = 1; run <= runs; run += 1) {
+    const result = await runPerfOnce(browser, {
+      base,
+      token,
+      outDir,
+      run,
+      route,
+      viewportWidth,
+    });
+    results.push(result);
+    console.log(
+      `run ${run}: 首图可见 ${result.firstVisibleMs}ms | 全部就绪 ${result.allReadyMs}ms |` +
+        ` 图片请求 ${result.imageRequests}（GET ${result.imageGets} / HEAD ${result.imageHeads}）| API ${result.apiRequests}` +
+        ` | 并发上限 ${result.maxConcurrentImages} | 滚动前已加载 ${result.loadedBeforeScroll}` +
+        ` | 每图 p50 ${result.perImageMs.median}ms p95 ${result.perImageMs.p95}ms` +
+        ` | 长任务 ${result.longTasks} 个 / ${result.longTaskTotalMs}ms（最长 ${result.longestTaskMs}ms）` +
+        ` | 传输 ${Math.round(result.totalBytes / 1024)}KB（图体 ${Math.round(result.imageBytes / 1024)}KB / HEAD ${Math.round(result.headBytes / 1024)}KB）` +
+        ` | 二次进入 首图 ${result.revisitVisibleMs}ms / ${result.revisitRequests} 请求 / ${result.revisitBytes}B`,
+    );
+    if (result.duplicatedUrls.length > 0) {
+      console.log(
+        `       重复请求 ${result.duplicatedUrls.length} 个: ${JSON.stringify(result.duplicatedUrls.slice(0, 5))}`,
+      );
+    }
+  }
+  await browser.close();
+
+  const summary = {
+    firstVisibleMs: medianOf(
+      results.map((r) => r.firstVisibleMs).filter((v) => v !== null),
+    ),
+    allReadyMs: medianOf(
+      results.map((r) => r.allReadyMs).filter((v) => v !== null),
+    ),
+    imageRequests: medianOf(results.map((r) => r.imageRequests)),
+    imageGets: medianOf(results.map((r) => r.imageGets)),
+    imageHeads: medianOf(results.map((r) => r.imageHeads)),
+    apiRequests: medianOf(results.map((r) => r.apiRequests)),
+    maxConcurrentImages: medianOf(results.map((r) => r.maxConcurrentImages)),
+    loadedBeforeScroll: medianOf(results.map((r) => r.loadedBeforeScroll)),
+    perImageMedianMs: medianOf(
+      results.map((r) => r.perImageMs.median).filter((v) => v !== null),
+    ),
+    perImageP95Ms: medianOf(
+      results.map((r) => r.perImageMs.p95).filter((v) => v !== null),
+    ),
+    totalBytes: medianOf(results.map((r) => r.totalBytes)),
+    revisitVisibleMs: medianOf(
+      results.map((r) => r.revisitVisibleMs).filter((v) => v !== null),
+    ),
+    revisitRequests: medianOf(results.map((r) => r.revisitRequests)),
+    revisitBytes: medianOf(results.map((r) => r.revisitBytes)),
+    imageBytes: medianOf(results.map((r) => r.imageBytes)),
+    longTaskTotalMs: medianOf(results.map((r) => r.longTaskTotalMs)),
+    longestTaskMs: medianOf(results.map((r) => r.longestTaskMs)),
+  };
+  fs.writeFileSync(
+    `${outDir}/perf-report.json`,
+    JSON.stringify({ summary, results }, null, 2),
+  );
+  console.log('\nmedian summary:', JSON.stringify(summary));
+  console.log(`report: ${outDir}/perf-report.json`);
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   const base = (args.base || 'http://127.0.0.1:8095').replace(/\/$/, '');
@@ -173,6 +485,11 @@ async function main() {
   const dprs = (args.dprs || '1,2').split(',').map(Number);
   const outDir = args.out || '/tmp/gallery';
   fs.mkdirSync(outDir, { recursive: true });
+
+  if (args.perf) {
+    await runPerf(args);
+    return;
+  }
 
   const { chromium } = loadPlaywright();
   const browser = await chromium.connectOverCDP(cdp, { timeout: 30000 });
