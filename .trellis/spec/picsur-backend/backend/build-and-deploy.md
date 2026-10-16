@@ -71,7 +71,7 @@ docker compose restart picsur # 验证重启恢复
 | `PICSUR_MAX_FILE_SIZE`                           |     —     | `128000000`                       | 上传字节上限                                                                                                             |
 | `PICSUR_MAX_IMAGE_PIXELS`                        |     —     | `268402689`                       | 图像**像素**上限（`w*h`，sharp 默认 `0x3FFF^2`）；超限上传返回 400 并回显该值，`0` = 不限制。2026-10-13 起（issue #107）。`docker-compose.yml` 已透传（**默认值写死成 268402689，别改成空值**：空串会被 `ParseInt` 解析成 0 = 不限制） |
 | `PICSUR_MAX_DERIVATIVES_PER_IMAGE`               |     —     | `100`                             | 每图最多缓存多少张派生图（转码结果）。**超限只影响落库**：图片仍照常返回给用户，只是不再写库（WARN 日志），用于限制数据库体积；`0`（或负数） = 不限制。审计 A-8 新增。`docker-compose.yml` 已透传 |
-| `PICSUR_UPDATE_CHECK` | ✅ 默认开 | `true` | 面板「关于」页的版本检测：只读 `api.github.com/repos/zhemed/picsur/tags`，缓存 1 小时、失败降级、不发任何实例数据；`false` 关闭时接口返回 `checkEnabled:false`（不是报错）。0.7.0 起 |
+| `PICSUR_UPDATE_CHECK` | ✅ 默认开 | `true` | 面板「关于」页的版本检测：只读 `api.github.com/repos/zhemed/picsur/tags`，缓存 1 小时、失败降级、不发任何实例数据；`false` 关闭时接口返回 `checkEnabled:false`（不是报错）。**显式检查会绕过缓存**（见 §14）。0.7.0 起 |
 | `PICSUR_ALLOW_SELF_UPDATE` | ⚠️ **默认开** | `true` | 面板内一键自升级。**真正的门槛是挂载**：`/var/run/docker.sock` 一旦挂进容器就等于把宿主 docker 的 root 权限交给面板（任意管理员都能起特权容器），只适合完全信任管理员的单机部署。`docker-compose.yml` 默认已挂 socket（要关：删挂载 + 设 `false`，此时按钮退化为显示可复制的升级命令）。可选：`PICSUR_UPDATE_{REPO,API_URL,IMAGE,TAG,TIMEOUT,COMMAND}`、`PICSUR_DOCKER_SOCKET`。**`PICSUR_UPDATE_TAG` 在 all-in-one 部署（tag 形如 `allinone`）会被忽略**：换版本 tag 会拉到入口不同的常规镜像，故只重拉当前 tag（`self-update.service.ts: resolveTarget`） |
 | `PICSUR_VERBOSE`                                 | ❌ 不要开 | `false`                           | **开了会把 JWT secret 与 DB 口令明文写进日志**                                                                           |
 | `PICSUR_TELEMETRY`                               |     —     | `true`                            | **纯装饰**：只影响启动日志里的一行提示，不控制是否出网                                                                   |
@@ -415,6 +415,21 @@ env -u PICSUR_ADMIN_PASSWORD -u PICSUR_JWT_SECRET docker compose up -d --force-r
 | helper（primary） | `<名字>-update-<ts>` | 真正执行「停旧 → 起新 → 探活 → 删旧/回滚」 |
 | helper（rescue） | `<名字>-rescue-<ts>` | 备用：primary 意外消失时接管（见下） |
 
+**手动升级命令必须等于用户真实的部署形态（2026-10-16 修）**：面板做不了升级时会显示一条可复制的
+`docker run`。它只能指向**用户实际在跑的那个镜像**——本项目唯一免编排的形态是
+`ghcr.io/zhemed/picsur:allinone`（内嵌 Postgres，数据在 `/data`），而 `:latest` 是**常规镜像，
+没有内嵌数据库、单独起不来**。这里的坑正是「显示命令的场景 = 用户只能手抄的场景」，抄错就废。
+
+- 能 inspect 到自己：镜像取自身容器的 `Config.Image`，名字/端口/卷/重启策略从
+  `Config.Image` + `HostConfig` + `Mounts` 读真实值（`buildRunArguments`）。
+- 读不到（没挂 socket / 不在容器里）：回落到 `DefaultRunImage`，**它是 `:allinone`，不是 `:latest`**；
+  命令里的名字/端口/卷只能是文档化的默认值（`picsur` / `8080` / `./data`），因为此时确实无从得知真实值。
+  注意 README 的推荐命令还多挂一个 `-v /var/run/docker.sock:...`；回落命令**不带**它——
+  这个分支本身就意味着 socket 不可用，不该把特权挂载塞进给用户的默认命令。
+- `PICSUR_UPDATE_IMAGE` 始终优先于两者（运维显式指定时以它为准）。
+- 已删除「读 `com.docker.compose.*` 标签、输出 `docker compose pull && up -d`」的分支：compose
+  部署方式已从仓库移除，命中残留标签的容器现在也走上面的 `docker run` 重建。
+
 **三条兜底（缺一条就会出现「升级窗口内没有兜底」）**
 
 1. **helper 自身可重启**：helper 带 `restart: on-failure`（最多 5 次），脚本每一步都写成**可重入**
@@ -483,3 +498,52 @@ helper: Config.User=node  HostConfig.GroupAdd=["998"]  → 日志 `uid=1000 gid=
 **给 0.7.x → 0.8.x 用户的注意**：那一次升级是**老代码**在执行，它不会给替换容器补 gid。
 所以从 0.7.x 升上来后请再跑一次 `install.sh`（或 `docker compose up -d`），让 compose 的 `group_add` 落到新容器上；
 否则新容器里的面板会显示"升级命令"而不是按钮（`PICSUR_DOCKER_GID` 要等于 `stat -c %g /var/run/docker.sock`）。
+
+---
+
+## 14. 版本检测的缓存语义：显式检查必刷新（2026-10-16）
+
+`POST /api/system/update/check` 的答案缓存 **1 小时**（失败缓存 2 分钟）。这个缓存**不能一刀切**，
+因为同一个接口有两个意图完全不同的调用方：
+
+| 调用方 | 语义 | 为什么 |
+|---|---|---|
+| 面板「检查更新」按钮 / body `{"force":true}` / `?force=true` | **绕过 TTL，重新问 GitHub** | 用户刚发版，点一下就必须看到新版本号 |
+| 升级进度轮询（每 3s，最长 10 分钟 ≈ 200 次调用） | 用缓存 | GitHub 未认证额度只有 **60 次/小时**，轮询会把额度打光 |
+
+**契约**（`backend/src/managers/update/update-check.service.ts` + `routes/api/system/system-update.controller.ts`）：
+
+- `getLatest(true)` **一定发起自己的请求**，不复用别人正在飞的查询（否则用户点按钮可能拿到轮询早先发起的那个请求的答案）；
+- `getLatest(false)` 先吃缓存，未过期直接返回；未命中时可共享在飞的查询（保护额度）；
+- **只有最新发起的那次查询能写缓存**（单调序号守卫 `newestQuery`）：慢的旧请求晚到也不会把缓存写回旧值；
+- 显式检查支持两种写法，body 与 query 任一为真即生效 —— query 写法让没有请求 DTO 的调用方也能强制刷新；
+- **空 body 必须继续可用**（`POST /check` 历来可以不带 body），所以 `force` 是可选字段，别用校验把空 body 拒掉。
+
+**踩过的坑（0.8.2 用户反馈）**：控制器 `check()` 当时**根本没读请求体**，直接调
+`this.checkService.getLatest()` —— `force` 永远传不下去，于是面板按钮与手工 `{"force":true}` 都吃 1 小时缓存，
+表现成"远端已发 `v0.8.2`，面板仍显示 `0.8.1` 且说当前已是最新"。修在**接口层**，缓存服务本身的 `force` 分支一直是对的。
+
+**必测（改这块时必须复现）**：起一个实例，把 `PICSUR_UPDATE_API_URL` 指到一个可控的假 GitHub API，
+按顺序走，`latest` 必须在第 3 步就变：
+
+```bash
+# 1) 假 API 返回 v0.8.1，普通调用把缓存存成旧值
+curl -X POST localhost:8094/api/system/update/check -H "Authorization: Bearer $T"
+# 2) 假 API 改成返回 v0.8.2（模拟发版）
+# 3) 普通调用**仍应是 0.8.1** ← 证明缓存没被废掉
+curl -X POST localhost:8094/api/system/update/check -H "Authorization: Bearer $T"
+# 4) 显式检查必须**立刻**是 0.8.2
+curl -X POST localhost:8094/api/system/update/check -H "Authorization: Bearer $T" \
+  -H 'Content-Type: application/json' -d '{"force":true}'
+# 5) 另一种写法等价
+curl -X POST 'localhost:8094/api/system/update/check?force=true' -H "Authorization: Bearer $T"
+```
+
+再补一条"回真实 API"的确认：把假 API 从"只答 v0.8.1"切到**代理真 `api.github.com`**，
+`force` 必须返回真·最新 tag（与不带 force 的缓存值不同）。
+
+**不要**改成"每次调用都强制刷新"：升级进度轮询 3s 一次，会把 GitHub 的 60 次/小时额度打光，
+用户看到的是 `Could not check for updates: GitHub answered with HTTP 403`。
+
+**前端配合**：面板「检查更新」按钮发起的调用必须带上 `force`（body 或 `?force=true`）；
+`followUpgrade()` 的进度轮询**不要**带 —— 那是有意的省额度路径。

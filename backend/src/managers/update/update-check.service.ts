@@ -13,7 +13,17 @@ export interface VersionCheckResult {
  * Contract:
  *  - only api.github.com is contacted (nothing else, and never any instance or
  *    user data - the user agent is just "picsur/<our version>")
- *  - the answer is cached for an hour (failures for five minutes)
+ *  - the answer is cached for an hour, failures for two minutes
+ *    (UpdateConfigService.CheckCacheMs / CheckFailureCacheMs)
+ *  - `getLatest(true)` bypasses that cache and always issues its own request to
+ *    GitHub - this is what an explicit check (`POST /api/system/update/check`
+ *    with `force`) does, so a release is visible immediately instead of up to
+ *    an hour later
+ *  - plain `getLatest()` serves the cache, and shares a query that is already
+ *    running, so frequent callers (the upgrade progress poll asks every 3s)
+ *    cannot exhaust GitHub's 60 requests/hour budget for unauthenticated calls
+ *  - the newest version is picked by comparing every returned tag with semver,
+ *    never by trusting the order the API sent them in
  *  - this class never throws: a failure is returned as `error` so the panel can
  *    say "could not check" instead of breaking
  */
@@ -23,6 +33,8 @@ export class UpdateCheckService {
 
   private cache: { at: number; result: VersionCheckResult } | null = null;
   private inflight: Promise<VersionCheckResult> | null = null;
+  /** Monotonic id of the newest query started; only it may write the cache. */
+  private newestQuery = 0;
 
   constructor(private readonly updateConfig: UpdateConfigService) {}
 
@@ -47,27 +59,51 @@ export class UpdateCheckService {
       };
     }
 
-    const now = Date.now();
-    if (!force && this.cache !== null) {
-      const ttl =
-        this.cache.result.error === null
-          ? UpdateConfigService.CheckCacheMs
-          : UpdateConfigService.CheckFailureCacheMs;
-      if (now - this.cache.at < ttl) return this.cache.result;
-    }
+    const cached = this.fromCache(force);
+    if (cached !== null) return cached;
 
-    if (this.inflight !== null) return this.inflight;
+    // A forced check must not piggyback on a query someone else started: the
+    // caller is asking "what is on GitHub *now*" (the upgrade poll fires every
+    // 3s, so a plain `return this.inflight` would hand a button click a query
+    // that began before it). It gets its own request instead.
+    //
+    // Non-forced callers do share the running query: it is a live GitHub
+    // request, so it is not older than the cache, and sharing is what keeps
+    // the poll from spending GitHub's 60 requests/hour budget.
+    if (!force && this.inflight !== null) return this.inflight;
 
-    this.inflight = this.queryGithub()
-      .then((result) => {
+    return this.runQuery();
+  }
+
+  private fromCache(force: boolean): VersionCheckResult | null {
+    if (force || this.cache === null) return null;
+
+    const ttl =
+      this.cache.result.error === null
+        ? UpdateConfigService.CheckCacheMs
+        : UpdateConfigService.CheckFailureCacheMs;
+
+    if (Date.now() - this.cache.at < ttl) return this.cache.result;
+    return null;
+  }
+
+  private runQuery(): Promise<VersionCheckResult> {
+    const id = ++this.newestQuery;
+    const query = this.queryGithub().then((result) => {
+      // Answers can arrive out of order (a forced check may overtake a poll),
+      // and the cache must never move backwards: only the newest query writes.
+      if (id === this.newestQuery) {
         this.cache = { at: Date.now(), result };
-        return result;
-      })
-      .finally(() => {
-        this.inflight = null;
-      });
+      }
+      return result;
+    });
 
-    return this.inflight;
+    const tracked = query.finally(() => {
+      if (this.inflight === tracked) this.inflight = null;
+    });
+    this.inflight = tracked;
+
+    return tracked;
   }
 
   /** Compare a running version against the newest known one. */
