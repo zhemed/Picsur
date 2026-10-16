@@ -149,6 +149,46 @@ $mat-theme-light: (
 @include mat.all-component-typographies($mat-theme);
 @include custom-mat.custom-material($mat-theme);
 
+// Angular Material 19+ themes component internals through `--mat-*` tokens
+// whose fallback chain ends in the *light* theme defaults (near-black text,
+// white surfaces). This app builds a legacy theme map that does not emit them,
+// so any component asking for a token it never got renders unreadable on our
+// dark pages — table headers/cells and chips printed near-black on near-black.
+// Emit the tokens those components ask for from our own palette.
+.mat-mdc-table {
+  --mat-table-header-headline-color: #{map.get(
+      $mat-dark-theme-foreground-palette,
+      text
+    )};
+  --mat-table-row-item-label-text-color: #{map.get(
+      $mat-dark-theme-foreground-palette,
+      text
+    )};
+  --mat-table-row-item-outline-color: #{map.get(
+      $mat-dark-theme-foreground-palette,
+      dividers
+    )};
+  --mat-table-header-container-text-color: #{map.get(
+      $mat-dark-theme-foreground-palette,
+      secondary-text
+    )};
+}
+
+.mat-mdc-chip {
+  --mat-chip-label-text-color: #{map.get(
+      $mat-dark-theme-foreground-palette,
+      text
+    )};
+  --mat-chip-outline-color: #{map.get(
+      $mat-dark-theme-background-palette,
+      hover
+    )};
+  --mat-chip-elevated-container-color: #{map.get(
+      $mat-dark-theme-background-palette,
+      card
+    )};
+}
+
 // Angular Material themes its overlays through `--mat-*` design tokens. The
 // legacy theme map above never emits them, so the dialog fell back to the
 // Material defaults — a *white* surface with near-black text — which showed up

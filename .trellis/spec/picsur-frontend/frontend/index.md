@@ -55,6 +55,19 @@ This directory contains guidelines for frontend development. Fill in each file w
 - [ ] **「关于」页的手动命令块是兜底不是装饰**：只在**可升级**或**升级失败**时显示，
       「已是最新 / 升级中 / 刚升级成功」都不显示（否则会在“一切正常”的页面上挂一大块命令框）。
       实现见 `settings-about.component.ts` 的 `showManualCommand` / `showManualHintLine`。
+- [ ] **Material 大版本升级后必须跑全站对比度探针**：
+      `node support/visual-contrast-probe.cjs --base=<url> --token=<jwt> --out=/tmp/contrast`
+      —— 逐页截图 + 计算每段可见文字的 WCAG 对比度（并单独抓大面积浅色面板），
+      输出每页的低对比数量、覆盖率（文字元素数）与组件标记（表格/徽章/分页器）；
+      页面没渲染出来（空白/限流）也会判失败，不允许"空页面通过"。
+- [ ] **Material 组件的 `--mat-*` 令牌要从我们的调色板显式发出**：
+      本仓库用的是手写 legacy 主题 map，**不会**发这些令牌；组件拿不到时，
+      凡是 fallback 链里带硬编码浅色（`var(--mat-sys-on-surface, rgba(0,0,0,.87))`、
+      `var(--mat-dialog-container-color, white)`）的就会掉进**浅色默认值** ——
+      表现就是黑底上的近黑文字或白色面板（0.8.6 的表格表头/单元格与徽章就是这样）。
+      已按此修：`.mat-mdc-table`、`.mat-mdc-chip`、`.mat-mdc-dialog-container`（见 `scss/material/material-theme.scss`）；
+      新组件（tabs / tooltip / select-panel / paginator / progress …）用同样方式补，
+      不要改模板绕、也不要在组件 SCSS 里硬编码颜色。
 - [ ] **不设版本兼容弹窗**（2026-10-16，`10-16-update-check-fix`）：客户端与服务端版本不一致时
       **不做拦截、不弹对话框**（曾经有一个"服务器不兼容"对话框，用户要求整体移除）；
       升级后的刷新由升级流程自己负责（`util/reload-fresh.ts`），不要再引入启动期版本比对。
