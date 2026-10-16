@@ -180,6 +180,29 @@ push 到任意分支 / PR 触发，跑 4 步（**不构建、不发布镜像**�
 
 ---
 
+### 6.1 挂 `dist` 进容器验证：前端 rebuild 后**必须重启容器**（2026-10-16 实测踩到）
+
+把 `frontend/dist` 以 bind mount 挂进容器跑验收（对比度探针、布局探针都这么用）时，
+**前端每次 rebuild 之后都要 `docker restart <容器>`**，否则容器里看到的是一个**空目录**。
+
+原因：Angular 构建是**先 `rm -rf dist` 再重建**——删掉的正是被挂载的那个目录 inode。
+容器仍旧挂在**已被删除的旧 inode** 上，宿主机的新文件属于另一个 inode，容器永远看不见它。
+（`docker cp` 也救不了：挂载是 `:ro` 时写不进去，而且 inode 已经变了这件事它同样绕不开。）
+
+```bash
+corepack pnpm --filter picsur-frontend build
+docker restart picsur-<stream>          # 重建挂载
+docker exec picsur-<stream> ls /picsur/frontend/dist   # 判据：有文件才算挂对了
+```
+
+替代做法：**挂父目录**（让容器从 `<root>/frontend/dist` 取），或验证前把 dist **拷贝**进容器而不挂载。
+
+> **症状识别**：站点本身是好的（`/api/info` 200、`index.html` 也 200），但浏览器里
+> `cards=0`、查不到 `picsur-img` 元素、或探针报空页面 —— **先 `ls` 容器里那个目录**，
+> 不要去怀疑前端代码。2026-10-16 图库宽高任务就是这样误报过一次 `cards=0`。
+
+---
+
 ## 7. Wrong vs Correct
 
 ### 7.1 本机没有 Node 20 时

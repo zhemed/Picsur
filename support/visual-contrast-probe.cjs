@@ -13,6 +13,13 @@
  * fails when something is below the threshold. Run it after every Material
  * upgrade and whenever a new component is themed.
  *
+ * Coverage: the default route list is 13 routes x 2 languages = 26 entries.
+ * Two of those routes are addresses of pages that were removed, and they carry
+ * a second assertion on top of "readable": the page has to show the 404 copy
+ * (`looksLikeNotFound`), so a broken `**` fallback, a revived old page or a
+ * blank shell fails instead of quietly passing. The numbers are printed at the
+ * end of every run so the split is never ambiguous.
+ *
  * Usage (needs a running instance and, normally, the resident browser):
  *
  *   node support/visual-contrast-probe.cjs \
@@ -74,12 +81,36 @@ const DEFAULT_ROUTES = [
   '/settings/about',
   '/error/401',
   '/error/404',
-  // Pages that were removed: an old bookmark must still land somewhere readable
-  // (the `**` route sends them to /error/404).
+  // Addresses of pages that were removed. They stay in the list on purpose: an
+  // old bookmark has to land on a readable 404, and that is asserted below.
   '/settings/sharex',
   '/settings/apikeys',
   '/settings/roles',
 ];
+
+/**
+ * Removed addresses that must render the 404 page.
+ *
+ * They must not be dropped from the route list: without them nothing would
+ * notice if the `**` fallback stopped working, and a bookmark/redirect that
+ * started rendering an old page again (or a blank one) would go unnoticed.
+ * Checking "has some text" is not enough for that - the page has to say it is
+ * a 404, so these routes are asserted against the error copy itself.
+ */
+const REMOVED_ROUTES = ['/settings/sharex', '/settings/apikeys'];
+
+/** Copy the 404 page shows; one of NOT_FOUND_PHRASES must appear too. */
+const NOT_FOUND_MARKER = '404';
+const NOT_FOUND_PHRASES = [
+  'page not found', // en
+  '页面不存在', // zh
+];
+
+function looksLikeNotFound(bodyText) {
+  const text = String(bodyText ?? '').toLowerCase();
+  if (!text.includes(NOT_FOUND_MARKER)) return false;
+  return NOT_FOUND_PHRASES.some((phrase) => text.includes(phrase.toLowerCase()));
+}
 
 /**
  * A blank page must not "pass", so every route carries a floor: pages that are
@@ -251,7 +282,11 @@ function auditInPage(minRatio) {
     dialogs: document.querySelectorAll('mat-dialog-container').length,
   };
 
-  return { findings, lightPanels, markers, loadingIndicators };
+  // The visible copy, so a caller can assert *what* the page says (the removed
+  // addresses are checked for the 404 notice, not just for "some text").
+  const bodyText = String(document.body?.innerText ?? '').slice(0, 600);
+
+  return { findings, lightPanels, markers, loadingIndicators, bodyText };
 }
 
 async function main() {
@@ -375,9 +410,15 @@ async function main() {
       const needsTable = EXPECTED_TABLES.includes(route);
       const minimum = MIN_TEXT_ELEMENTS[route] ?? DEFAULT_MIN_TEXT_ELEMENTS;
       const stuckLoading = audit.loadingIndicators.length > 0;
+      // A removed address has to prove it landed on the 404 page. "It rendered
+      // something" is not enough: a revived old page, a stuck redirect or a
+      // blank shell would all pass that.
+      const isRemoved = REMOVED_ROUTES.includes(route);
+      const showsNotFound = isRemoved ? looksLikeNotFound(audit.bodyText) : true;
       const rendered =
         audit.markers.textElements >= minimum &&
-        (!needsTable || audit.markers.tableHeaders > 0);
+        (!needsTable || audit.markers.tableHeaders > 0) &&
+        showsNotFound;
 
       const overlayLow = overlayAudits.reduce(
         (sum, a) => sum + a.lowContrast,
@@ -399,6 +440,9 @@ async function main() {
         loadingIndicators: audit.loadingIndicators.slice(0, 3),
         stuckLoading,
         rendered,
+        removedAddress: isRemoved,
+        showsNotFound,
+        bodyTextSample: String(audit.bodyText ?? '').slice(0, 200),
         httpErrors: statuses.slice(0, 4),
         pageErrors: errors,
       };
@@ -416,7 +460,7 @@ async function main() {
           ? 'ok  '
           : 'FAIL';
       console.log(
-        `${mark} ${lang} ${route.padEnd(20)} low-contrast=${entry.lowContrast} light-panels=${entry.lightPanels} text=${entry.markers.textElements} table=${entry.markers.tableHeaders}/${entry.markers.tableCells} chips=${entry.markers.chips}${overlayAudits.length ? ` overlay=${overlayAudits[0].lowContrast}` : ''}${stuckLoading ? ' STUCK-LOADING' : ''}${!rendered && !stuckLoading ? ' NOT-RENDERED' : ''}${errors.length ? ` errors=${errors.length}` : ''}`,
+        `${mark} ${lang} ${route.padEnd(20)} low-contrast=${entry.lowContrast} light-panels=${entry.lightPanels} text=${entry.markers.textElements} table=${entry.markers.tableHeaders}/${entry.markers.tableCells} chips=${entry.markers.chips}${isRemoved ? ` removed-address=404-copy:${showsNotFound ? 'yes' : 'MISSING'}` : ''}${overlayAudits.length ? ` overlay=${overlayAudits[0].lowContrast}` : ''}${stuckLoading ? ' STUCK-LOADING' : ''}${!rendered && !stuckLoading ? (isRemoved && !showsNotFound ? ' NOT-A-404' : ' NOT-RENDERED') : ''}${errors.length ? ` errors=${errors.length}` : ''}`,
       );
       await context.close();
       await new Promise((resolve) => setTimeout(resolve, gapMs));
@@ -427,9 +471,36 @@ async function main() {
   const reportPath = path.join(outDir, 'report.json');
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
   console.log(`\nreport: ${reportPath}`);
+
+  // State the coverage explicitly, because "26 pages" on its own is easy to
+  // misread: the removed addresses are in the same list but are held to a
+  // different assertion.
+  const removedEntries = report.filter((e) => e.removedAddress);
+  const liveEntries = report.length - removedEntries.length;
+  const removedRoutes = new Set(removedEntries.map((e) => e.route));
+  const liveRoutes = new Set(
+    report.filter((e) => !e.removedAddress).map((e) => e.route),
+  );
+  console.log(
+    `coverage: ${report.length} probe entries = ${liveEntries} live pages ` +
+      `(${liveRoutes.size} routes x ${report.length / new Set(report.map((e) => e.route)).size} languages) ` +
+      `+ ${removedEntries.length} removed addresses ` +
+      `(${removedRoutes.size} routes), the removed ones asserted to render the 404 copy`,
+  );
+  const missing404 = removedEntries.filter((e) => !e.showsNotFound);
+  if (missing404.length > 0) {
+    console.log(
+      `  removed addresses that did NOT show the 404 copy: ` +
+        missing404.map((e) => `${e.lang} ${e.route}`).join(', '),
+    );
+  }
+
   console.log(
     failures === 0
-      ? 'PASS: every page is readable'
+      ? 'PASS: every page is readable' +
+          (removedEntries.length > 0
+            ? '; removed addresses render the 404 page'
+            : '')
       : `FAIL: ${failures} page(s) need work`,
   );
   process.exit(failures === 0 ? 0 : 1);
