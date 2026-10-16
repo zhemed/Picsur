@@ -177,6 +177,13 @@ push 到任意分支 / PR 触发，跑 4 步（**不构建、不发布镜像**�
   缺 Node/浏览器 globals，`no-undef` 报 53 处 error，CI 连续 5 次红）。
 - `eslint.config.cjs` 里 globals 的划分是**环境假设**，不是豁免：Node 脚本给 `NODE_GLOBALS`，
   注入浏览器的探针脚本给 `NODE_GLOBALS + BROWSER_GLOBALS`，`no-undef` 全程保持 error。
+- ⚠️ **探针/脚本里「注入页面执行」的代码用到新的浏览器全局时，必须同时在 `eslint.config.cjs` 登记**：
+  这类代码写在 `page.evaluate(...)` / `page.addInitScript(...)` 的回调体里（编译发生在浏览器，eslint 看到的
+  却是 Node 语境），用到任何新 API（`PerformanceObserver`、`IntersectionObserver`、`matchMedia`…）
+  就往 `BROWSER_GLOBALS` 里按字母序补一条再提交。忘了登记的后果是 **CI 的
+  `Lint（eslint flat config）` 步骤硬失败**（`no-undef` 是 error：不吞退出码、不降级规则、不把 `support/` 排除）。
+  这不是假设：**2026-10-16 同一天因此红过两次** —— 先是 `document` / `window` / `getComputedStyle` 等
+  （53 处 error、CI 连续 5 次红），随后是新探针里的 `PerformanceObserver`（2 处 error、0.10.3 那次）。
 
 ---
 
