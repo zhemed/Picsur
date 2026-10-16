@@ -336,7 +336,6 @@ async function runPerfOnce(
 
   // Revisit: leave the page and come back, like clicking the sidebar twice.
   const firstPassEnd = Date.now();
-  const bytesAfterFirstPass = imageBytes + headBytes;
   const callsBeforeRevisit = [...imageCalls.values()].flat().length;
   await page.goto('about:blank', { waitUntil: 'load', timeout: 30000 });
   const t1 = Date.now();
