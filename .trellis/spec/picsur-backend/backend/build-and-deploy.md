@@ -415,6 +415,21 @@ env -u PICSUR_ADMIN_PASSWORD -u PICSUR_JWT_SECRET docker compose up -d --force-r
 | helper（primary） | `<名字>-update-<ts>` | 真正执行「停旧 → 起新 → 探活 → 删旧/回滚」 |
 | helper（rescue） | `<名字>-rescue-<ts>` | 备用：primary 意外消失时接管（见下） |
 
+**手动升级命令必须等于用户真实的部署形态（2026-10-16 修）**：面板做不了升级时会显示一条可复制的
+`docker run`。它只能指向**用户实际在跑的那个镜像**——本项目唯一免编排的形态是
+`ghcr.io/zhemed/picsur:allinone`（内嵌 Postgres，数据在 `/data`），而 `:latest` 是**常规镜像，
+没有内嵌数据库、单独起不来**。这里的坑正是「显示命令的场景 = 用户只能手抄的场景」，抄错就废。
+
+- 能 inspect 到自己：镜像取自身容器的 `Config.Image`，名字/端口/卷/重启策略从
+  `Config.Image` + `HostConfig` + `Mounts` 读真实值（`buildRunArguments`）。
+- 读不到（没挂 socket / 不在容器里）：回落到 `DefaultRunImage`，**它是 `:allinone`，不是 `:latest`**；
+  命令里的名字/端口/卷只能是文档化的默认值（`picsur` / `8080` / `./data`），因为此时确实无从得知真实值。
+  注意 README 的推荐命令还多挂一个 `-v /var/run/docker.sock:...`；回落命令**不带**它——
+  这个分支本身就意味着 socket 不可用，不该把特权挂载塞进给用户的默认命令。
+- `PICSUR_UPDATE_IMAGE` 始终优先于两者（运维显式指定时以它为准）。
+- 已删除「读 `com.docker.compose.*` 标签、输出 `docker compose pull && up -d`」的分支：compose
+  部署方式已从仓库移除，命中残留标签的容器现在也走上面的 `docker run` 重建。
+
 **三条兜底（缺一条就会出现「升级窗口内没有兜底」）**
 
 1. **helper 自身可重启**：helper 带 `restart: on-failure`（最多 5 次），脚本每一步都写成**可重入**

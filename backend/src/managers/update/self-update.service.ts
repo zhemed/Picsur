@@ -28,6 +28,20 @@ const InstanceLabel = 'picsur.update.instance';
 const PrevSuffix = /-prev-\d+$/;
 const NewSuffix = /-new-\d+$/;
 
+/**
+ * Image a manual update command falls back to when nothing better is known.
+ *
+ * This repository ships one ready-to-run deployment: the all-in-one image,
+ * which embeds Postgres and keeps its data under `/data`. `:latest` is the
+ * plain image, needs an external database and cannot start on its own - and a
+ * manual command is shown exactly when the panel cannot upgrade by itself, so
+ * it is the one thing the user has to get right by hand.
+ *
+ * Shared with the controller (which has its own last-resort default for when
+ * building the command throws) so the two can never disagree again.
+ */
+export const DefaultRunImage = 'ghcr.io/zhemed/picsur:allinone';
+
 export interface UpdateStatusInfo {
   state: UpdateState;
   message: string | null;
@@ -181,30 +195,29 @@ export class SelfUpdateService {
     const override = this.updateConfig.getCommandOverride();
     if (override) return override;
 
-    const defaultImage = 'ghcr.io/zhemed/picsur:latest';
-    const allInOneDefault =
-      `docker pull ${defaultImage} && docker rm -f picsur && ` +
+    // The project ships exactly one ready-to-run form: the all-in-one image
+    // (app + Postgres in one container, data under /data). This command is
+    // shown precisely when the panel cannot do the upgrade itself and the user
+    // has to copy something by hand, so it has to be an image that actually
+    // runs. PICSUR_UPDATE_IMAGE still wins when the operator set it.
+    const fallbackImage =
+      this.updateConfig.getImageOverride() ?? DefaultRunImage;
+    const fallbackCommand =
+      `docker pull ${fallbackImage} && docker rm -f picsur && ` +
       `docker run -d --name picsur --restart always -p 8080:8080 ` +
-      `-v ./data:/data ${defaultImage}`;
+      `-v ./data:/data ${fallbackImage}`;
 
     let self: DockerContainerInspect;
     try {
       self = await this.findSelfContainer();
     } catch {
-      return allInOneDefault;
+      // No docker socket, or not running in a container at all: there is
+      // nothing to inspect, so the documented all-in-one invocation is the only
+      // honest answer.
+      return fallbackCommand;
     }
 
-    const labels = self.Config.Labels ?? {};
     const name = containerNameFromInspect(self.Name);
-
-    const workingDir = labels['com.docker.compose.project.working_dir'];
-    const composeFile = labels['com.docker.compose.project.config_files'];
-    if (workingDir) {
-      const fileArg =
-        composeFile && !composeFile.includes(',') ? ` -f ${composeFile}` : '';
-      return `cd ${workingDir} && docker compose${fileArg} pull && docker compose${fileArg} up -d`;
-    }
-
     const env = envToMap(self.Config.Env);
     const image = this.updateConfig.getImageOverride() ?? self.Config.Image;
 
@@ -217,6 +230,10 @@ export class SelfUpdateService {
       );
     }
 
+    // Anything else runs behind an external database and its own orchestration,
+    // so only the pull can be suggested here. (A `docker compose` variant used
+    // to be emitted from the container's compose labels; compose is no longer a
+    // supported deployment path in this repository.)
     return `docker pull ${image}`;
   }
 

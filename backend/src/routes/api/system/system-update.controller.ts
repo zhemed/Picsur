@@ -11,7 +11,10 @@ import { UpdateConfigService } from '../../../config/late/update.config.service.
 import { EasyThrottle } from '../../../decorators/easy-throttle.decorator.js';
 import { RequiredPermissions } from '../../../decorators/permissions.decorator.js';
 import { Returns } from '../../../decorators/returns.decorator.js';
-import { SelfUpdateService } from '../../../managers/update/self-update.service.js';
+import {
+    DefaultRunImage,
+    SelfUpdateService,
+} from '../../../managers/update/self-update.service.js';
 import { UpdateCheckService } from '../../../managers/update/update-check.service.js';
 import { Permission } from '../../../models/constants/permissions.const.js';
 
@@ -77,7 +80,11 @@ export class SystemUpdateController {
       message = `Could not check for updates: ${result.error}`;
     }
 
-    let command = 'docker pull ghcr.io/zhemed/picsur:latest';
+    // Last resort only: `getManualCommand()` already falls back to the
+    // all-in-one image itself. Keep the same image here so the two can never
+    // disagree - suggesting `:latest` would hand the user an image that cannot
+    // start (no embedded database).
+    let command = `docker pull ${DefaultRunImage}`;
     try {
       command = await this.selfUpdate.getManualCommand();
     } catch (error) {
