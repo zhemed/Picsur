@@ -149,6 +149,27 @@ $mat-theme-light: (
 @include mat.all-component-typographies($mat-theme);
 @include custom-mat.custom-material($mat-theme);
 
+// Angular Material themes its overlays through `--mat-*` design tokens. The
+// legacy theme map above never emits them, so the dialog fell back to the
+// Material defaults — a *white* surface with near-black text — which showed up
+// as a bright block on this dark app. It was first seen on the compatibility
+// dialog that opens right after an upgrade (cached frontend bundle + newer
+// server version). Emit the dialog tokens from our own dark palette instead.
+.mat-mdc-dialog-container {
+  --mat-dialog-container-color: #{map.get(
+      $mat-dark-theme-background-palette,
+      dialog
+    )};
+  --mat-dialog-subhead-color: #{map.get(
+      $mat-dark-theme-foreground-palette,
+      text
+    )};
+  --mat-dialog-supporting-text-color: #{map.get(
+      $mat-dark-theme-foreground-palette,
+      secondary-text
+    )};
+}
+
 // .theme-alternate {
 //   @include mat.all-component-colors($mat-theme-light);
 //   @include custom-mat.custom-material($mat-theme-light);

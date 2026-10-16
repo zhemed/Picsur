@@ -195,6 +195,28 @@ export class SettingsAboutComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
+   * Reload onto the freshly started container.
+   *
+   * A plain `reload()` may be answered from the browser cache, which after an
+   * upgrade means the *old* bundle keeps running against the new server — the
+   * compatibility guard then pops its "server not compatible" dialog on a page
+   * that is otherwise fine. The extra parameter makes the document request
+   * unique, so the tab really loads the version that is being served now.
+   */
+  private reloadFresh(): void {
+    const location = this.windowRef.location;
+    try {
+      const url = new URL(location.href);
+      url.searchParams.set('_upgraded', String(Date.now()));
+      location.replace(url.toString());
+      return;
+    } catch {
+      // Anything unexpected: fall back to the plain reload.
+    }
+    location.reload();
+  }
+
+  /**
    * Whether the manual command block should be on the page.
    *
    * It is a fallback, not decoration: showing it while everything is fine (up
@@ -414,7 +436,7 @@ export class SettingsAboutComponent implements AfterViewInit, OnDestroy {
       // Another version answers now, so the new container is serving. Reload
       // instead of leaving a stale bundle in the tab.
       this.upgradePhase = 'restarting';
-      this.windowRef.location.reload();
+      this.reloadFresh();
       return;
     }
 
