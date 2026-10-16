@@ -77,10 +77,21 @@ export class AppModule implements NestModule, OnModuleInit {
   private readonly logger = new Logger(AppModule.name);
 
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(mainCorsConfig).exclude('i/(.*)').forRoutes('*');
+    // Wildcards use the named form that path-to-regexp v8 (Express 5 /
+    // @fastify/middie 9) requires. The previous `(.*)` / `*` spelling still
+    // worked, but only because Nest's LegacyRouteConverter silently rewrote it
+    // at startup to exactly these strings and logged a warning per occurrence.
+    // `{*path}` is the same pattern that rewrite produced, so the matched paths
+    // and the resulting headers are unchanged:
+    //   - `i/{*path}` also matches the bare `/i` prefix, which the rewrite did
+    //     too (it is what the running instance already serves);
+    //   - `/{*path}` matches everything `'*'` matched, including `/`.
+    // Use `{*path}`, not `*path`: the braces keep the wildcard optional, while
+    // `i/*path` would require at least one more segment and change behaviour.
+    consumer.apply(mainCorsConfig).exclude('i/{*path}').forRoutes('{*path}');
     consumer
       .apply(imageCorsConfig, imageCorsOverride, imageCacheSet)
-      .forRoutes('i/(.*)');
+      .forRoutes('i/{*path}');
   }
 
   onModuleInit() {
