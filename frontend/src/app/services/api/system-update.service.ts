@@ -31,14 +31,18 @@ const CHECK_TIMEOUT_MS = 15000;
 export class SystemUpdateService {
   constructor(private readonly api: ApiService) {}
 
-  public async checkForUpdates(): AsyncFailable<UpdateCheckResponse> {
-
-    const r = await this.withTimeout(
+  /**
+   * @param timeoutMs how long to wait for an answer. The manual button keeps the
+   *   generous default; the upgrade progress poll passes a shorter bound so a
+   *   container that is down mid swap is noticed quickly.
+   */
+  public async checkForUpdates(
+    timeoutMs = CHECK_TIMEOUT_MS,
+  ): AsyncFailable<UpdateCheckResponse> {
+    return this.withTimeout(
       this.api.postEmpty(UpdateCheckResponse, '/api/system/update/check'),
-      CHECK_TIMEOUT_MS,
+      timeoutMs,
     );
-
-    return r;
   }
 
   public async applyUpdate(tag?: string): AsyncFailable<UpdateApplyResponse> {

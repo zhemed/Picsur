@@ -16,7 +16,7 @@
     <button
       mat-stroked-button
       type="button"
-      [disabled]="checking || applying"
+      [disabled]="checking || applying || upgrading"
       (click)="checkForUpdates()"
     >
       <mat-icon>refresh</mat-icon>
@@ -31,8 +31,30 @@
       (click)="apply()"
     >
       <mat-icon>system_update_alt</mat-icon>
-      {{ (applying ? 'settings.about.upgrading' : 'settings.about.upgrade') | translate }}
+      {{
+        (upgrading ? 'settings.about.upgrading' : 'settings.about.upgrade')
+          | translate
+      }}
     </button>
+  </div>
+
+  <!-- Progress while the instance is being replaced. -->
+  <div class="about-progress" *ngIf="upgrading">
+    <mat-spinner diameter="20"></mat-spinner>
+    <div class="about-progress-text">
+      <p class="about-status" *ngIf="upgradeTarget !== null">
+        {{
+          'settings.about.upgradingTo' | translate: { version: upgradeTarget }
+        }}
+      </p>
+      <p class="about-status">{{ upgradeMessage | translate }}</p>
+      <p class="about-hint">
+        {{
+          'settings.about.upgradeElapsed'
+            | translate: { seconds: upgradeSeconds }
+        }}
+      </p>
+    </div>
   </div>
 
   <p class="about-status" *ngIf="statusMessage !== null">
@@ -46,6 +68,29 @@
   <p class="about-status about-warn" *ngIf="lastUpdateMessage !== null">
     {{ lastUpdateMessage | translate }}
   </p>
+
+  <!--
+    A failed upgrade always names the version the instance is on now and offers
+    a retry; "the panel can not update" is a different statement and only shows
+    up in the block below.
+  -->
+  <div class="about-failure" *ngIf="shownFailure as failure">
+    <p class="about-status about-warn">{{ failureTitle | translate }}</p>
+    <p class="about-hint">
+      {{
+        'settings.about.failureReason' | translate: { reason: failure.reason }
+      }}
+    </p>
+    <button
+      mat-stroked-button
+      type="button"
+      [disabled]="checking || upgrading || applying"
+      (click)="retryUpgrade()"
+    >
+      <mat-icon>refresh</mat-icon>
+      {{ 'settings.about.retry' | translate }}
+    </button>
+  </div>
 
   <!--
     Only state the self update mode once a check answered. While the answer is

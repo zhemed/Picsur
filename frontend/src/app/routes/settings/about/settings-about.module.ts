@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CopyFieldModule } from '../../../components/copy-field/copy-field.module';
 import { I18nModule } from '../../../i18n/i18n.module';
 import { SettingsAboutComponent } from './settings-about.component';
@@ -16,6 +17,7 @@ import { SettingsAboutRoutingModule } from './settings-about.routing.module';
     CopyFieldModule,
     MatButtonModule,
     MatIconModule,
+    MatProgressSpinnerModule,
   ],
 })
 export default class SettingsAboutRouteModule {}
