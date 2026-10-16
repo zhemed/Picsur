@@ -189,6 +189,68 @@ $mat-theme-light: (
     )};
 }
 
+// The select panel is the same story as the dialog: Material tints it through
+// `--mat-select-panel-background-color`, whose fallback chain
+// (`var(--mat-sys-surface-container)`) resolves to nothing here, which leaves
+// the panel fully transparent — the owner saw the page through the open format
+// picker. Emit the panel and option tokens from our palette.
+.mat-mdc-select-panel {
+  --mat-select-panel-background-color: #{map.get(
+      $mat-dark-theme-background-palette,
+      card
+    )};
+  --mat-option-label-text-color: #{map.get(
+      $mat-dark-theme-foreground-palette,
+      text
+    )};
+  --mat-option-selected-state-label-text-color: #{map.get(
+      $mat-dark-theme-foreground-palette,
+      text
+    )};
+  --mat-option-selected-state-layer-color: #{map.get(
+      $mat-dark-theme-background-palette,
+      selected-button
+    )};
+  --mat-option-hover-state-layer-color: #{map.get(
+      $mat-dark-theme-background-palette,
+      hover
+    )};
+  --mat-option-focus-state-layer-color: #{map.get(
+      $mat-dark-theme-background-palette,
+      hover
+    )};
+
+}
+
+// Material caps the panel at 275px, which does not fit under the field on a
+// 1440x900 window (264px of room below), so the overlay placed the picker
+// *above* it — exactly what the owner asked to stop. A slightly shorter, still
+// scrollable panel fits below and opens downwards.
+//
+// Note the selector: since Angular Material 21 the select panel is rendered
+// with the *popover API* inside the `mat-select` element itself (wrapped in
+// `.cdk-overlay-popover`), not into `.cdk-overlay-container`, so it has to be
+// reached through the component tree. The extra `body` also lifts the rule above
+// Material's own `div.mat-mdc-select-panel { max-height: 275px }`.
+body div.mat-mdc-select-panel {
+  max-height: min(240px, calc(100vh - 160px));
+}
+
+.mat-mdc-select {
+  --mat-select-enabled-trigger-text-color: #{map.get(
+      $mat-dark-theme-foreground-palette,
+      text
+    )};
+  --mat-select-enabled-arrow-color: #{map.get(
+      $mat-dark-theme-foreground-palette,
+      secondary-text
+    )};
+  --mat-select-placeholder-text-color: #{map.get(
+      $mat-dark-theme-foreground-palette,
+      disabled-text
+    )};
+}
+
 // Angular Material themes its overlays through `--mat-*` design tokens. The
 // legacy theme map above never emits them, so the dialog fell back to the
 // Material defaults — a *white* surface with near-black text — which showed up
