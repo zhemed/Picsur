@@ -620,3 +620,26 @@ CI 连红 5 次的根因＝lint 步骤的条件魔法（配置落地后从跳过
 ### Status
 
 [OK] **Completed**
+
+
+## Session 28: 画质结案：PNG 取图逐像素无损，体积差来自重压缩+剥元数据
+<!-- trellis-session: v=2 fp=023e8e7a8da44ccf -->
+
+**Date**: 2026-10-16
+**Task**: 画质结案：PNG 取图逐像素无损，体积差来自重压缩+剥元数据
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户提问：原图 500KB 上传后变 300 多 KB，是否画质被压。Lead 实测结案：/i/<id>.png 返回原尺寸派生图，解码成 raw 逐字节比对差异 0（噪声图 0/1,440,000、渐变图 0/1,440,000），尺寸不变 → 完全无损；体积差只来自 libvips 重压缩 + 剥离元数据（实测 ICC/EXIF/密度全无）。顺带发现（已记录、用户决定暂不处理）：① 不带参数的 /i/<id> 默认缩到 512 宽（800x600→512x361），热链接拿不到原尺寸；② 浏览器 Accept 协商可能给 QOI，实测比 WebP 大 65 倍（图库缩略图已由 zh-default 改走显式 WebP）。结论已写入 spec image-api-contracts.md 新增「取图与画质」小节。用户指示：画质这条直接归档。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `05f2788` | test(contrast): assert removed addresses really render the 404 page |
+
+### Status
+
+[OK] **Completed**
