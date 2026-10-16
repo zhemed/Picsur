@@ -34,11 +34,11 @@ GitHub Actions 的 `ci / build-and-audit` 最近 5 次运行全 failure，用户
 
 ## Acceptance Criteria
 
-- [ ] 本地（Node 20 + pnpm 9.6.0）逐条跑 ci.yml 的四条命令：install / build / audit / lint 全 exit 0。
-- [ ] 分支推送后 `ci / build-and-audit` 变绿，附 run ID 或链接。
-- [ ] `pnpm lint` 输出里 support 三个脚本不再有 error（`no-undef` 合理消解、真实 finding 已修）。
-- [ ] spec 里新增「CI 验收」小节：CI 跑什么、需要外网还是浏览器、失败时怎么判。
-- [ ] 边界：只碰 `.github/workflows/**`、`eslint.config.cjs`、`support/*.cjs`、spec；不碰 `backend/src`、`frontend/src`。
+- [x] 本地（Node 20 + pnpm 9.6.0）逐条跑 ci.yml 的四条命令：install / build / audit / lint 全 exit 0。
+- [x] 分支推送后 `ci / build-and-audit` 变绿：run **38938017883** success（https://github.com/zhemed/picsur/actions/runs/38938017883）。
+- [x] `pnpm lint` 输出里 support 三个脚本不再有 error（`no-undef` 合理消解、真实 finding 已修）：62 problems(53 errors) → 9 problems(0 errors)。
+- [x] spec §6.1 新增「CI 门禁」小节：依赖矩阵 + 失败判法 + 新增步骤的规矩。
+- [x] 边界：只碰 `.github/workflows/**`、`eslint.config.cjs`、`support/*.cjs`、spec；不碰 `backend/src`、`frontend/src`。
 
 ## Notes
 
