@@ -206,8 +206,7 @@
     "pages": {
       "general": "General",
       "apiKeys": "Api Keys",
-      "shareX": "ShareX",
-      "users": "Users",
+        "users": "Users",
       "roles": "Roles",
       "system": "System Settings",
       "about": "About"
@@ -301,17 +300,6 @@
         "maxLength": "Maximum length is 255",
         "unknown": "Unknown error"
       }
-    },
-    "shareX": {
-      "title": "Create a ShareX target config",
-      "description": "Please select an api key to associate with the ShareX target, and then the preferred file format you'd like when sharing.",
-      "apiKey": "Api Key",
-      "imageFormat": "Image Format",
-      "exportConfig": "Export Config",
-      "emptyTitle": "No API keys available",
-      "emptyDescription": "You need to have at least one API key to create a ShareX target config.",
-      "createApiKey": "Create an API key here",
-      "exported": "Exported ShareX config"
     },
     "users": {
       "title": "Users",

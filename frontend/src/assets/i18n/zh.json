@@ -206,8 +206,7 @@
     "pages": {
       "general": "常规",
       "apiKeys": "API 密钥",
-      "shareX": "ShareX",
-      "users": "用户",
+        "users": "用户",
       "roles": "角色",
       "system": "系统设置",
       "about": "关于"
@@ -301,17 +300,6 @@
         "maxLength": "最大长度为 255",
         "unknown": "未知错误"
       }
-    },
-    "shareX": {
-      "title": "创建 ShareX 目标配置",
-      "description": "请选择要与 ShareX 目标关联的 API 密钥，然后选择分享时偏好的文件格式。",
-      "apiKey": "API 密钥",
-      "imageFormat": "图片格式",
-      "exportConfig": "导出配置",
-      "emptyTitle": "没有可用的 API 密钥",
-      "emptyDescription": "您至少需要一个 API 密钥才能创建 ShareX 目标配置。",
-      "createApiKey": "在此创建 API 密钥",
-      "exported": "ShareX 配置已导出"
     },
     "users": {
       "title": "用户",

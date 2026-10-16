@@ -43,6 +43,13 @@ const routes: PRoutes = [
     loadChildren: () =>
       import('./routes/errors/errors.module').then((m) => m.default),
   },
+  // Unknown urls (an old bookmark, a removed page) land on the 404 page. Without
+  // this the router matches nothing and the layout renders an empty outlet,
+  // which looks like a broken white page.
+  {
+    path: '**',
+    redirectTo: 'error/404',
+  },
 ];
 
 @NgModule({
