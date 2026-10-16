@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 22
+- **Total Sessions**: 23
 - **Last Active**: 2026-10-16
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~507 | Active |
+| `journal-1.md` | ~530 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 23 | 2026-10-16 | README 砍到唯一部署命令（面板升级为唯一升级路径） | `8b10e70` | `master` |
 | 22 | 2026-10-16 | 网页端一键升级闭环（0.8.1）—— 状态机/进度/自动刷新 + 非 root 自升级修复 | `11d053e` | `master` |
 | 21 | 2026-10-15 | 清空审计遗留待办（四流）→ 0.8.0 | `3863bb8` | `master` |
 | 20 | 2026-10-15 | 全项目审计（四线）+ 修复（四流）+ 质检 → 0.7.9 | `5535f56` | `master` |

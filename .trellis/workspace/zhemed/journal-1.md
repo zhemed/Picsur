@@ -505,3 +505,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 23: README 砍到唯一部署命令（面板升级为唯一升级路径）
+<!-- trellis-session: v=2 fp=87268991696f1e76 -->
+
+**Date**: 2026-10-16
+**Task**: README 砍到唯一部署命令（面板升级为唯一升级路径）
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户明确：唯一目标=网页端一键升级；唯一部署形态=docker run all-in-one 那条命令（-p 8080:8080、./data、docker.sock），并要求 README 大面积精简、移除 compose 部署方式。已完成：README 重写为 34 行（引言/唯一命令/首登口令/数据目录/升级方式=面板点一下/开发与许可入口，去掉 compose 与 install.sh 的引导）；docker-compose.yml 顶部标注仅内部/开发用，不是用户部署方式、install.sh 顶部标注不推荐（文件保留，供本机开发与发布验证脚本使用）。同期已修：189y.de 从 0.8.0 用同一条命令推到 0.8.1 后页面恢复正常（当前/最新 0.8.1、已是最新），根因是 0.8.0 的页面 bug 造成页面坏了→升不了级→永远坏的死循环。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8b10e70` | docs: one deploy command, and the panel is the upgrade path |
+
+### Status
+
+[OK] **Completed**
