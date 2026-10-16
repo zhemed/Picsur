@@ -205,7 +205,6 @@
     },
     "pages": {
       "general": "常规",
-      "apiKeys": "API 密钥",
         "users": "用户",
       "roles": "角色",
       "system": "系统设置",
@@ -277,30 +276,6 @@
         "invalid": "无效角色名称"
       }
     },
-    "apiKeys": {
-      "title": "API 密钥",
-      "name": "名称",
-      "created": "创建时间",
-      "lastUsed": "最后使用",
-      "actions": "操作",
-      "copy": "复制密钥",
-      "selectPage": "选择 API 密钥页面",
-      "add": "添加 API 密钥",
-      "createTooltip": "创建一个新的 API 密钥",
-      "deleteConfirmTitle": "您确定要删除这个 API 密钥吗？",
-      "copyFailed": "无法将 API 密钥复制到剪贴板",
-      "createdCopied": "API 密钥已创建并复制到剪贴板",
-      "copied": "API 密钥已复制到剪贴板",
-      "copyFailedManual": "无法自动复制 API 密钥，请在下方输入框中选中后手动复制。",
-      "deleted": "API 密钥已删除",
-      "nameUpdated": "API 密钥名称已更新",
-      "errors": {
-        "required": "您必须输入一个值",
-        "minLength": "最小长度为 3",
-        "maxLength": "最大长度为 255",
-        "unknown": "未知错误"
-      }
-    },
     "users": {
       "title": "用户",
       "username": "用户名",
@@ -332,11 +307,9 @@
     "userKeepLogin": "保持登录状态",
     "userRegister": "注册",
     "settings": "查看设置",
-    "apiKey": "使用 API 密钥",
     "imageAdmin": "图片管理员",
     "userAdmin": "用户管理员",
     "roleAdmin": "角色管理员",
-    "apiKeyAdmin": "API 密钥管理员",
     "sysPrefAdmin": "系统管理员"
   },
   "userPreferences": {

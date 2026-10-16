@@ -70,15 +70,16 @@ const DEFAULT_ROUTES = [
   '/user/login',
   '/user/register',
   '/settings/general',
-  '/settings/apikeys',
-  '/settings/sharex',
   '/settings/users',
   '/settings/roles',
   '/settings/system',
   '/settings/about',
   '/error/401',
   '/error/404',
-  // Removed pages: an old bookmark must land somewhere readable.
+  // Pages that were removed: an old bookmark must still land somewhere readable
+  // (the `**` route sends them to /error/404).
+  '/settings/sharex',
+  '/settings/apikeys',
 ];
 
 /**
@@ -89,10 +90,10 @@ const DEFAULT_ROUTES = [
 const EXPECTED_TABLES = [
   '/settings/users',
   '/settings/roles',
-  '/settings/apikeys',
 ];
 const MIN_TEXT_ELEMENTS = {
   '/settings/sharex': 5,
+  '/settings/apikeys': 5,
   '/upload': 5,
   '/images/1': 5,
   '/user/login': 5,
