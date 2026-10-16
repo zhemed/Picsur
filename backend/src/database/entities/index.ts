@@ -1,4 +1,3 @@
-import { EApiKeyBackend } from './apikey.entity.js';
 import { EImageDerivativeBackend } from './images/image-derivative.entity.js';
 import { EImageFileBackend } from './images/image-file.entity.js';
 import { EImageBackend } from './images/image.entity.js';
@@ -16,6 +15,5 @@ export const EntityList = [
   ERoleBackend,
   ESysPreferenceBackend,
   EUsrPreferenceBackend,
-  EApiKeyBackend,
   ESystemStateBackend,
 ];

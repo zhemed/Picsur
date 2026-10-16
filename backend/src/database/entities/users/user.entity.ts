@@ -7,7 +7,6 @@ import {
     PrimaryGeneratedColumn,
 } from 'typeorm';
 import { z } from 'zod';
-import { EApiKeyBackend } from '../apikey.entity.js';
 import { EUsrPreferenceBackend } from '../system/usr-preference.entity.js';
 
 // Different data for public and private
@@ -32,10 +31,6 @@ export class EUserBackend implements OverriddenEUser {
 
   @Column({ nullable: false, select: false })
   hashed_password?: string;
-
-  // This will never be populated, it is only here to auto delete apikeys when a user is deleted
-  @OneToMany(() => EApiKeyBackend, (apikey) => apikey.user)
-  apikeys?: EApiKeyBackend[];
 
   @OneToMany(() => EUsrPreferenceBackend, (pref) => pref.user_id)
   preferences?: EUsrPreferenceBackend[];

@@ -50,7 +50,6 @@ const SystemRoleDefaultsTyped: {
     Permission.UserKeepLogin,
     Permission.UserLogin,
     Permission.Settings,
-    Permission.ApiKey,
   ],
   // Grant all permissions to admin
   admin: PermissionsList,
