@@ -39,17 +39,34 @@
     {{ statusMessage | translate }}
   </p>
 
+  <p class="about-hint" *ngIf="checkFailure !== null && !checking">
+    {{ 'settings.about.checkRetry' | translate }}
+  </p>
+
   <p class="about-status about-warn" *ngIf="lastUpdateMessage !== null">
     {{ lastUpdateMessage | translate }}
   </p>
 
-  <ng-container *ngIf="!selfUpdateEnabled">
+  <!--
+    Only state the self update mode once a check answered. While the answer is
+    unknown (first load, failed or timed out check) the old template rendered
+    the "self update is disabled" text, which told users the feature was off
+    although the backend had it enabled.
+  -->
+  <ng-container *ngIf="!selfUpdateKnown">
+    <p class="about-hint">{{ 'settings.about.selfUpdateUnknown' | translate }}</p>
+  </ng-container>
+
+  <ng-container *ngIf="selfUpdateKnown && selfUpdateEnabled">
+    <p class="about-hint">{{ 'settings.about.manualHint' | translate }}</p>
+  </ng-container>
+
+  <ng-container *ngIf="selfUpdateKnown && !selfUpdateEnabled">
     <p>{{ 'settings.about.selfUpdateDisabled' | translate }}</p>
 
     <copy-field
-      *ngIf="checkResult !== null"
       [label]="'settings.about.command'"
-      [value]="checkResult.command"
+      [value]="checkResult?.command ?? ''"
     ></copy-field>
 
     <p class="about-hint">{{ 'settings.about.manualHint' | translate }}</p>

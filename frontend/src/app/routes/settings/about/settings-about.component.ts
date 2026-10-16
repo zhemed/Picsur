@@ -19,9 +19,19 @@ import { ErrorService } from '../../../util/error-manager/error.service';
 export class SettingsAboutComponent {
   private readonly logger = new Logger(SettingsAboutComponent.name);
 
+  /** Result of the last successful check, null while unknown. */
   public checkResult: UpdateCheckResponse | null = null;
   public checking = false;
   public applying = false;
+
+  /**
+   * Readable reason of the last *failed* check (offline, timeout, 5xx...).
+   *
+   * `checkResult === null` only means "we do not know yet" — it must never be
+   * rendered as "the feature is not enabled", which is what made the about
+   * page lie about self updating while the request was still in flight.
+   */
+  public checkFailure: string | null = null;
 
   constructor(
     private readonly updateService: SystemUpdateService,
@@ -42,8 +52,21 @@ export class SettingsAboutComponent {
     return this.checkResult?.latest ?? null;
   }
 
+  /**
+   * True only when a check actually said so. While the answer is unknown
+   * (loading, failed, timed out) this is false *and* callers must ask
+   * `checkResult !== null` before showing "self update is disabled".
+   */
   public get selfUpdateEnabled(): boolean {
     return this.checkResult?.selfUpdateEnabled ?? false;
+  }
+
+  /**
+   * Whether the self-update section may be explained at all. Without a
+   * successful check the enable/disable state is simply not known yet.
+   */
+  public get selfUpdateKnown(): boolean {
+    return this.checkResult !== null;
   }
 
   public get canUpgrade(): boolean {
@@ -59,7 +82,14 @@ export class SettingsAboutComponent {
   public get statusMessage(): string | null {
     const result = this.checkResult;
     if (this.checking) return 'settings.about.checking';
-    if (result === null) return null;
+    // A failed check keeps its result cleared, so the retry hint is the only
+    // thing left to show. It is *not* a statement about the feature flags.
+    if (result === null) {
+      if (this.checkFailure === null) return null;
+      return this.i18n.instant('settings.about.checkFailed', {
+        reason: this.checkFailure,
+      });
+    }
     if (!result.checkEnabled) return result.message;
     if (result.message !== null) return result.message;
     if (result.updateAvailable && result.latest !== null) {
@@ -89,17 +119,32 @@ export class SettingsAboutComponent {
   }
 
   public async checkForUpdates(): Promise<void> {
+
     if (this.checking) return;
     this.checking = true;
+    // A new attempt must not keep showing the previous failure.
+    this.checkFailure = null;
     try {
       const result = await this.updateService.checkForUpdates();
+
       if (HasFailed(result)) {
+        // Keep the reason on the page: the snackbar disappears, and a silent
+        // "unknown" state is what users read as "updating is disabled".
+        this.checkFailure = result.getReason();
+        this.checkResult = null;
         this.errorService.showFailure(result, this.logger);
         return;
       }
       this.checkResult = result;
+    } catch (e) {
+      // Defensive: the promise is documented to always settle, but a rejected
+      // await must still clear the spinner and say something.
+      this.checkFailure = e instanceof Error ? e.message : String(e);
+      this.checkResult = null;
+      this.logger.error(e);
     } finally {
       this.checking = false;
+
     }
   }
 
@@ -138,6 +183,7 @@ export class SettingsAboutComponent {
       await new Promise((resolve) => setTimeout(resolve, 5000));
 
       const result = await this.updateService.checkForUpdates();
+
       if (HasFailed(result)) continue;
 
       this.checkResult = result;
