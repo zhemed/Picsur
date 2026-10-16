@@ -574,3 +574,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 26: 精简轮收口：0.9.0 + 去角色化设计定稿（暂缓实施）
+<!-- trellis-session: v=2 fp=b2c1d4bac77a84d4 -->
+
+**Date**: 2026-10-16
+**Task**: 精简轮收口：0.9.0 + 去角色化设计定稿（暂缓实施）
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+用户：①四个开放问题由我定 ②先归档不开工。决定：套用默认按钮=做；settings=隐式权限；新用户默认给空（默认拒绝）；角色表不删只冻结。本轮交付：API 密钥前后端移除（含旧库死字符串的非破坏性迁移）、ShareX 移除（顺带补通配路由修白屏）、系统设置 12→5（删两个死设置、密钥不再回显、修拼写与静默无效提示）、发布偶发失败根治（根因是上游 pnpm tarball 的 gyp_main.py 缺 exec 位 + make 自我再生规则按时间戳随机命中；修法=构建阶段显式 root + 补 exec 位 + 断言防复发，验证=清缓存连打3次+3次强制重装依赖全过）。发布 0.9.0。去角色化 design.md 已定稿（S1~S4、2.5~4天）并归档，暂不开工。Rust spike 分支 experiments/rust 保留未推进。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1e0bbaa` | merge: fix/build-perms (make the gyp exec-bit race impossible) [task:10-16-slim-features] |
+
+### Status
+
+[OK] **Completed**
