@@ -666,3 +666,26 @@ prs-stream 复核推翻 Lead 结论：/i/<id> 无扩展名走 variant='original'
 ### Status
 
 [OK] **Completed**
+
+
+## Session 30: 图库性能：首屏 1.7MB→20KB，请求 24→12
+<!-- trellis-session: v=2 fp=15228dd21003ebf2 -->
+
+**Date**: 2026-10-16
+**Task**: 图库性能：首屏 1.7MB→20KB，请求 24→12
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+zh-default 只改前端：picsur-img 增加 native 模式（原生 <img loading=lazy decoding=async>，浏览器负责取图/缓存/优先级/渐进渲染）+ 图库改用 WebP + native；保留按卡片尺寸取图与'绝不放大'语义；view 页 QOI/canvas 保真路径未动。前后对比（同实例同库、3 次中位数）：首图可见 600→485ms、图片请求 24(GET12+HEAD12)→12、首屏传输 1.7MB→20KB(-98.8%)、二次进入 4.2KB。核查澄清：那个 110ms 主线程长任务是 Angular 启动成本（无图页面同样有），与图库无关。格式协商事实：/i/<id> 无扩展名=404（无服务端默认协商）；QOI-first 是前端一处常量（图库缩略图），view 页用 master 格式；故无需改后端。附带发现：Mime2FileType('image/webp') 返回 anim:webp（FileType2MimeMap 顺序与注释不符），留后端线。冷转换 150-200ms/张、浏览器并发下冷首访 p50 221ms -> 判断不需要后端预热(B)。发布 0.10.3。收尾：移除两个已合并 worktree、归档两个任务、清理遗留测试容器。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6727d6a` | chore(release): 0.10.3 |
+
+### Status
+
+[OK] **Completed**
