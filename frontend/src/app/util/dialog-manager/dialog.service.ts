@@ -40,7 +40,14 @@ export class DialogService {
 
   public async showDialog(
     options: ConfirmDialogData,
+    dialogOptions?: {
+      dismissable?: boolean;
+    },
   ): Promise<string | undefined> {
-    return this.showCustomDialog(ConfirmDialogComponent, options);
+    return this.showCustomDialog(
+      ConfirmDialogComponent,
+      options,
+      dialogOptions,
+    );
   }
 }
