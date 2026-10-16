@@ -482,3 +482,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 22: 网页端一键升级闭环（0.8.1）—— 状态机/进度/自动刷新 + 非 root 自升级修复
+<!-- trellis-session: v=2 fp=271d5e00fd9c42f6 -->
+
+**Date**: 2026-10-16
+**Task**: 网页端一键升级闭环（0.8.1）—— 状态机/进度/自动刷新 + 非 root 自升级修复
+**Package**: picsur-shared
+**Branch**: `master`
+
+### Summary
+
+主线目标（用户重申）：『我要的目标一直都是网页端直接更新』。0.8.1 交付：① 前端状态机——检查更新加 15s 上界、『未知≠未启用』、失败给原因+重试；② 升级进度（正在开始/拉镜像重建/服务正在重启…+已用时）；③ 成功后自动 reload 切新版（真机演练 t+9.4s，无人工操作）；④ 失败显示『已回滚到 X』+重试（重试不再 409）；⑤ 修掉 async 状态不触发变更检测（ChangeDetectorRef）这个真正让页面『卡住』的 bug。同期修：非 root 镜像下 helper 读不到 socket（660 root:docker）导致升级静默失败——从容器内 stat 读 socket gid 补进 helper 与替换容器的 GroupAdd，本地 compose 也已把 PICSUR_DOCKER_GID 对齐 998；并修 lastUpdate 卡 running（helper 未开动时落 failed 并释放锁）。验收：在本机**非 root** 实例上用面板 0.8.0→0.8.1 真升成功（过程中 rescue helper 自愈了被中断的那次升级）、数据 23 图/8 迁移不变、面板 current=latest=0.8.1、socket 可写。插曲：用户误把给 Lead 的消息发给子代 zh-default，它开头就被中断、零改动（master/worktree 均干净）；子代 upgrade-panel 的独立 registry 与测试容器已清。用户决定：保留非 root 加固（已能升级）。遗留：Dependabot 12 个 PR 分支（含 Angular 22，与 Node 20 契约冲突，可不理）。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `11d053e` | chore(release): 0.8.1 - the panel upgrade runs to completion |
+
+### Status
+
+[OK] **Completed**
