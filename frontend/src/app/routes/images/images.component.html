@@ -1,4 +1,17 @@
-<mat-progress-spinner *ngIf="images === null"></mat-progress-spinner>
+<mat-progress-spinner
+  *ngIf="images === null && !loadFailed"
+></mat-progress-spinner>
+
+<!--
+  A failed list must be readable and recoverable, never an empty content area:
+  the server answering 500 used to leave the page with nothing but a spinner.
+-->
+<div class="gallery-error" *ngIf="loadFailed">
+  <p>{{ 'images.loadFailed' | translate }}</p>
+  <button mat-stroked-button (click)="retryLoad()">
+    {{ 'common.actions.retry' | translate }}
+  </button>
+</div>
 
 <h2 class="text-center" *ngIf="images !== null && images.length <= 0">
   {{ 'images.empty' | translate }}

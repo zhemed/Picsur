@@ -20,6 +20,7 @@
   },
   "common": {
     "actions": {
+      "retry": "重试",
       "cancel": "取消",
       "close": "关闭",
       "delete": "删除",
@@ -94,6 +95,7 @@
     "clipboardImageError": "从剪贴板获取图片时出错"
   },
   "images": {
+    "loadFailed": "图片列表加载失败，请重试。",
     "empty": "没有可显示的图片",
     "title": "您的图片",
     "uploaded": "上传于",

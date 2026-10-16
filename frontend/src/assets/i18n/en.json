@@ -20,6 +20,7 @@
   },
   "common": {
     "actions": {
+      "retry": "Retry",
       "cancel": "Cancel",
       "close": "CLOSE",
       "delete": "Delete",
@@ -94,6 +95,7 @@
     "clipboardImageError": "Error getting image from clipboard"
   },
   "images": {
+    "loadFailed": "Could not load your images, please try again.",
     "empty": "There are no images to display",
     "title": "Your Images",
     "uploaded": "Uploaded",

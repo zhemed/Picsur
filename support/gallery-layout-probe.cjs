@@ -107,7 +107,9 @@ function measure() {
       // The server clamps to the original, so a picture whose original is
       // smaller than the card can never reach 1:1 on a 2x screen. That is the
       // source's limit, not a sizing bug — but it is worth reporting.
-      sourceLimited: requested > 0 && source ? source.w + 2 < requested : false,
+      sourceLimited:
+        fit === 'none' ||
+        (requested > 0 && source ? source.w + 2 < requested : false),
       buttons: [...card.querySelectorAll('button')].map((b) => ({
         text: b.textContent.trim(),
         ...rect(b),
@@ -146,10 +148,13 @@ function measure() {
     cards,
     rowHeights,
     unloaded: cards.filter((c) => !c.source || c.source.w === 0).length,
-    upscaled: cards.filter((c) => (c.upscale ?? 0) > 1.05 && !c.sourceLimited)
-      .length,
+    // "Upscaled" means the layout stretched a picture past its own pixels
+    // (CSS scale > 1) — that is the blurry kind. A picture drawn 1:1 on a 2x
+    // screen simply does not have the pixels the screen could show, which is
+    // the source's limit, so it is counted separately.
+    upscaled: cards.filter((c) => (c.scale ?? 0) > 1.05).length,
     upscaledBySource: cards.filter(
-      (c) => (c.upscale ?? 0) > 1.05 && c.sourceLimited,
+      (c) => (c.upscale ?? 0) > 1.05 && (c.scale ?? 0) <= 1.05,
     ).length,
     maxScale:
       Math.round(Math.max(0, ...cards.map((c) => c.upscale ?? 0)) * 1000) /
