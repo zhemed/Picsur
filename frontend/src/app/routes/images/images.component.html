@@ -18,6 +18,7 @@
         <picsur-img
           class="fill"
           [class.fit-none]="isSmallThumb(image)"
+          [native]="true"
           [src]="getThumbnailUrl(image)"
           [attr.data-requested-width]="thumbRequestWidth(image)"
           (loadedSize)="onThumbLoaded(image, $event)"

@@ -45,10 +45,25 @@ export class PicsurImgComponent implements OnChanges, OnDestroy {
 
   @ViewChild('targetcanvas') private canvas: ElementRef<HTMLCanvasElement>;
   @ViewChild('targetimg') private img: ElementRef<HTMLImageElement>;
+  @ViewChild('nativeimg') private nativeImg: ElementRef<HTMLImageElement>;
 
   private isInView = false;
 
   @Input('src') imageURL: string | undefined;
+
+  /** Alt text for the native `<img>` mode. */
+  @Input() alt: string | null = null;
+
+  /**
+   * Load the picture as a plain `<img>` the browser fetches itself.
+   *
+   * The default path (HEAD to learn the type, fetch the bytes, decode QOI in a
+   * worker, paint a canvas / build a blob URL) exists for QOI, which browsers
+   * cannot render. For formats they can render it only costs: an extra round
+   * trip to learn the mime type, no use of the HTTP cache, no progressive
+   * rendering, and the decode result has to be pushed through the main thread.
+   */
+  @Input() native = false;
 
   /**
    * Size of the picture that was actually decoded, in pixels.
@@ -68,7 +83,24 @@ export class PicsurImgComponent implements OnChanges, OnDestroy {
   ) {}
 
   ngOnChanges(): void {
+    // The browser owns loading in native mode: `loading=lazy` decides when, and
+    // `(load)` tells us the natural size.
+    if (this.native) return;
     if (this.isInView) this.reload();
+  }
+
+  /** Native mode: the picture decoded, report its real size. */
+  onNativeLoad(img: HTMLImageElement) {
+    this.state = PicsurImgState.Image;
+    this.loadedSize.emit({
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+    });
+  }
+
+  onNativeError() {
+    this.state = PicsurImgState.Error;
+    this.changeDetector.markForCheck();
   }
 
   ngOnDestroy(): void {

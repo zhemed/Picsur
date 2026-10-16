@@ -223,7 +223,9 @@ export class ImagesComponent implements OnInit {
     if (!this.hasKnownSize(image)) return false;
 
     const boxHeight = this.cardWidth * (3 / 4); // .gallery-thumb is 4:3
-    return (image.width ?? 0) < this.cardWidth || (image.height ?? 0) < boxHeight;
+    return (
+      (image.width ?? 0) < this.cardWidth || (image.height ?? 0) < boxHeight
+    );
   }
 
   /**
@@ -264,9 +266,18 @@ export class ImagesComponent implements OnInit {
     return Math.min(1600, Math.max(160, target));
   }
 
+  /**
+   * Thumbnail URL: WebP, sized, never bigger than the original.
+   *
+   * The gallery used to ask for QOI, which browsers cannot render: every
+   * thumbnail then needed a HEAD request to learn the type, a fetch of the
+   * bytes, a worker decode and a canvas paint. It was also 65x bigger than the
+   * same picture as WebP (142 KB vs 2.2 KB for a 340px thumbnail), so a single
+   * page pulled megabytes. WebP is rendered by the browser itself.
+   */
   private buildThumbUrl(image: EImage, width: number): string {
     return (
-      this.imageService.GetImageURL(image.id, ImageFileType.QOI) +
+      this.imageService.GetImageURL(image.id, ImageFileType.WEBP) +
       `?width=${width}&shrinkonly=yes`
     );
   }

@@ -1,5 +1,22 @@
+<!--
+  Native mode: one plain <img> the browser loads itself, which keeps its cache,
+  its priority hints, lazy loading and progressive rendering. Used by the
+  gallery thumbnails (the QOI path below has to fetch, decode and paint by
+  hand, which costs a round trip per picture and blocks the main thread).
+-->
+<img
+  *ngIf="native"
+  [src]="imageURL"
+  loading="lazy"
+  decoding="async"
+  [attr.alt]="alt"
+  (load)="onNativeLoad(nativeimg)"
+  (error)="onNativeError()"
+  #nativeimg
+/>
+
 <canvas
-  *ngIf="state === 'canvas' || state === 'loading'"
+  *ngIf="!native && (state === 'canvas' || state === 'loading')"
   [style.display]="state === 'loading' ? 'none' : 'block'"
   height="0"
   width="0"
@@ -7,16 +24,16 @@
 ></canvas>
 
 <img
-  *ngIf="state === 'image' || state === 'loading'"
+  *ngIf="!native && (state === 'image' || state === 'loading')"
   [style.display]="state === 'loading' ? 'none' : 'block'"
   loading="lazy"
   #targetimg
 />
 
-<mat-icon *ngIf="state === 'error'">broken_image</mat-icon>
+<mat-icon *ngIf="!native && state === 'error'">broken_image</mat-icon>
 
 <mat-spinner
   (nguiInview)="onInview()"
   (nguiOutview)="onOutview()"
-  *ngIf="state === 'init' || state === 'loading'"
+  *ngIf="!native && (state === 'init' || state === 'loading')"
 ></mat-spinner>
