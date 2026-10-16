@@ -271,7 +271,8 @@
       "templateNone": "Clear",
       "permission": "permission",
       "permissionsMultiple": "Permissions",
-      "adminAlwaysAll": "The built-in admin account always has every permission and cannot be edited.",
+      "adminReadonly": "The built-in admin account keeps every permission; only its password can be changed.",
+    "adminAlwaysAll": "The built-in admin account always has every permission and cannot be edited.",
       "effectivePermissions": "Effective Permissions",
       "update": "UPDATE"
     },
